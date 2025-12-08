@@ -211,24 +211,6 @@ main
 - **Feature branches**: Separate branches for each feature (auth, publisher, admin, etc.)
 - **Sub-branches**: Frontend and backend work separated within each feature
 
-## Environment Variables
-
-Required environment variables (add to `.env.local`):
-
-```env
-# Database
-DATABASE_URL=postgresql://user:password@host/database
-
-# Authentication
-BETTER_AUTH_SECRET=your_secret_key_here
-BETTER_AUTH_URL=http://localhost:3000
-
-# Optional: For seeding users
-ADMIN_EMAIL=admin@assets-exchange.com
-ADMIN_PASSWORD=Admin@123
-ADMIN_NAME=Admin User
-```
-
 ## Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs)
