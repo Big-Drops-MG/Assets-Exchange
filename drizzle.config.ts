@@ -1,4 +1,5 @@
 import { defineConfig } from "drizzle-kit";
+
 import { env } from "./env.js";
 
 export default defineConfig({
@@ -9,4 +10,3 @@ export default defineConfig({
     url: env.DATABASE_URL,
   },
 });
-

@@ -20,36 +20,42 @@ A Next.js application for asset exchange management with role-based access contr
 - **Font**: Inter (via Google Fonts)
 - **Build Tool**: Turbopack
 - **Architecture**: MVVM (Model-View-ViewModel)
+- **Testing**: Jest with React Testing Library
+- **Code Quality**: ESLint + Prettier with Husky pre-commit hooks
+- **Security**: CORS, CSP headers, and robots.txt configured
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - pnpm (recommended) or npm/yarn/bun
 
 ### Installation
 
 1. Install dependencies:
+
    ```bash
    pnpm install
    ```
 
 2. Set up environment variables:
    Create a `.env.local` file in the root directory:
+
    ```env
    DATABASE_URL=your_neon_postgresql_connection_string
    BETTER_AUTH_SECRET=your_secret_key
    BETTER_AUTH_URL=http://localhost:3000
    ```
-   
+
    Environment variables are validated using `env.js` with Zod schemas. See the [Environment Variables](#environment-variables) section for all available variables.
 
 3. Set up the database:
+
    ```bash
    # Push schema to database
    pnpm db:push
-   
+
    # Or generate and run migrations
    pnpm db:generate
    pnpm db:migrate
@@ -88,12 +94,33 @@ Start the production server:
 pnpm start
 ```
 
-### Lint
-
-Run ESLint:
+### Code Quality
 
 ```bash
+# Lint code
 pnpm lint
+
+# Fix linting issues automatically
+pnpm lint:fix
+
+# Format code with Prettier
+pnpm format
+
+# Check formatting without changing files
+pnpm format:check
+```
+
+### Testing
+
+```bash
+# Run all tests
+pnpm test
+
+# Run tests in watch mode
+pnpm test:watch
+
+# Run tests with coverage report
+pnpm test:coverage
 ```
 
 ### Database Commands
@@ -202,6 +229,12 @@ assets-exchange/
 - **Type Safety**: Full TypeScript support throughout
 - **Database Seeding**: Scripts to create initial admin and advertiser users
 - **Global Error Handling**: Error boundary for unhandled errors
+- **Testing Setup**: Jest configured with React Testing Library for component and unit testing
+- **Code Formatting**: Prettier configured for consistent code style
+- **Linting**: ESLint with import ordering, TypeScript rules, and Next.js best practices
+- **Git Hooks**: Husky pre-commit hooks with lint-staged for automatic code quality checks
+- **Security**: CORS configuration, Content Security Policy (CSP), and security headers
+- **SEO**: robots.txt configured for search engine optimization
 
 ## Application Roles
 
@@ -270,6 +303,9 @@ ADVERTISER_NAME=Advertiser User
 # Client-side (NEXT_PUBLIC_*)
 NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# CORS Configuration (comma-separated list of allowed origins)
+CORS_ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
 ```
 
 ### Environment Validation
@@ -277,9 +313,63 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 The project uses `env.js` to validate all environment variables at runtime. Invalid or missing required variables will cause the application to fail on startup with clear error messages.
 
 To skip validation:
+
 ```bash
 SKIP_ENV_VALIDATION=true pnpm build
 ```
+
+## Code Quality & Testing
+
+### Pre-commit Hooks
+
+The project uses [Husky](https://typicode.github.io/husky/) and [lint-staged](https://github.com/okonet/lint-staged) to automatically:
+
+- Format code with Prettier
+- Fix ESLint issues
+- Block commits if there are unfixable errors
+
+This ensures consistent code quality across the project.
+
+### Testing
+
+Tests are written using [Jest](https://jestjs.io) and [React Testing Library](https://testing-library.com/react). Test files should be placed in:
+
+- `__tests__/` directory
+- Or use `.test.ts` / `.test.tsx` / `.spec.ts` / `.spec.tsx` file extensions
+
+### Code Formatting
+
+The project uses [Prettier](https://prettier.io) for consistent code formatting. Configuration is in `.prettierrc`.
+
+### Linting
+
+[ESLint](https://eslint.org) is configured with:
+
+- Next.js and TypeScript rules
+- Import ordering and organization
+- Consistent code style rules
+- Prettier integration to avoid conflicts
+
+## Security
+
+### CORS Configuration
+
+CORS is configured in `middleware.ts` to allow requests from specified origins. Configure allowed origins via `CORS_ALLOWED_ORIGINS` environment variable.
+
+### Security Headers
+
+The application includes comprehensive security headers configured in `next.config.ts`:
+
+- Strict Transport Security (HSTS)
+- X-Frame-Options
+- Content Security Policy (CSP)
+- X-Content-Type-Options
+- Referrer-Policy
+- Permissions-Policy
+
+### robots.txt
+
+A `robots.txt` file is configured in `public/robots.txt` to control search engine crawling.
 
 ## Learn More
 
@@ -293,3 +383,7 @@ SKIP_ENV_VALIDATION=true pnpm build
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 - [React Documentation](https://react.dev)
 - [Radix UI Documentation](https://www.radix-ui.com)
+- [Jest Documentation](https://jestjs.io/docs/getting-started)
+- [Prettier Documentation](https://prettier.io/docs/en/)
+- [ESLint Documentation](https://eslint.org/docs/latest/)
+- [Husky Documentation](https://typicode.github.io/husky/)

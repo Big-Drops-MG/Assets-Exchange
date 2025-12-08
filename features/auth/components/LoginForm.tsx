@@ -1,12 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { useLoginViewModel } from "../view-models/useLoginViewModel";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+
+import { useLoginViewModel } from "../view-models/useLoginViewModel";
 
 export function LoginForm() {
   const { handleLogin, isLoading, error } = useLoginViewModel();
@@ -80,4 +88,3 @@ export function LoginForm() {
     </Card>
   );
 }
-

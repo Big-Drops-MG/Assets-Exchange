@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+
 import { signIn } from "@/lib/better-auth-client";
-import type { LoginCredentials, UserRole } from "../types/auth.types";
+
+import type { LoginCredentials } from "../types/auth.types";
 
 export function useLoginViewModel() {
   const [isLoading, setIsLoading] = useState(false);
@@ -30,7 +32,9 @@ export function useLoginViewModel() {
       router.push("/dashboard");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred during login");
+      setError(
+        err instanceof Error ? err.message : "An error occurred during login"
+      );
       setIsLoading(false);
     }
   };
@@ -41,4 +45,3 @@ export function useLoginViewModel() {
     error,
   };
 }
-

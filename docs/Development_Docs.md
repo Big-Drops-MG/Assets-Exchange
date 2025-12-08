@@ -90,32 +90,37 @@ assets-exchange/
 ### Setup
 
 1. Install dependencies:
+
    ```bash
    pnpm install
    ```
 
 2. Set up environment variables:
    Create `.env.local` file:
+
    ```env
    DATABASE_URL=your_neon_postgresql_connection_string
    BETTER_AUTH_SECRET=your_secret_key
    BETTER_AUTH_URL=http://localhost:3000
    ```
-   
+
    Environment variables are validated using `env.js` with Zod schemas. See the [Environment Variables](#environment-variables) section for all available variables.
 
 3. Set up database:
+
    ```bash
    # Push schema to database
    pnpm db:push
    ```
 
 4. Seed admin user (optional):
+
    ```bash
    pnpm seed:admin
    ```
 
 5. Start development server:
+
    ```bash
    pnpm dev
    ```
@@ -135,6 +140,12 @@ assets-exchange/
 - **oRPC**: Type-safe RPC with OpenAPI support
 - **t3-env**: Type-safe environment variable validation
 - **React Hook Form + Zod**: Form validation
+- **Jest**: Testing framework
+- **React Testing Library**: Component testing utilities
+- **Prettier**: Code formatter
+- **ESLint**: Code linter with Next.js and TypeScript rules
+- **Husky**: Git hooks manager
+- **lint-staged**: Run linters on staged files
 
 ## Routing Structure
 
@@ -156,6 +167,7 @@ All dashboard routes require authentication and redirect based on user role:
 - `/dashboard/*` - Role-specific routes
 
 **Route Groups:**
+
 - `(admin)` - Admin-only routes
 - `(advertiser)` - Advertiser-only routes
 - `(administrator)` - Administrator-only routes
@@ -165,6 +177,7 @@ All dashboard routes require authentication and redirect based on user role:
 ### Creating a New Feature
 
 1. Create feature folder in `features/`:
+
    ```
    features/my-feature/
    ├── components/
@@ -200,11 +213,11 @@ export function LoginForm() {
 export function useLoginViewModel() {
   const [isLoading, setIsLoading] = useState(false);
   const authService = useAuthService();
-  
+
   const handleLogin = async (credentials) => {
     // Business logic
   };
-  
+
   return { handleLogin, isLoading };
 }
 
@@ -287,6 +300,7 @@ The project uses Better Auth with Neon PostgreSQL for authentication:
 ### Database Schema
 
 Authentication uses four main tables:
+
 - `user` - User accounts with role field
 - `session` - Active user sessions
 - `account` - Authentication accounts (email/password, OAuth)
@@ -295,6 +309,7 @@ Authentication uses four main tables:
 ### User Roles
 
 User roles determine dashboard access:
+
 - **admin** - Admin dashboard access
 - **advertiser** - Advertiser dashboard access
 - **administrator** - Administrator dashboard access
@@ -302,6 +317,7 @@ User roles determine dashboard access:
 ### Authentication Helpers
 
 **Server-side:**
+
 ```typescript
 import { getCurrentUser } from "@/lib/get-user";
 import { requireAuth, requireRole } from "@/lib/auth-helpers";
@@ -317,6 +333,7 @@ const user = await requireRole("admin");
 ```
 
 **Client-side:**
+
 ```typescript
 import { useSession, signIn, signOut } from "@/lib/better-auth-client";
 
@@ -372,7 +389,7 @@ export function MyForm() {
   const form = useForm({
     resolver: zodResolver(schema),
   });
-  
+
   return <form onSubmit={form.handleSubmit(onSubmit)}>...</form>;
 }
 ```
@@ -427,6 +444,7 @@ main
 ```
 
 **Branch Structure:**
+
 - **main**: Production-ready code
 - **dev**: Development integration branch
 - **Feature branches**: One branch per feature (auth, publisher, admin, advertiser, administrator)
@@ -435,6 +453,7 @@ main
 ### Working with Branches
 
 **Switch to a branch:**
+
 ```bash
 git checkout dev
 git checkout auth
@@ -442,17 +461,20 @@ git checkout auth-frontend
 ```
 
 **Create a new branch:**
+
 ```bash
 git checkout dev
 git checkout -b new-feature
 ```
 
 **See all branches:**
+
 ```bash
 git branch
 ```
 
 **Merge workflow example:**
+
 ```bash
 # Work on frontend
 git checkout auth-frontend
@@ -484,8 +506,16 @@ pnpm build
 # Production
 pnpm start
 
-# Lint
-pnpm lint
+# Code Quality
+pnpm lint           # Check for linting errors
+pnpm lint:fix       # Fix linting issues automatically
+pnpm format         # Format all files with Prettier
+pnpm format:check   # Check formatting without changing files
+
+# Testing
+pnpm test           # Run all tests
+pnpm test:watch     # Run tests in watch mode
+pnpm test:coverage  # Run tests with coverage report
 
 # Database
 pnpm db:generate    # Generate migration files
@@ -500,11 +530,14 @@ pnpm seed:advertiser # Create advertiser user
 
 ### Before Committing
 
-1. Run `pnpm lint`
-2. Test your changes
-3. Ensure TypeScript compiles
-4. Check responsive design
-5. Make sure you're on the correct branch
+1. Run `pnpm lint` to check for errors
+2. Run `pnpm format` to ensure consistent formatting
+3. Run `pnpm test` to verify tests pass
+4. Ensure TypeScript compiles (`pnpm build`)
+5. Check responsive design
+6. Make sure you're on the correct branch
+
+**Note**: Pre-commit hooks will automatically format and lint your code before commits. If there are unfixable errors, the commit will be blocked.
 
 ## Database
 
@@ -545,6 +578,7 @@ pnpm seed:advertiser
 ```
 
 Customize credentials via environment variables:
+
 ```env
 ADMIN_EMAIL=your-email@example.com
 ADMIN_PASSWORD=YourPassword123
@@ -580,6 +614,9 @@ ADVERTISER_NAME=Advertiser User
 # Client-side (NEXT_PUBLIC_*)
 NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# CORS Configuration (comma-separated list of allowed origins)
+CORS_ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
 ```
 
 ### Environment Validation
@@ -587,11 +624,12 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 The project uses `env.js` to validate all environment variables at runtime:
 
 - **Server variables**: Validated on server-side (DATABASE_URL, BETTER_AUTH_SECRET, etc.)
-- **Client variables**: Validated for client-side use (NEXT_PUBLIC_*)
+- **Client variables**: Validated for client-side use (NEXT*PUBLIC*\*)
 - **Type safety**: Full TypeScript support with Zod schemas
 - **Runtime validation**: Invalid or missing required variables cause startup failures with clear error messages
 
 To skip validation (e.g., in CI):
+
 ```bash
 SKIP_ENV_VALIDATION=true pnpm build
 ```
@@ -631,6 +669,158 @@ const result = await rpc.health();
 
 RPC requests are handled at `/api/rpc/*` via `app/api/rpc/[...path]/route.ts`.
 
+## Testing
+
+### Jest Configuration
+
+The project uses [Jest](https://jestjs.io) for testing with the following setup:
+
+- **Configuration**: `jest.config.js` - Jest configuration with Next.js integration
+- **Setup File**: `jest.setup.js` - Test environment setup
+- **Test Environment**: jsdom for React component testing
+- **Path Aliases**: Supports `@/` and `@/features/*` path aliases
+
+### Writing Tests
+
+Test files should be placed in:
+
+- `__tests__/` directory, or
+- Use `.test.ts` / `.test.tsx` / `.spec.ts` / `.spec.tsx` extensions
+
+Example test:
+
+```typescript
+import { render, screen } from "@testing-library/react";
+import { MyComponent } from "@/components/MyComponent";
+
+describe("MyComponent", () => {
+  it("renders correctly", () => {
+    render(<MyComponent />);
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+  });
+});
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+pnpm test
+
+# Run tests in watch mode (for development)
+pnpm test:watch
+
+# Generate coverage report
+pnpm test:coverage
+```
+
+## Code Quality
+
+### Prettier
+
+[Prettier](https://prettier.io) is configured for consistent code formatting:
+
+- **Configuration**: `.prettierrc` - Prettier rules
+- **Ignore File**: `.prettierignore` - Files to skip formatting
+
+Key formatting rules:
+
+- Semicolons enabled
+- Double quotes
+- 80 character line width
+- 2 space indentation
+- Trailing commas (ES5 compatible)
+
+### ESLint
+
+[ESLint](https://eslint.org) is configured with comprehensive rules:
+
+- **Configuration**: `eslint.config.mjs` - ESLint rules
+- **Integration**: Works with Prettier via `eslint-config-prettier`
+
+Key rules:
+
+- Import ordering and organization
+- TypeScript best practices
+- React and Next.js rules
+- Consistent code style
+- Unused variable detection (allows `_` prefix)
+
+### Pre-commit Hooks
+
+[Husky](https://typicode.github.io/husky/) and [lint-staged](https://github.com/okonet/lint-staged) are configured to:
+
+1. Format staged files with Prettier
+2. Fix ESLint issues automatically
+3. Block commits if there are unfixable errors
+
+**Configuration**:
+
+- `.husky/pre-commit` - Pre-commit hook script
+- `package.json` - lint-staged configuration
+
+### Code Style Guidelines
+
+1. **Import Organization**: Imports are automatically sorted:
+   - Built-in modules first
+   - External packages
+   - Internal modules (`@/`)
+   - Relative imports
+   - Empty lines between groups
+
+2. **Type Imports**: Use `import type` for type-only imports:
+
+   ```typescript
+   import type { User } from "@/types";
+   ```
+
+3. **Unused Variables**: Prefix with `_` if intentionally unused:
+
+   ```typescript
+   const [_unused, used] = someFunction();
+   ```
+
+4. **Console Statements**: Use logger instead of `console.log`:
+   ```typescript
+   import { logger } from "@/lib/logger";
+   logger.app.info("Message");
+   ```
+
+## Security
+
+### CORS Configuration
+
+CORS (Cross-Origin Resource Sharing) is configured in `middleware.ts`:
+
+- **Allowed Origins**: Configured via `CORS_ALLOWED_ORIGINS` environment variable
+- **Credentials**: Enabled for authenticated requests
+- **Methods**: GET, POST, PUT, DELETE, OPTIONS, PATCH
+- **Headers**: Content-Type, Authorization, X-Requested-With
+
+### Security Headers
+
+Comprehensive security headers are configured in `next.config.ts`:
+
+- **Strict-Transport-Security (HSTS)**: Enforces HTTPS
+- **X-Frame-Options**: Prevents clickjacking
+- **X-Content-Type-Options**: Prevents MIME sniffing
+- **Content-Security-Policy (CSP)**: Restricts resource loading
+- **Referrer-Policy**: Controls referrer information
+- **Permissions-Policy**: Restricts browser features
+
+CSP is environment-aware:
+
+- Development: Allows `unsafe-eval` and `unsafe-inline` for Next.js
+- Production: Uses `strict-dynamic` for better security
+
+### robots.txt
+
+Search engine crawling is controlled via `public/robots.txt`:
+
+- Allows all user agents
+- Disallows `/api/`, `/dashboard/`, `/auth/`, `/unauthorized/`
+- Includes sitemap reference
+
 ## Troubleshooting
 
 ### Common Issues
@@ -644,6 +834,11 @@ RPC requests are handled at `/api/rpc/*` via `app/api/rpc/[...path]/route.ts`.
 7. **Environment variables not loading**: Ensure `.env.local` exists and variables are set
 8. **Environment validation errors**: Check `env.js` for required variables and their schemas
 9. **RPC errors**: Verify the RPC router is properly configured and the client is using the correct URL
+10. **Pre-commit hook not running**: Run `pnpm install` to ensure Husky is set up
+11. **Linting errors on commit**: Run `pnpm lint:fix` to auto-fix issues
+12. **Test failures**: Check that test files are in the correct location and Jest is configured properly
+13. **CORS errors**: Verify `CORS_ALLOWED_ORIGINS` includes your domain
+14. **Formatting conflicts**: Run `pnpm format` to ensure consistent formatting
 
 ## Resources
 
@@ -656,3 +851,9 @@ RPC requests are handled at `/api/rpc/*` via `app/api/rpc/[...path]/route.ts`.
 - [shadcn/ui Docs](https://ui.shadcn.com)
 - [Tailwind CSS Docs](https://tailwindcss.com/docs)
 - [React Docs](https://react.dev)
+- [Jest Docs](https://jestjs.io/docs/getting-started)
+- [React Testing Library Docs](https://testing-library.com/react)
+- [Prettier Docs](https://prettier.io/docs/en/)
+- [ESLint Docs](https://eslint.org/docs/latest/)
+- [Husky Docs](https://typicode.github.io/husky/)
+- [lint-staged Docs](https://github.com/okonet/lint-staged)

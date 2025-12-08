@@ -19,12 +19,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${inter.variable} antialiased`}
-      >
-        <div className="h-screen overflow-y-auto">
-          {children}
-        </div>
+      <body className={`${inter.variable} antialiased`}>
+        <div className="h-screen overflow-y-auto">{children}</div>
       </body>
     </html>
   );

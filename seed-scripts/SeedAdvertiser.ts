@@ -1,74 +1,106 @@
+import { eq } from "drizzle-orm";
+
 import { env } from "../env.js";
 import { auth } from "../lib/auth";
 import { db } from "../lib/db";
+import { logger, withSpinner, boxMessage } from "../lib/logger";
 import { user } from "../lib/schema";
-import { eq } from "drizzle-orm";
 
 async function seedAdvertiser() {
-  const advertiserEmail = env.ADVERTISER_EMAIL || "advertiser@assets-exchange.com";
+  const advertiserEmail =
+    env.ADVERTISER_EMAIL || "advertiser@assets-exchange.com";
   const advertiserPassword = env.ADVERTISER_PASSWORD || "Advertiser@123";
   const advertiserName = env.ADVERTISER_NAME || "Advertiser User";
 
   try {
-    console.log("🌱 Starting advertiser seed script...");
-    console.log(`📧 Email: ${advertiserEmail}`);
-    console.log(`👤 Name: ${advertiserName}`);
+    logger.app.info("Starting advertiser seed script...");
+    logger.app.info(`Email: ${advertiserEmail}`);
+    logger.app.info(`Name: ${advertiserName}`);
 
     // Check if user already exists
-    const existingUser = await db
-      .select()
-      .from(user)
-      .where(eq(user.email, advertiserEmail))
-      .limit(1);
+    const existingUser = await withSpinner(
+      "Checking if advertiser user exists...",
+      async () => {
+        return await db
+          .select()
+          .from(user)
+          .where(eq(user.email, advertiserEmail))
+          .limit(1);
+      },
+      "User check completed"
+    );
 
     if (existingUser.length > 0) {
-      console.log("⚠️  Advertiser user already exists!");
-      
-      // Update role to admin if not already
+      logger.app.warn("Advertiser user already exists!");
+
+      // Update role to advertiser if not already
       if (existingUser[0].role !== "advertiser") {
-        await db
-          .update(user)
-          .set({ role: "advertiser", updatedAt: new Date() })
-          .where(eq(user.id, existingUser[0].id));
-        console.log("✅ Updated existing user role to advertiser");
+        await withSpinner(
+          "Updating user role to advertiser...",
+          async () => {
+            await db
+              .update(user)
+              .set({ role: "advertiser", updatedAt: new Date() })
+              .where(eq(user.id, existingUser[0].id));
+          },
+          "User role updated to advertiser"
+        );
       } else {
-        console.log("✅ Advertiser user already has advertiser role");
+        logger.app.success("Advertiser user already has advertiser role");
       }
+
+      logger.app.info(
+        boxMessage(
+          `Advertiser user already exists!\n\nEmail: ${advertiserEmail}\nRole: advertiser`,
+          { title: "ℹ️  Info", color: "blue" }
+        )
+      );
       return;
     }
 
     // Create user using BetterAuth API
-    const result = await auth.api.signUpEmail({
-      body: {
-        email: advertiserEmail,
-        password: advertiserPassword,
-        name: advertiserName,
+    const result = await withSpinner(
+      "Creating advertiser user...",
+      async () => {
+        const signUpResult = await auth.api.signUpEmail({
+          body: {
+            email: advertiserEmail,
+            password: advertiserPassword,
+            name: advertiserName,
+          },
+          headers: new Headers(),
+        });
+
+        if (!signUpResult.user) {
+          throw new Error("User creation failed: No user data returned");
+        }
+
+        // Update user role to advertiser
+        await db
+          .update(user)
+          .set({ role: "advertiser", updatedAt: new Date() })
+          .where(eq(user.id, signUpResult.user.id));
+
+        return signUpResult;
       },
-      headers: new Headers(),
-    });
+      "Advertiser user created successfully!"
+    );
 
-    if (!result.user) {
-      throw new Error("User creation failed: No user data returned");
-    }
+    // Display success message in a box
+    const credentialsBox = boxMessage(
+      `Email: ${advertiserEmail}\nPassword: ${advertiserPassword}\n\n⚠️  Please change the password after first login!`,
+      {
+        title: "✅ Advertiser User Created",
+        color: "green",
+        padding: 1,
+      }
+    );
 
-    // Update user role to admin
-    await db
-      .update(user)
-      .set({ role: "advertiser", updatedAt: new Date() })
-      .where(eq(user.id, result.user.id));
-
-    console.log("✅ Advertiser user created successfully!");
-    console.log(`🆔 User ID: ${result.user.id}`);
-    console.log(`📧 Email: ${advertiserEmail}`);
-    console.log(`👤 Name: ${advertiserName}`);
-    console.log(`🔑 Role: advertiser`);
-    console.log("\n📝 Login credentials:");
-    console.log(`   Email: ${advertiserEmail}`);
-    console.log(`   Password: ${advertiserPassword}`);
-    console.log("\n⚠️  Please change the password after first login!");
-
+    logger.app.info(credentialsBox);
+    logger.app.info(`User ID: ${result.user.id}`);
+    logger.app.info(`Role: advertiser`);
   } catch (error) {
-    console.error("❌ Error seeding advertiser user:", error);
+    logger.app.error("Error seeding advertiser user:", error);
     process.exit(1);
   } finally {
     // Close database connection
@@ -78,4 +110,3 @@ async function seedAdvertiser() {
 
 // Run the seed script
 seedAdvertiser();
-

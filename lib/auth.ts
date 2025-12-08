@@ -1,7 +1,10 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { db } from "./db";
+
 import { env } from "@/env";
+
+import { db } from "./db";
+import { logger } from "./logger";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -28,5 +31,13 @@ export const auth = betterAuth({
   basePath: "/api/auth",
   secret: env.BETTER_AUTH_SECRET,
 });
+
+// Log auth initialization in development
+if (process.env.NODE_ENV === "development") {
+  logger.auth.info("BetterAuth initialized", {
+    baseURL: env.BETTER_AUTH_URL || "http://localhost:3000",
+    basePath: "/api/auth",
+  });
+}
 
 export type Session = typeof auth.$Infer.Session;

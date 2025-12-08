@@ -9,6 +9,10 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Error and reset are required by Next.js but not used in this implementation
+  void error;
+  void reset;
+
   return (
     <html>
       <body>

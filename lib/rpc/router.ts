@@ -1,6 +1,8 @@
 import { os } from "@orpc/server";
 import { z } from "zod";
 
+import { logger } from "@/lib/logger";
+
 export const health = os
   .output(
     z.object({
@@ -9,10 +11,13 @@ export const health = os
     })
   )
   .handler(async () => {
-    return {
+    logger.rpc.info("Health check requested");
+    const response = {
       status: "ok",
       timestamp: new Date().toISOString(),
     };
+    logger.rpc.success("Health check completed", response);
+    return response;
   });
 
 export const router = {
@@ -20,4 +25,3 @@ export const router = {
 };
 
 export type Router = typeof router;
-
