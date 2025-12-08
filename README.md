@@ -180,6 +180,9 @@ assets-exchange/
 │   ├── administrator/            # Administrator feature
 │   └── publisher/                # Publisher feature
 ├── components/
+│   ├── _variables/               # Application variables (branding, colors, typography)
+│   │   ├── variables.ts          # Variable definitions and defaults
+│   │   └── index.ts              # Variable exports
 │   └── ui/                       # shadcn/ui components
 ├── lib/
 │   ├── auth.ts                   # BetterAuth server configuration
@@ -235,6 +238,7 @@ assets-exchange/
 - **Git Hooks**: Husky pre-commit hooks with lint-staged for automatic code quality checks
 - **Security**: CORS configuration, Content Security Policy (CSP), and security headers
 - **SEO**: robots.txt configured for search engine optimization
+- **Application Variables**: Centralized configuration for branding, colors, typography, and assets
 
 ## Application Roles
 

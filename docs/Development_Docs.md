@@ -46,6 +46,9 @@ assets-exchange/
 │   └── publisher/                # Publisher feature
 │
 ├── components/
+│   ├── _variables/               # Application variables (branding, colors, typography)
+│   │   ├── variables.ts          # Variable definitions and defaults
+│   │   └── index.ts              # Variable exports
 │   └── ui/                       # shadcn/ui components
 │
 ├── lib/
@@ -249,7 +252,7 @@ export default function MyComponent() {
 
 ### Path Aliases
 
-- `@/components` - UI components
+- `@/components` - UI components and variables
 - `@/lib` - Utilities
 - `@/hooks` - Hooks
 - `@/features` - Feature modules
@@ -285,6 +288,53 @@ Use CSS variables for colors:
   Content
 </div>
 ```
+
+### Application Variables
+
+The project uses a centralized variable system for branding, colors, typography, and assets located in `components/_variables/`:
+
+**Structure:**
+
+- `variables.ts` - Defines `AppVariables` interface and `defaultVariables`
+- `index.ts` - Exports variables
+
+**Usage:**
+
+```typescript
+import { getVariables } from "@/components/_variables/variables";
+
+const variables = getVariables();
+
+// Access branding
+const appName = variables.branding.appName;
+const companyName = variables.branding.companyName;
+
+// Access colors
+const primaryColor = variables.colors.titleColor;
+const backgroundColor = variables.colors.background;
+
+// Access assets
+const logoPath = variables.logo.path;
+const faviconPath = variables.favicon.path;
+
+// Access typography
+const fontFamily = variables.typography.fontFamily;
+```
+
+**Variable Categories:**
+
+1. **Logo & Favicon**: Paths and alt text for branding assets
+2. **Colors**: Complete color palette including:
+   - Background colors
+   - Input colors (background, text, border, focus, error, disabled)
+   - Button colors (default, outline, disabled, hover)
+   - Text colors (title, label, description)
+3. **Branding**: App name and company name
+4. **Typography**: Font families for body and headings
+
+**Customization:**
+
+To customize variables for different deployments or tenants, modify the `defaultVariables` object in `variables.ts` or implement a loader function that returns different variables based on environment or tenant configuration.
 
 ## Authentication
 

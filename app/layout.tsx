@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+
 import "./globals.css";
+import { getVariables } from "@/components/_variables/variables";
+
+const variables = getVariables();
 
 const inter = Inter({
   variable: "--font-inter",
@@ -8,8 +12,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Assets Exchange",
-  description: "Assets Exchange",
+  title: variables.branding.appName,
+  description: variables.branding.companyName,
+  icons: {
+    icon: variables.favicon.path,
+  },
 };
 
 export default function RootLayout({
