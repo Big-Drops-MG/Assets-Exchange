@@ -289,6 +289,76 @@ export function MyForm() {
 
 ## Development Workflow
 
+### Git Branching Strategy
+
+The project uses a feature-based branching strategy with frontend/backend separation:
+
+```
+main
+└── dev
+    ├── auth
+    │   ├── auth-frontend
+    │   └── auth-backend
+    ├── publisher
+    │   ├── publisher-frontend
+    │   └── publisher-backend
+    ├── admin
+    │   ├── admin-frontend
+    │   └── admin-backend
+    ├── advertiser
+    │   ├── advertiser-frontend
+    │   └── advertiser-backend
+    └── administrator
+        ├── administrator-frontend
+        └── administrator-backend
+```
+
+**Branch Structure:**
+- **main**: Production-ready code
+- **dev**: Development integration branch
+- **Feature branches**: One branch per feature (auth, publisher, admin, advertiser, administrator)
+- **Sub-branches**: Frontend and backend work separated within each feature
+
+### Working with Branches
+
+**Switch to a branch:**
+```bash
+git checkout dev
+git checkout auth
+git checkout auth-frontend
+```
+
+**Create a new branch:**
+```bash
+git checkout dev
+git checkout -b new-feature
+```
+
+**See all branches:**
+```bash
+git branch
+```
+
+**Merge workflow example:**
+```bash
+# Work on frontend
+git checkout auth-frontend
+# ... make changes and commit ...
+
+# Work on backend
+git checkout auth-backend
+# ... make changes and commit ...
+
+# Merge into feature branch
+git checkout auth
+git merge auth-frontend
+git merge auth-backend
+
+# Merge feature into dev
+git checkout dev
+git merge auth
+```
+
 ### Running Commands
 
 ```bash
@@ -311,6 +381,7 @@ pnpm lint
 2. Test your changes
 3. Ensure TypeScript compiles
 4. Check responsive design
+5. Make sure you're on the correct branch
 
 ## Troubleshooting
 

@@ -118,6 +118,35 @@ assets-exchange/
 - **Administrator**: System-level access and global settings
 - **Publisher**: Public-facing section (no authentication required)
 
+## Git Branching Strategy
+
+The project uses a feature-based branching strategy:
+
+```
+main
+└── dev
+    ├── auth
+    │   ├── auth-frontend
+    │   └── auth-backend
+    ├── publisher
+    │   ├── publisher-frontend
+    │   └── publisher-backend
+    ├── admin
+    │   ├── admin-frontend
+    │   └── admin-backend
+    ├── advertiser
+    │   ├── advertiser-frontend
+    │   └── advertiser-backend
+    └── administrator
+        ├── administrator-frontend
+        └── administrator-backend
+```
+
+- **main**: Production-ready code
+- **dev**: Development branch for integration
+- **Feature branches**: Separate branches for each feature (auth, publisher, admin, etc.)
+- **Sub-branches**: Frontend and backend work separated within each feature
+
 ## Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs)
