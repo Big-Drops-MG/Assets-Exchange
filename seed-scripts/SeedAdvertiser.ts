@@ -1,19 +1,13 @@
-// Load environment variables FIRST before any imports
-import * as dotenv from "dotenv";
-dotenv.config({ path: ".env.local" });
-dotenv.config({ path: ".env" });
-
-// Now import modules that depend on environment variables
+import { env } from "../env.js";
 import { auth } from "../lib/auth";
 import { db } from "../lib/db";
 import { user } from "../lib/schema";
 import { eq } from "drizzle-orm";
 
 async function seedAdvertiser() {
-  // Default advertiser credentials (can be overridden via environment variables)
-  const advertiserEmail = process.env.ADVERTISER_EMAIL || "advertiser@assets-exchange.com";
-  const advertiserPassword = process.env.ADVERTISER_PASSWORD || "Advertiser@123";
-  const advertiserName = process.env.ADVERTISER_NAME || "Advertiser User";
+  const advertiserEmail = env.ADVERTISER_EMAIL || "advertiser@assets-exchange.com";
+  const advertiserPassword = env.ADVERTISER_PASSWORD || "Advertiser@123";
+  const advertiserName = env.ADVERTISER_NAME || "Advertiser User";
 
   try {
     console.log("🌱 Starting advertiser seed script...");
