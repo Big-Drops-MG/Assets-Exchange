@@ -1,19 +1,12 @@
 "use client";
 
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
-import { useLoginViewModel } from "../view-models/useLoginViewModel";
-import { Button } from "@/components/ui/button";
-<<<<<<< Updated upstream
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
-export function LoginForm() {
-  const { handleLogin, isLoading, error } = useLoginViewModel();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-=======
+import { getVariables } from "@/components/_variables/variables";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -38,74 +31,15 @@ export function LoginForm() {
   const { handleLogin, isLoading, error } = useLoginViewModel();
   const form = useLoginForm();
   const [showPassword, setShowPassword] = useState(false);
->>>>>>> Stashed changes
 
   const onSubmit = async (data: { email: string; password: string }) => {
     await handleLogin(data);
   };
 
-  return (
-<<<<<<< Updated upstream
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle className="text-2xl">Sign In</CardTitle>
-        <CardDescription>
-          Enter your credentials to access your account
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="admin@assets-exchange.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={isLoading}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={isLoading}
-            />
-          </div>
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign In"}
-          </Button>
-        </form>
-        <div className="mt-4 text-sm text-muted-foreground">
-          <p>Admin test credentials:</p>
-          <p className="font-mono text-xs mt-1">
-            Email: admin@assets-exchange.com
-          </p>
-          <p className="font-mono text-xs">Password: Admin@123</p>
-        </div>
+  const variables = getVariables();
+  const inputRingColor = variables.colors.inputRingColor;
 
-        <div className="mt-4 text-sm text-muted-foreground">
-          <p>Advertiser test credentials:</p>
-          <p className="font-mono text-xs mt-1">
-            Email: advertiser@assets-exchange.com
-          </p>
-          <p className="font-mono text-xs">Password: Advertiser@123</p>
-        </div>
-      </CardContent>
-    </Card>
-=======
+  return (
     <>
       <style
         dangerouslySetInnerHTML={{
@@ -162,9 +96,9 @@ export function LoginForm() {
             style={{ color: variables.colors.descriptionColor }}
           >
             Please enter your credentials to access your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onSubmit)}
@@ -183,10 +117,10 @@ export function LoginForm() {
                       Email
                     </FormLabel>
                     <FormControl>
-                      <Input
+            <Input
                         type="text"
                         placeholder="Enter your email"
-                        disabled={isLoading}
+              disabled={isLoading}
                         style={{
                           backgroundColor:
                             variables.colors.inputBackgrounColor,
@@ -219,10 +153,10 @@ export function LoginForm() {
                     </FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Input
+            <Input
                           type={showPassword ? "text" : "password"}
-                          placeholder="Enter your password"
-                          disabled={isLoading}
+              placeholder="Enter your password"
+              disabled={isLoading}
                           style={{
                             backgroundColor:
                               variables.colors.inputBackgrounColor,
@@ -250,7 +184,7 @@ export function LoginForm() {
                             <Eye className="h-5 w-5 lg:h-5.5 lg:w-5.5 xl:h-6 xl:w-6" />
                           )}
                         </button>
-                      </div>
+          </div>
                     </FormControl>
                     <FormMessage
                       className="text-sm"
@@ -259,11 +193,11 @@ export function LoginForm() {
                   </FormItem>
                 )}
               />
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
               <Button
                 type="submit"
                 className="w-full h-12  lg:h-14 mt-3  lg:text-base text-sm xl:text-lg cursor-pointer"
@@ -282,13 +216,11 @@ export function LoginForm() {
                 ) : (
                   "Sign In to your Dashboard"
                 )}
-              </Button>
-            </form>
+          </Button>
+        </form>
           </Form>
-        </CardContent>
-      </Card>
+      </CardContent>
+    </Card>
     </>
->>>>>>> Stashed changes
   );
 }
-
