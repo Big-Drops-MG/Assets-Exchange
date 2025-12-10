@@ -1,12 +1,11 @@
+import { type LucideIcon } from "lucide-react";
+
 export interface AdminStats {
-  totalRequests: number;
-  pendingRequests: number;
-  approvedRequests: number;
-  rejectedRequests: number;
-  totalAdvertisers: number;
-  totalPublishers: number;
-  activeOffers: number;
-  totalRevenue: number;
+  title: string;
+  value: number;
+  description: string;
+  icon: LucideIcon;
+  trend?: { value: number; isPositive: boolean };
 }
 
 export interface RecentRequest {
@@ -19,6 +18,5 @@ export interface RecentRequest {
 }
 
 export interface AdminDashboardData {
-  stats: AdminStats;
-  recentRequests: RecentRequest[];
+  stats: AdminStats[];
 }

@@ -14,6 +14,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { getVariables } from "@/components/_variables/variables";
 import {
@@ -27,8 +28,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { useSidebar } from "@/components/ui/sidebar";
 import { SignOutButton } from "@/features/auth/components/SignOutButton";
 
 import type { IconName, SidebarMenuConfig } from "../types/sidebar.types";
@@ -56,19 +57,51 @@ export function DashboardSidebar({
   userEmail,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
+  const { state } = useSidebar();
   const variables = getVariables();
+  const isCollapsed = state === "collapsed";
+  const isExpanded = state === "expanded";
+  const [showUserDetails, setShowUserDetails] = useState(false);
+
+  useEffect(() => {
+    if (isExpanded) {
+      const timer = setTimeout(() => {
+        setShowUserDetails(true);
+      }, 150);
+      return () => clearTimeout(timer);
+    } else {
+      setShowUserDetails(false);
+    }
+  }, [isExpanded]);
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2">
-          <Image
-            src={variables.logo.path}
-            alt={variables.logo.alt}
-            width={100}
-            height={100}
-            className="h-auto w-50 object-contain"
-          />
+      <SidebarHeader className="px-2 py-4">
+        <div className="relative flex items-center justify-center min-h-[45px]">
+          <div className="relative w-full flex items-center justify-center">
+            {isExpanded && (
+              <div className="absolute inset-0 flex items-center justify-center transition-opacity duration-300">
+                <Image
+                  src={variables.logo.path}
+                  alt={variables.logo.alt}
+                  width={200}
+                  height={60}
+                  className="h-auto w-full max-w-[200px] object-contain"
+                />
+              </div>
+            )}
+            {isCollapsed && (
+              <div className="absolute inset-0 flex items-center justify-center transition-opacity duration-300">
+                <Image
+                  src={variables.secondaryLogo.path}
+                  alt={variables.secondaryLogo.alt}
+                  width={56}
+                  height={56}
+                  className="h-auto w-14 object-contain"
+                />
+              </div>
+            )}
+          </div>
         </div>
       </SidebarHeader>
 
@@ -110,19 +143,18 @@ export function DashboardSidebar({
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
-        <SidebarSeparator className="mb-4" />
+      <SidebarFooter className={isCollapsed ? "p-2" : "p-4"}>
         <div className="space-y-2">
-          {userName && (
-            <div className="px-2 py-1.5 text-sm">
+          {userName && showUserDetails && (
+            <div className="px-2 py-1.5 text-sm transition-opacity duration-300">
               <p className="font-medium">{userName}</p>
               {userEmail && (
                 <p className="text-xs text-muted-foreground">{userEmail}</p>
               )}
             </div>
           )}
-          <div className="w-full">
-            <SignOutButton />
+          <div className={`flex ${isCollapsed ? "justify-center" : "w-full"}`}>
+            <SignOutButton isCollapsed={isCollapsed} />
           </div>
         </div>
       </SidebarFooter>

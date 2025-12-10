@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { getVariables } from "@/components/_variables/variables";
+import { LastUpdated } from "@/components/ui/last-updated";
 import {
   SidebarProvider,
   SidebarInset,
@@ -51,10 +52,17 @@ export default async function DashboardLayout({
         userEmail={user.email}
       />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger />
+        <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
+          <div>
+            <SidebarTrigger />
+          </div>
+          <div>
+            <LastUpdated />
+          </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-4">{children}</main>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4">
+          {children}
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );

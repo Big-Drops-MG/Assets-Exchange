@@ -54,17 +54,6 @@ export const adminMenuConfig: SidebarMenuConfig = [
       },
     ],
   },
-  {
-    id: "secondary",
-    items: [
-      {
-        id: "settings",
-        label: "Settings",
-        icon: "Settings",
-        href: "/dashboard/settings",
-      },
-    ],
-  },
 ];
 
 // export const advertiserMenuConfig: SidebarMenuConfig = [

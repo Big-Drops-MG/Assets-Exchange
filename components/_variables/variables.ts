@@ -3,7 +3,10 @@ export interface AppVariables {
     path: string;
     alt: string;
   };
-
+  secondaryLogo: {
+    path: string;
+    alt: string;
+  };
   favicon: {
     path: string;
     alt: string;
@@ -11,11 +14,12 @@ export interface AppVariables {
   colors: {
     background: string;
     cardBackground: string;
+    dashboardBackground: string;
+    sidebarBackground: string;
     titleColor: string;
     labelColor: string;
     descriptionColor: string;
-    accent: string;
-    inputBackgrounColor: string;
+    inputBackgroundColor: string;
     inputDisabledColor: string;
     inputTextColor: string;
     inputPlaceholderColor: string;
@@ -33,6 +37,8 @@ export interface AppVariables {
     buttonDisabledTextColor: string;
     buttonHoverBackgroundColor: string;
     buttonHoverTextColor: string;
+    sidebarActiveOptionHighlightBackgroundColor: string;
+    sidebarActiveOptionHighlightTextColor: string;
   };
   branding: {
     appName: string;
@@ -44,41 +50,126 @@ export interface AppVariables {
   };
 }
 
+interface BaseColorPalette {
+  primary: string;
+  secondary?: string;
+  neutral: {
+    light: string;
+    base: string;
+    dark: string;
+  };
+  semantic: {
+    error: string;
+    warning?: string;
+    success?: string;
+    info?: string;
+  };
+  text: {
+    primary: string;
+    secondary: string;
+  };
+  background: {
+    base: string;
+    card: string;
+    dashboard: string;
+    sidebar: string;
+  };
+}
+
+interface ColorOverrides {
+  [key: string]: string | undefined;
+}
+
+function generateColorsFromPalette(
+  palette: BaseColorPalette,
+  overrides?: ColorOverrides
+): AppVariables["colors"] {
+  const { primary, neutral, semantic, text, background } = palette;
+
+  const disabledColor = neutral.base;
+  const white = "#FFFFFF";
+  const transparent = "transparent";
+
+  return {
+    background: overrides?.background ?? background.base,
+    cardBackground: overrides?.cardBackground ?? background.card,
+    dashboardBackground: overrides?.dashboardBackground ?? background.dashboard,
+    sidebarBackground: overrides?.sidebarBackground ?? background.sidebar,
+    titleColor: overrides?.titleColor ?? primary,
+    labelColor: overrides?.labelColor ?? primary,
+    descriptionColor: overrides?.descriptionColor ?? text.secondary,
+    inputBackgroundColor: overrides?.inputBackgroundColor ?? white,
+    inputDisabledColor: overrides?.inputDisabledColor ?? disabledColor,
+    inputTextColor: overrides?.inputTextColor ?? text.primary,
+    inputPlaceholderColor: overrides?.inputPlaceholderColor ?? text.secondary,
+    inputBorderColor: overrides?.inputBorderColor ?? neutral.base,
+    inputBorderFocusColor: overrides?.inputBorderFocusColor ?? primary,
+    inputErrorColor: overrides?.inputErrorColor ?? semantic.error,
+    inputBorderDisabledColor:
+      overrides?.inputBorderDisabledColor ?? neutral.base,
+    inputRingColor: overrides?.inputRingColor ?? primary,
+    buttonDefaultBackgroundColor:
+      overrides?.buttonDefaultBackgroundColor ?? primary,
+    buttonDefaultTextColor: overrides?.buttonDefaultTextColor ?? white,
+    buttonOutlineBackgroundColor:
+      overrides?.buttonOutlineBackgroundColor ?? transparent,
+    buttonOutlineBorderColor: overrides?.buttonOutlineBorderColor ?? primary,
+    buttonOutlineTextColor: overrides?.buttonOutlineTextColor ?? primary,
+    buttonDisabledBackgroundColor:
+      overrides?.buttonDisabledBackgroundColor ?? disabledColor,
+    buttonDisabledTextColor: overrides?.buttonDisabledTextColor ?? white,
+    buttonHoverBackgroundColor:
+      overrides?.buttonHoverBackgroundColor ?? primary,
+    buttonHoverTextColor: overrides?.buttonHoverTextColor ?? white,
+    sidebarActiveOptionHighlightBackgroundColor:
+      overrides?.sidebarActiveOptionHighlightBackgroundColor ?? "#E9EEFF",
+    sidebarActiveOptionHighlightTextColor:
+      overrides?.sidebarActiveOptionHighlightTextColor ?? "#1E40AF",
+  };
+}
+
+const baseColorPalette: BaseColorPalette = {
+  primary: "#2c91cc",
+  neutral: {
+    light: "#FAFAFA",
+    base: "#999999",
+    dark: "#6b7280",
+  },
+  semantic: {
+    error: "#FF0000",
+  },
+  text: {
+    primary: "#010101",
+    secondary: "#6b7280",
+  },
+  background: {
+    base: "#EFF8FF",
+    card: "#FFFFFF",
+    dashboard: "#FFFFFF",
+    sidebar: "#FAFAFA",
+  },
+};
+
+const logoPath = "/logo.svg";
+const secondaryLogoPath = "/secondary-logo.svg";
+const alt = "Big Drops Marketing Group Logo";
+const faviconPath = "/favicon.png";
+const faviconAlt = "Big Drops Marketing Group Favicon";
+
 export const defaultVariables: AppVariables = {
   logo: {
-    path: "/logo.svg",
-    alt: "Big Drops Marketing Group Logo",
+    path: logoPath,
+    alt,
   },
   favicon: {
-    path: "/favicon.png",
-    alt: "Big Drops Marketing Group Favicon",
+    path: faviconPath,
+    alt: faviconAlt,
   },
-  colors: {
-    background: "#EFF8FF",
-    cardBackground: "#FFFFFF",
-    titleColor: "#2c91cc",
-    labelColor: "#2c91cc",
-    descriptionColor: "#6b7280",
-    inputBackgrounColor: "#FFFFFF",
-    inputDisabledColor: "#999999",
-    inputTextColor: "#010101",
-    inputPlaceholderColor: "#6b7280",
-    inputBorderColor: "#999999",
-    inputBorderFocusColor: "#2c91cc",
-    inputErrorColor: "#FF0000",
-    inputBorderDisabledColor: "#999999",
-    inputRingColor: "#2c91cc",
-    buttonDefaultBackgroundColor: "#2c91cc",
-    buttonDefaultTextColor: "#FFFFFF",
-    buttonOutlineBackgroundColor: "transparent",
-    buttonOutlineBorderColor: "#2c91cc",
-    buttonOutlineTextColor: "#2c91cc",
-    buttonDisabledBackgroundColor: "#999999",
-    buttonDisabledTextColor: "#FFFFFF",
-    buttonHoverBackgroundColor: "#2c91cc",
-    buttonHoverTextColor: "#FFFFFF",
-    accent: "#3b82f6",
+  secondaryLogo: {
+    path: secondaryLogoPath,
+    alt,
   },
+  colors: generateColorsFromPalette(baseColorPalette),
   branding: {
     appName: "Big Drops Marketing Group",
     companyName: "Big Drops Marketing Group",
@@ -89,6 +180,37 @@ export const defaultVariables: AppVariables = {
   },
 };
 
-export const getVariables = (): AppVariables => {
-  return defaultVariables;
+export const getVariables = (
+  customPalette?: Partial<BaseColorPalette>,
+  overrides?: ColorOverrides
+): AppVariables => {
+  if (!customPalette && !overrides) {
+    return defaultVariables;
+  }
+
+  const mergedPalette: BaseColorPalette = {
+    ...baseColorPalette,
+    ...customPalette,
+    neutral: {
+      ...baseColorPalette.neutral,
+      ...customPalette?.neutral,
+    },
+    semantic: {
+      ...baseColorPalette.semantic,
+      ...customPalette?.semantic,
+    },
+    text: {
+      ...baseColorPalette.text,
+      ...customPalette?.text,
+    },
+    background: {
+      ...baseColorPalette.background,
+      ...customPalette?.background,
+    },
+  };
+
+  return {
+    ...defaultVariables,
+    colors: generateColorsFromPalette(mergedPalette, overrides),
+  };
 };

@@ -59,10 +59,10 @@ export function LoginForm() {
           .login-form-input:-webkit-autofill:hover,
           .login-form-input:-webkit-autofill:focus,
           .login-form-input:-webkit-autofill:active {
-            -webkit-box-shadow: 0 0 0 30px ${variables.colors.inputBackgrounColor} inset !important;
+            -webkit-box-shadow: 0 0 0 30px ${variables.colors.inputBackgroundColor} inset !important;
             -webkit-text-fill-color: ${variables.colors.inputTextColor} !important;
-            box-shadow: 0 0 0 30px ${variables.colors.inputBackgrounColor} inset !important;
-            background-color: ${variables.colors.inputBackgrounColor} !important;
+            box-shadow: 0 0 0 30px ${variables.colors.inputBackgroundColor} inset !important;
+            background-color: ${variables.colors.inputBackgroundColor} !important;
             color: ${variables.colors.inputTextColor} !important;
           }
           .login-form-input::selection {
@@ -128,7 +128,8 @@ export function LoginForm() {
                         placeholder="Enter your email"
                         disabled={isLoading}
                         style={{
-                          backgroundColor: variables.colors.inputBackgrounColor,
+                          backgroundColor:
+                            variables.colors.inputBackgroundColor,
                           color: variables.colors.inputTextColor,
                           borderColor: form.formState.errors.email
                             ? variables.colors.inputErrorColor
@@ -164,7 +165,7 @@ export function LoginForm() {
                           disabled={isLoading}
                           style={{
                             backgroundColor:
-                              variables.colors.inputBackgrounColor,
+                              variables.colors.inputBackgroundColor,
                             color: variables.colors.inputTextColor,
                             borderColor: form.formState.errors.password
                               ? variables.colors.inputErrorColor
