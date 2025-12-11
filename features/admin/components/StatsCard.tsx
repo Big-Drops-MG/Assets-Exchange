@@ -18,6 +18,40 @@ export function StatsCard({
   const TrendIcon = trend?.trendIconValue;
   const isPositive = TrendIcon === ArrowUp;
 
+  const getBackgroundColor = () => {
+    switch (title) {
+      case "Total Assets":
+        return variables.colors.totalAssetsBackgroundColor;
+      case "New Requests":
+        return variables.colors.newRequestsBackgroundColor;
+      case "Approved Assets":
+        return variables.colors.approvedAssetsBackgroundColor;
+      case "Rejected Assets":
+        return variables.colors.rejectedAssetsBackgroundColor;
+      case "Pending Approval":
+        return variables.colors.pendingApprovalBackgroundColor;
+      default:
+        return variables.colors.totalAssetsBackgroundColor;
+    }
+  };
+
+  const getIconColor = () => {
+    switch (title) {
+      case "Total Assets":
+        return variables.colors.totalAssetsIconColor;
+      case "New Requests":
+        return variables.colors.newRequestsIconColor;
+      case "Approved Assets":
+        return variables.colors.approvedAssetsIconColor;
+      case "Rejected Assets":
+        return variables.colors.rejectedAssetsIconColor;
+      case "Pending Approval":
+        return variables.colors.pendingApprovalIconColor;
+      default:
+        return variables.colors.totalAssetsIconColor;
+    }
+  };
+
   return (
     <Card className="shadow-sm gap-6">
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -30,13 +64,10 @@ export function StatsCard({
         <div
           className="flex items-center justify-center rounded-md p-2"
           style={{
-            backgroundColor: variables.colors.statsCardIconBackgroundColor,
+            backgroundColor: getBackgroundColor(),
           }}
         >
-          <Icon
-            className="h-5 w-5"
-            style={{ color: variables.colors.statsCardIconColor }}
-          />
+          <Icon className="h-5 w-5" style={{ color: getIconColor() }} />
         </div>
       </CardHeader>
       <CardContent className="space-y-6 md:space-y-6.5">

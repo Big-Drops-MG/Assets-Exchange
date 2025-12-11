@@ -27,3 +27,28 @@ export interface RecentRequest {
 export interface AdminDashboardData {
   stats: AdminStats[];
 }
+
+export type ComparisonType =
+  | "Today vs Yesterday"
+  | "Today vs Last Week"
+  | "Current Week vs Last Week"
+  | "Current Month vs Last Month";
+
+export type MetricType =
+  | "Total Assets"
+  | "New Requests"
+  | "Approved Assets"
+  | "Rejected Assets"
+  | "Pending Approval";
+
+export interface PerformanceChartDataPoint {
+  label: string;
+  current: number;
+  previous: number;
+}
+
+export interface PerformanceChartData {
+  data: PerformanceChartDataPoint[];
+  comparisonType: ComparisonType;
+  xAxisLabel: string;
+}

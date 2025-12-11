@@ -9,5 +9,7 @@ export default async function AdvertiserLayout({
 }>) {
   await requireRole("advertiser");
 
-  return <div className="h-screen overflow-y-auto">{children}</div>;
+  return (
+    <div className="h-screen overflow-y-auto overflow-x-hidden">{children}</div>
+  );
 }

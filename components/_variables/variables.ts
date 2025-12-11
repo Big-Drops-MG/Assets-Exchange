@@ -52,8 +52,6 @@ export interface AppVariables {
     headerTextColor: string;
     headerIconColor: string;
     statsCardTitleColor: string;
-    statsCardIconColor: string;
-    statsCardIconBackgroundColor: string;
     statsCardValueColor: string;
     statsCardTrendTextColor: string;
     statsCardTrendTextColorPositive: string;
@@ -62,6 +60,18 @@ export interface AppVariables {
     statsCardTrendIconColorNegative: string;
     statsCardHistoricalDataLabelColor: string;
     statsCardHistoricalDataValueColor: string;
+    totalAssetsBackgroundColor: string;
+    totalAssetsIconColor: string;
+    newRequestsBackgroundColor: string;
+    newRequestsIconColor: string;
+    approvedAssetsBackgroundColor: string;
+    approvedAssetsIconColor: string;
+    rejectedAssetsBackgroundColor: string;
+    rejectedAssetsIconColor: string;
+    pendingApprovalBackgroundColor: string;
+    pendingApprovalIconColor: string;
+    cardHeaderBackgroundColor: string;
+    cardHeaderTextColor: string;
   };
   branding: {
     appName: string;
@@ -195,9 +205,6 @@ function generateColorsFromPalette(
     headerTextColor: overrides?.headerTextColor ?? "#3D3D3D",
     headerIconColor: overrides?.headerIconColor ?? "#2563EB",
     statsCardTitleColor: overrides?.statsCardTitleColor ?? "#525252",
-    statsCardIconColor: overrides?.statsCardIconColor ?? "#5B3E96",
-    statsCardIconBackgroundColor:
-      overrides?.statsCardIconBackgroundColor ?? "#EBE4FF",
     statsCardValueColor: overrides?.statsCardValueColor ?? "#000000",
     statsCardTrendTextColor: overrides?.statsCardTrendTextColor ?? "#3D3D3D",
     statsCardTrendTextColorPositive:
@@ -212,6 +219,24 @@ function generateColorsFromPalette(
       overrides?.statsCardHistoricalDataLabelColor ?? "#3D3D3D",
     statsCardHistoricalDataValueColor:
       overrides?.statsCardHistoricalDataValueColor ?? "#000000",
+    totalAssetsBackgroundColor:
+      overrides?.totalAssetsBackgroundColor ?? "#EBE4FF",
+    totalAssetsIconColor: overrides?.totalAssetsIconColor ?? "#5B3E96",
+    newRequestsBackgroundColor:
+      overrides?.newRequestsBackgroundColor ?? "#DBE3FF",
+    newRequestsIconColor: overrides?.newRequestsIconColor ?? "#1E40AF",
+    approvedAssetsBackgroundColor:
+      overrides?.approvedAssetsBackgroundColor ?? "#DAF3DC",
+    approvedAssetsIconColor: overrides?.approvedAssetsIconColor ?? "#14532D",
+    rejectedAssetsBackgroundColor:
+      overrides?.rejectedAssetsBackgroundColor ?? "#FFEDE3",
+    rejectedAssetsIconColor: overrides?.rejectedAssetsIconColor ?? "#FF8743",
+    pendingApprovalBackgroundColor:
+      overrides?.pendingApprovalBackgroundColor ?? "#DBFBFC",
+    pendingApprovalIconColor: overrides?.pendingApprovalIconColor ?? "#006D77",
+    cardHeaderBackgroundColor:
+      overrides?.cardHeaderBackgroundColor ?? "#2c91cc",
+    cardHeaderTextColor: overrides?.cardHeaderTextColor ?? "#FFFFFF",
   };
 }
 

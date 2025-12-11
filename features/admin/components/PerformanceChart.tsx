@@ -1,0 +1,332 @@
+"use client";
+
+import { useState } from "react";
+import {
+  Area,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+import { getVariables } from "@/components/_variables/variables";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import type { ComparisonType, MetricType } from "../types/admin.types";
+import { usePerformanceChartViewModel } from "../view-models/usePerformanceChartViewModel";
+
+const getLastWeekDayName = (): string => {
+  const days = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const today = new Date();
+  const dayName = days[today.getDay()];
+  return dayName;
+};
+
+const normalizeComparisonType = (comparison: string): ComparisonType => {
+  if (comparison.startsWith("Today vs Last")) {
+    return "Today vs Last Week";
+  }
+  return comparison as ComparisonType;
+};
+
+export function PerformanceChart() {
+  const variables = getVariables();
+  const [selectedMetric, setSelectedMetric] =
+    useState<MetricType>("Total Assets");
+  const [selectedComparison, setSelectedComparison] =
+    useState<string>("Today vs Yesterday");
+
+  const lastWeekDayName = getLastWeekDayName();
+  const comparisonOptions = [
+    "Today vs Yesterday",
+    `Today vs Last ${lastWeekDayName}`,
+    "Current Week vs Last Week",
+    "Current Month vs Last Month",
+  ];
+
+  const comparisonType = normalizeComparisonType(selectedComparison);
+  const { data, isLoading, error } =
+    usePerformanceChartViewModel(comparisonType);
+
+  const metricOptions: MetricType[] = [
+    "Total Assets",
+    "New Requests",
+    "Approved Assets",
+    "Rejected Assets",
+    "Pending Approval",
+  ];
+
+  const getMaxWidth = (options: string[]): string => {
+    const maxLength = Math.max(...options.map((opt) => opt.length));
+    return `${Math.max(maxLength * 9 + 80, 180)}px`;
+  };
+
+  const metricDropdownWidth = getMaxWidth(metricOptions);
+  const comparisonDropdownWidth = getMaxWidth(comparisonOptions);
+
+  const getLegendLabels = () => {
+    switch (comparisonType) {
+      case "Today vs Yesterday":
+        return { current: "Today", previous: "Yesterday" };
+      case "Today vs Last Week":
+        return { current: "Today", previous: `Last ${lastWeekDayName}` };
+      case "Current Week vs Last Week":
+        return { current: "Current Week", previous: "Last Week" };
+      case "Current Month vs Last Month":
+        return { current: "Current Month", previous: "Last Month" };
+      default:
+        return { current: "Current", previous: "Previous" };
+    }
+  };
+
+  const legendLabels = getLegendLabels();
+
+  const getMetricColors = () => {
+    switch (selectedMetric) {
+      case "Total Assets":
+        return {
+          background: variables.colors.totalAssetsBackgroundColor,
+          icon: variables.colors.totalAssetsIconColor,
+        };
+      case "New Requests":
+        return {
+          background: variables.colors.newRequestsBackgroundColor,
+          icon: variables.colors.newRequestsIconColor,
+        };
+      case "Approved Assets":
+        return {
+          background: variables.colors.approvedAssetsBackgroundColor,
+          icon: variables.colors.approvedAssetsIconColor,
+        };
+      case "Rejected Assets":
+        return {
+          background: variables.colors.rejectedAssetsBackgroundColor,
+          icon: variables.colors.rejectedAssetsIconColor,
+        };
+      case "Pending Approval":
+        return {
+          background: variables.colors.pendingApprovalBackgroundColor,
+          icon: variables.colors.pendingApprovalIconColor,
+        };
+      default:
+        return {
+          background: variables.colors.totalAssetsBackgroundColor,
+          icon: variables.colors.totalAssetsIconColor,
+        };
+    }
+  };
+
+  const metricColors = getMetricColors();
+  const gradientId = `colorPrevious-${selectedMetric.replace(/\s+/g, "-")}`;
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader className="py-4">
+          <CardTitle>Performance Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-[400px]">
+            <div className="text-muted-foreground">Loading chart...</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader className="py-4">
+          <CardTitle>Performance Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-[400px]">
+            <div className="text-destructive">Error: {error}</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data || !data.data || data.data.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="py-4">
+          <CardTitle>Performance Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-[400px]">
+            <div className="text-muted-foreground">No data available</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader
+        className="-mt-6 mb-0 px-6 py-6 gap-0 flex flex-row items-center justify-between"
+        style={{ backgroundColor: variables.colors.cardHeaderBackgroundColor }}
+      >
+        <CardTitle style={{ color: variables.colors.cardHeaderTextColor }}>
+          Performance Overview
+        </CardTitle>
+        <div className="flex items-center gap-3">
+          <Select
+            value={selectedMetric}
+            onValueChange={(value) => setSelectedMetric(value as MetricType)}
+          >
+            <SelectTrigger
+              className="bg-white/90 border-white/20 text-foreground"
+              style={{
+                width: metricDropdownWidth,
+                minWidth: metricDropdownWidth,
+              }}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {metricOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={selectedComparison}
+            onValueChange={setSelectedComparison}
+          >
+            <SelectTrigger
+              className="bg-white/90 border-white/20 text-foreground"
+              style={{
+                width: comparisonDropdownWidth,
+                minWidth: comparisonDropdownWidth,
+              }}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {comparisonOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={400}>
+          <ComposedChart
+            data={data.data}
+            margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+          >
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop
+                  offset="20%"
+                  stopColor={metricColors.background}
+                  stopOpacity={1}
+                />
+                <stop
+                  offset="80%"
+                  stopColor={metricColors.background}
+                  stopOpacity={0.2}
+                />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis
+              dataKey="label"
+              stroke="#6B7280"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+              interval={
+                comparisonType === "Current Month vs Last Month" ? 2 : 0
+              }
+            />
+            <YAxis
+              stroke="#6B7280"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E5E7EB",
+                borderRadius: "8px",
+                padding: "8px 12px",
+              }}
+              formatter={(value: number, name: string) => [
+                value.toLocaleString(),
+                name === "current"
+                  ? legendLabels.current
+                  : legendLabels.previous,
+              ]}
+              labelFormatter={(label) => `${data.xAxisLabel}: ${label}`}
+            />
+            <Area
+              type="monotone"
+              dataKey="previous"
+              stroke={metricColors.background}
+              strokeWidth={0}
+              fill={`url(#${gradientId})`}
+              fillOpacity={1}
+            />
+            <Line
+              type="monotone"
+              dataKey="current"
+              stroke={metricColors.icon}
+              strokeWidth={2.5}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+        <div className="flex items-center justify-center gap-6 mt-4">
+          <div className="flex items-center gap-2">
+            <div
+              className="w-4 h-0.5"
+              style={{ backgroundColor: metricColors.icon }}
+            ></div>
+            <span className="text-sm text-muted-foreground">
+              {legendLabels.current}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div
+              className="w-4 h-4 opacity-30"
+              style={{ backgroundColor: metricColors.background }}
+            ></div>
+            <span className="text-sm text-muted-foreground">
+              {legendLabels.previous}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

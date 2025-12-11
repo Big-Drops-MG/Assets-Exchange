@@ -2,6 +2,7 @@
 
 import { useAdminDashboardViewModel } from "../view-models/useAdminDashboardViewModel";
 
+import { PerformanceChart } from "./PerformanceChart";
 import { StatsCard } from "./StatsCard";
 
 export function AdminDashboard() {
@@ -40,6 +41,7 @@ export function AdminDashboard() {
           <StatsCard key={stat.title} {...stat} />
         ))}
       </div>
+      <PerformanceChart />
     </div>
   );
 }
