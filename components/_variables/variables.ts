@@ -39,6 +39,29 @@ export interface AppVariables {
     buttonHoverTextColor: string;
     sidebarActiveOptionHighlightBackgroundColor: string;
     sidebarActiveOptionHighlightTextColor: string;
+    sidebarMenuItemActiveColor: string;
+    sidebarMenuItemIconActiveColor: string;
+    sidebarMenuItemTextActiveColor: string;
+    sidebarMenuItemTextInactiveColor: string;
+    sidebarMenuItemIconInactiveColor: string;
+    sidebarFooterSignOutButtonBackgroundColor: string;
+    sidebarFooterSignOutButtonTextColor: string;
+    sidebarFooterSignOutButtonIconColor: string;
+    sidebarFooterBackgroundColor: string;
+    headerBackgroundColor: string;
+    headerTextColor: string;
+    headerIconColor: string;
+    statsCardTitleColor: string;
+    statsCardIconColor: string;
+    statsCardIconBackgroundColor: string;
+    statsCardValueColor: string;
+    statsCardTrendTextColor: string;
+    statsCardTrendTextColorPositive: string;
+    statsCardTrendIconColorPositive: string;
+    statsCardTrendTextColorNegative: string;
+    statsCardTrendIconColorNegative: string;
+    statsCardHistoricalDataLabelColor: string;
+    statsCardHistoricalDataValueColor: string;
   };
   branding: {
     appName: string;
@@ -73,6 +96,31 @@ interface BaseColorPalette {
     card: string;
     dashboard: string;
     sidebar: string;
+    sidebarMenuItemActiveColor: string;
+    sidebarMenuItemIconActiveColor: string;
+    sidebarMenuItemIconInactiveColor: string;
+    sidebarMenuItemTextInactiveColor: string;
+    sidebarMenuItemTextActiveColor: string;
+    sidebarFooterSignOutButtonBackgroundColor: string;
+    sidebarFooterSignOutButtonTextColor: string;
+    sidebarFooterSignOutButtonIconColor: string;
+    sidebarFooterBackgroundColor: string;
+    headerBackgroundColor: string;
+    headerTextColor: string;
+    headerIconColor: string;
+  };
+  statsCardContent: {
+    statsCardTitleColor: string;
+    statsCardIconColor: string;
+    statsCardIconBackgroundColor: string;
+    statsCardValueColor: string;
+    statsCardTrendTextColor: string;
+    statsCardTrendTextColorPositive: string;
+    statsCardTrendIconColorPositive: string;
+    statsCardTrendTextColorNegative: string;
+    statsCardTrendIconColorNegative: string;
+    statsCardHistoricalDataLabelColor: string;
+    statsCardHistoricalDataValueColor: string;
   };
 }
 
@@ -125,6 +173,45 @@ function generateColorsFromPalette(
       overrides?.sidebarActiveOptionHighlightBackgroundColor ?? "#E9EEFF",
     sidebarActiveOptionHighlightTextColor:
       overrides?.sidebarActiveOptionHighlightTextColor ?? "#1E40AF",
+    sidebarMenuItemActiveColor:
+      overrides?.sidebarMenuItemActiveColor ?? "#E9EEFF",
+    sidebarMenuItemIconActiveColor:
+      overrides?.sidebarMenuItemIconActiveColor ?? "#1E40AF",
+    sidebarMenuItemTextActiveColor:
+      overrides?.sidebarMenuItemTextActiveColor ?? "#1E40AF",
+    sidebarMenuItemTextInactiveColor:
+      overrides?.sidebarMenuItemTextInactiveColor ?? "#3D3D3D",
+    sidebarMenuItemIconInactiveColor:
+      overrides?.sidebarMenuItemIconInactiveColor ?? "#3D3D3D",
+    sidebarFooterSignOutButtonBackgroundColor:
+      overrides?.sidebarFooterSignOutButtonBackgroundColor ?? "#FFDFDF",
+    sidebarFooterSignOutButtonTextColor:
+      overrides?.sidebarFooterSignOutButtonTextColor ?? "#D70000",
+    sidebarFooterSignOutButtonIconColor:
+      overrides?.sidebarFooterSignOutButtonIconColor ?? "#D70000",
+    sidebarFooterBackgroundColor:
+      overrides?.sidebarFooterBackgroundColor ?? "#F6F7F9",
+    headerBackgroundColor: overrides?.headerBackgroundColor ?? "#DEF3FF",
+    headerTextColor: overrides?.headerTextColor ?? "#3D3D3D",
+    headerIconColor: overrides?.headerIconColor ?? "#2563EB",
+    statsCardTitleColor: overrides?.statsCardTitleColor ?? "#525252",
+    statsCardIconColor: overrides?.statsCardIconColor ?? "#5B3E96",
+    statsCardIconBackgroundColor:
+      overrides?.statsCardIconBackgroundColor ?? "#EBE4FF",
+    statsCardValueColor: overrides?.statsCardValueColor ?? "#000000",
+    statsCardTrendTextColor: overrides?.statsCardTrendTextColor ?? "#3D3D3D",
+    statsCardTrendTextColorPositive:
+      overrides?.statsCardTrendTextColorPositive ?? "#16A34A",
+    statsCardTrendIconColorPositive:
+      overrides?.statsCardTrendIconColorPositive ?? "#16A34A",
+    statsCardTrendTextColorNegative:
+      overrides?.statsCardTrendTextColorNegative ?? "#DC2626",
+    statsCardTrendIconColorNegative:
+      overrides?.statsCardTrendIconColorNegative ?? "#DC2626",
+    statsCardHistoricalDataLabelColor:
+      overrides?.statsCardHistoricalDataLabelColor ?? "#3D3D3D",
+    statsCardHistoricalDataValueColor:
+      overrides?.statsCardHistoricalDataValueColor ?? "#000000",
   };
 }
 
@@ -147,6 +234,31 @@ const baseColorPalette: BaseColorPalette = {
     card: "#FFFFFF",
     dashboard: "#FFFFFF",
     sidebar: "#FAFAFA",
+    sidebarMenuItemActiveColor: "#E9EEFF",
+    sidebarMenuItemIconActiveColor: "#1E40AF",
+    sidebarMenuItemTextActiveColor: "#1E40AF",
+    sidebarMenuItemTextInactiveColor: "#3D3D3D",
+    sidebarMenuItemIconInactiveColor: "#3D3D3D",
+    sidebarFooterBackgroundColor: "#F6F7F9",
+    sidebarFooterSignOutButtonBackgroundColor: "#FFDFDF",
+    sidebarFooterSignOutButtonTextColor: "#D70000",
+    sidebarFooterSignOutButtonIconColor: "#D70000",
+    headerBackgroundColor: "#DEF3FF",
+    headerTextColor: "#3D3D3D",
+    headerIconColor: "#2563EB",
+  },
+  statsCardContent: {
+    statsCardTitleColor: "#525252",
+    statsCardIconColor: "#5B3E96",
+    statsCardIconBackgroundColor: "#EBE4FF",
+    statsCardValueColor: "#000000",
+    statsCardTrendTextColor: "#3D3D3D",
+    statsCardTrendTextColorPositive: "#16A34A",
+    statsCardTrendIconColorPositive: "#16A34A",
+    statsCardTrendTextColorNegative: "#DC2626",
+    statsCardTrendIconColorNegative: "#DC2626",
+    statsCardHistoricalDataLabelColor: "#3D3D3D",
+    statsCardHistoricalDataValueColor: "#000000",
   },
 };
 

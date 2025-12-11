@@ -1,50 +1,112 @@
-import type { LucideIcon } from "lucide-react";
+import { ArrowUp } from "lucide-react";
+import React from "react";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { getVariables } from "@/components/_variables/variables";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
-interface StatsCardProps {
-  title: string;
-  value: string | number;
-  description?: string;
-  icon: LucideIcon;
-  trend?: {
-    value: number;
-    isPositive: boolean;
-  };
-}
+import type { AdminStats } from "../types/admin.types";
 
 export function StatsCard({
   title,
   value,
-  description,
   icon: Icon,
   trend,
-}: StatsCardProps) {
+  historicalData,
+}: AdminStats) {
+  const variables = getVariables();
+  const TrendIcon = trend?.trendIconValue;
+  const isPositive = TrendIcon === ArrowUp;
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+    <Card className="shadow-sm gap-6">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle
+          className="text-base font-medium font-inter"
+          style={{ color: variables.colors.statsCardTitleColor }}
+        >
+          {title}
+        </CardTitle>
+        <div
+          className="flex items-center justify-center rounded-md p-2"
+          style={{
+            backgroundColor: variables.colors.statsCardIconBackgroundColor,
+          }}
+        >
+          <Icon
+            className="h-5 w-5"
+            style={{ color: variables.colors.statsCardIconColor }}
+          />
+        </div>
       </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        {description && (
-          <CardDescription className="mt-1">{description}</CardDescription>
-        )}
-        {trend && (
+      <CardContent className="space-y-6 md:space-y-6.5">
+        <div className="flex items-center justify-between">
           <div
-            className={`mt-2 text-xs ${
-              trend.isPositive ? "text-green-600" : "text-red-600"
-            }`}
+            className="text-4xl xl:text-[2.5rem] font-medium font-inter"
+            style={{ color: variables.colors.statsCardValueColor }}
           >
-            {trend.isPositive ? "+" : ""}
-            {trend.value}% from last month
+            {value}
+          </div>
+
+          {trend && (
+            <div className="flex flex-col items-center justify-center gap-1">
+              <span
+                className="text-sm font-inter"
+                style={{ color: variables.colors.statsCardTrendTextColor }}
+              >
+                {trend.trendTextValue}
+              </span>
+              <div className="flex items-center justify-start gap-1">
+                {TrendIcon && (
+                  <TrendIcon
+                    className="h-4.5 w-4.5"
+                    style={{
+                      color: isPositive
+                        ? variables.colors.statsCardTrendIconColorPositive
+                        : variables.colors.statsCardTrendIconColorNegative,
+                    }}
+                  />
+                )}
+                <span
+                  className="text-base font-semibold font-inter"
+                  style={{
+                    color: isPositive
+                      ? variables.colors.statsCardTrendTextColorPositive
+                      : variables.colors.statsCardTrendTextColorNegative,
+                  }}
+                >
+                  {trend.textValue}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {historicalData && (
+          <div className="space-y-2 ">
+            {historicalData.map((item, index) => (
+              <React.Fragment key={index}>
+                <div className="flex items-center justify-between">
+                  <span
+                    className="text-sm font-inter"
+                    style={{
+                      color: variables.colors.statsCardHistoricalDataLabelColor,
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                  <span
+                    className="text-base font-inter font-medium"
+                    style={{
+                      color: variables.colors.statsCardHistoricalDataValueColor,
+                    }}
+                  >
+                    {item.value}
+                  </span>
+                </div>
+                {index < 2 && <Separator />}
+              </React.Fragment>
+            ))}
           </div>
         )}
       </CardContent>

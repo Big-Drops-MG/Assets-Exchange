@@ -24,3 +24,9 @@ export interface SidebarMenuGroup {
 }
 
 export type SidebarMenuConfig = SidebarMenuGroup[];
+
+export interface UserProfileConfig {
+  name: string;
+  phone?: string;
+  email: string;
+}

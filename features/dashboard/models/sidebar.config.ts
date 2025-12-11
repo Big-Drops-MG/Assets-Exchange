@@ -1,4 +1,13 @@
-import type { SidebarMenuConfig } from "../types/sidebar.types";
+import type {
+  SidebarMenuConfig,
+  UserProfileConfig,
+} from "../types/sidebar.types";
+
+export const exampleUserProfile: UserProfileConfig = {
+  name: "Jhon Doe",
+  phone: "(123) 456 - 7890",
+  email: "superadmin@bigdropsm.ing.com",
+};
 
 export const adminMenuConfig: SidebarMenuConfig = [
   {

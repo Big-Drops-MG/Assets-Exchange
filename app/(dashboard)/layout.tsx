@@ -52,11 +52,24 @@ export default async function DashboardLayout({
         userEmail={user.email}
       />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
-          <div>
+        <header
+          className="flex  h-16 xl:h-19  shrink-0 items-center justify-between gap-2 border-b px-4"
+          style={{
+            backgroundColor: variables.colors.headerBackgroundColor,
+          }}
+        >
+          <div
+            style={{
+              color: variables.colors.headerTextColor,
+            }}
+          >
             <SidebarTrigger />
           </div>
-          <div>
+          <div
+            style={{
+              color: variables.colors.headerTextColor,
+            }}
+          >
             <LastUpdated />
           </div>
         </header>

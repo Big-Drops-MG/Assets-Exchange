@@ -3,9 +3,16 @@ import { type LucideIcon } from "lucide-react";
 export interface AdminStats {
   title: string;
   value: number;
-  description: string;
   icon: LucideIcon;
-  trend?: { value: number; isPositive: boolean };
+  trend?: {
+    trendTextValue: string;
+    textValue: string;
+    trendIconValue: LucideIcon;
+  };
+  historicalData?: Array<{
+    label: string;
+    value: number | string;
+  }>;
 }
 
 export interface RecentRequest {

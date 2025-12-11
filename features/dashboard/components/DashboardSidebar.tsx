@@ -32,6 +32,7 @@ import {
 import { useSidebar } from "@/components/ui/sidebar";
 import { SignOutButton } from "@/features/auth/components/SignOutButton";
 
+import { exampleUserProfile } from "../models/sidebar.config";
 import type { IconName, SidebarMenuConfig } from "../types/sidebar.types";
 
 const iconMap: Record<IconName, LucideIcon> = {
@@ -62,6 +63,10 @@ export function DashboardSidebar({
   const isCollapsed = state === "collapsed";
   const isExpanded = state === "expanded";
   const [showUserDetails, setShowUserDetails] = useState(false);
+  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+
+  const displayName = userName || exampleUserProfile.name;
+  const displayEmail = userEmail || exampleUserProfile.email;
 
   useEffect(() => {
     if (isExpanded) {
@@ -76,7 +81,7 @@ export function DashboardSidebar({
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="px-2 py-4">
+      <SidebarHeader className="px-2 py-4 bg-white">
         <div className="relative flex items-center justify-center min-h-[45px]">
           <div className="relative w-full flex items-center justify-center">
             {isExpanded && (
@@ -105,17 +110,20 @@ export function DashboardSidebar({
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="bg-white">
         {menuConfig.map((group) => (
           <SidebarGroup key={group.id}>
             {group.label && (
               <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
             )}
             <SidebarGroupContent>
-              <SidebarMenu>
+              <SidebarMenu className="md:space-y-0.5">
                 {group.items.map((item) => {
                   const isActive = pathname === item.href;
+                  const isHovered = hoveredItemId === item.id;
                   const Icon = iconMap[item.icon];
+
+                  const shouldApplyActiveStyles = isActive || isHovered;
 
                   return (
                     <SidebarMenuItem key={item.id}>
@@ -123,12 +131,33 @@ export function DashboardSidebar({
                         asChild
                         isActive={isActive}
                         tooltip={item.label}
+                        className="font-inter h-10 lg:h-11 xl:h-12.5 px-4 xl:px-5 py-3 font-medium transition-colors duration-200"
+                        style={{
+                          backgroundColor: shouldApplyActiveStyles
+                            ? variables.colors.sidebarMenuItemActiveColor
+                            : "transparent",
+                          color: shouldApplyActiveStyles
+                            ? variables.colors.sidebarMenuItemTextActiveColor
+                            : variables.colors.sidebarMenuItemTextInactiveColor,
+                        }}
+                        onMouseEnter={() => setHoveredItemId(item.id)}
+                        onMouseLeave={() => setHoveredItemId(null)}
                       >
                         <Link href={item.href}>
-                          <Icon />
-                          <span>{item.label}</span>
+                          <Icon
+                            style={{
+                              color: shouldApplyActiveStyles
+                                ? variables.colors
+                                    .sidebarMenuItemIconActiveColor
+                                : variables.colors
+                                    .sidebarMenuItemIconInactiveColor,
+                            }}
+                          />
+                          <span className="font-medium text-sm xl:text-[0.9rem] font-inter">
+                            {item.label}
+                          </span>
                           {item.badge && (
-                            <span className="ml-auto text-xs">
+                            <span className="ml-auto  text-lg font-inter font-medium">
                               {item.badge}
                             </span>
                           )}
@@ -143,14 +172,22 @@ export function DashboardSidebar({
         ))}
       </SidebarContent>
 
-      <SidebarFooter className={isCollapsed ? "p-2" : "p-4"}>
-        <div className="space-y-2">
-          {userName && showUserDetails && (
-            <div className="px-2 py-1.5 text-sm transition-opacity duration-300">
-              <p className="font-medium">{userName}</p>
-              {userEmail && (
-                <p className="text-xs text-muted-foreground">{userEmail}</p>
-              )}
+      <SidebarFooter
+        className={isCollapsed ? "p-2" : "p-4"}
+        style={{
+          backgroundColor: variables.colors.sidebarFooterBackgroundColor,
+        }}
+      >
+        <div className="space-y-2.5">
+          {displayName && showUserDetails && (
+            <div className="px-2 py-1.5 text-sm lg:text-[0.9rem]  transition-opacity duration-300">
+              <p className="font-medium font-inter text-[#010101]">
+                {displayName}
+              </p>
+
+              <p className="text-xs font-inter lg:text-[0.8rem]  text-[#6b7280]">
+                {displayEmail}
+              </p>
             </div>
           )}
           <div className={`flex ${isCollapsed ? "justify-center" : "w-full"}`}>
