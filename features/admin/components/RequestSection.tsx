@@ -1,6 +1,7 @@
 "use client";
 
 import * as Accordion from "@radix-ui/react-accordion";
+import { useState } from "react";
 
 import { getVariables } from "@/components/_variables/variables";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ interface RequestSectionProps {
 
 export function RequestSection({ request }: RequestSectionProps) {
   const variables = getVariables();
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
     <Card className="overflow-hidden">
@@ -24,15 +26,27 @@ export function RequestSection({ request }: RequestSectionProps) {
         style={{ backgroundColor: variables.colors.cardHeaderBackgroundColor }}
       >
         <CardTitle
-          className="text-lg font-inter font-medium"
+          className="xl:text-lg text-sm lg:text-base font-inter font-medium"
           style={{ color: variables.colors.cardHeaderTextColor }}
         >
           {request.headerTitle}
         </CardTitle>
 
         <div className="flex items-center gap-3 flex-1 max-w-md justify-end">
-          <Button className="bg-white  h-10.5 w-23 font-inter font-medium rounded-[6px]">
-            <span className="text-[#2563EB] text-[0.95rem]">
+          <Button
+            className="md:h-8.5 md:w-20 lg:h-9.5 lg:w-21.5  xl:h-10.5 xl:w-23 font-inter font-medium rounded-[6px] transition-colors"
+            style={{
+              backgroundColor: isHovered ? "#FFFFFF" : "#FFFFFF",
+            }}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            <span
+              className="text-xs lg:text-sm font-medium xl:text-[0.95rem]"
+              style={{
+                color: isHovered ? "#2563EB" : "#2563EB",
+              }}
+            >
               {request.buttonTitle}
             </span>
           </Button>

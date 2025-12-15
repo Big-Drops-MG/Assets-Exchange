@@ -4,8 +4,8 @@ import {
   MailCheck,
   MailX,
   Clock,
-  ArrowUp,
-  ArrowDown,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 
 import type { AdminDashboardData, AdminStats } from "../types/admin.types";
@@ -18,7 +18,7 @@ export const dummyAdminStats: AdminStats[] = [
     trend: {
       trendTextValue: "Today",
       textValue: "43%",
-      trendIconValue: ArrowUp,
+      trendIconValue: TrendingUp,
     },
     historicalData: [
       { label: "Yesterday", value: "400" },
@@ -33,7 +33,7 @@ export const dummyAdminStats: AdminStats[] = [
     trend: {
       trendTextValue: "Today",
       textValue: "13%",
-      trendIconValue: ArrowDown,
+      trendIconValue: TrendingDown,
     },
     historicalData: [
       { label: "Yesterday", value: "400" },
@@ -48,7 +48,7 @@ export const dummyAdminStats: AdminStats[] = [
     trend: {
       trendTextValue: "Today",
       textValue: "20%",
-      trendIconValue: ArrowUp,
+      trendIconValue: TrendingUp,
     },
     historicalData: [
       { label: "Yesterday", value: "400" },
@@ -63,7 +63,7 @@ export const dummyAdminStats: AdminStats[] = [
     trend: {
       trendTextValue: "Today",
       textValue: "12%",
-      trendIconValue: ArrowDown,
+      trendIconValue: TrendingDown,
     },
     historicalData: [
       { label: "Yesterday", value: "400" },
@@ -78,7 +78,7 @@ export const dummyAdminStats: AdminStats[] = [
     trend: {
       trendTextValue: "Today",
       textValue: "43%",
-      trendIconValue: ArrowUp,
+      trendIconValue: TrendingUp,
     },
     historicalData: [
       { label: "Yesterday", value: "400" },

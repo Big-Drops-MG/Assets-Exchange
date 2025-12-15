@@ -188,19 +188,24 @@ export function PerformanceChart() {
         className="-mt-6 mb-0 px-6 py-6 gap-0 flex flex-row items-center justify-between"
         style={{ backgroundColor: variables.colors.cardHeaderBackgroundColor }}
       >
-        <CardTitle style={{ color: variables.colors.cardHeaderTextColor }}>
+        <CardTitle
+          className="xl:text-lg text-sm lg:text-base font-inter font-medium"
+          style={{ color: variables.colors.cardHeaderTextColor }}
+        >
           Performance Overview
         </CardTitle>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center  gap-3">
           <Select
             value={selectedMetric}
             onValueChange={(value) => setSelectedMetric(value as MetricType)}
           >
             <SelectTrigger
-              className="bg-white/90 border-white/20 text-foreground"
+              className="font-inter font-medium rounded-[6px] [&_*[data-slot=select-value]]:text-xs [&_*[data-slot=select-value]]:lg:text-sm [&_*[data-slot=select-value]]:xl:text-[0.95rem]"
               style={{
                 width: metricDropdownWidth,
                 minWidth: metricDropdownWidth,
+                backgroundColor: "#FFFFFF",
+                color: "#2563EB",
               }}
             >
               <SelectValue />
@@ -218,10 +223,12 @@ export function PerformanceChart() {
             onValueChange={setSelectedComparison}
           >
             <SelectTrigger
-              className="bg-white/90 border-white/20 text-foreground"
+              className="font-inter font-medium rounded-[6px] [&_*[data-slot=select-value]]:text-xs [&_*[data-slot=select-value]]:lg:text-sm [&_*[data-slot=select-value]]:xl:text-[0.95rem]"
               style={{
                 width: comparisonDropdownWidth,
                 minWidth: comparisonDropdownWidth,
+                backgroundColor: "#FFFFFF",
+                color: "#2563EB",
               }}
             >
               <SelectValue />

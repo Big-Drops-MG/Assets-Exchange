@@ -1,4 +1,4 @@
-import { ArrowUp } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import React from "react";
 
 import { getVariables } from "@/components/_variables/variables";
@@ -16,7 +16,7 @@ export function StatsCard({
 }: AdminStats) {
   const variables = getVariables();
   const TrendIcon = trend?.trendIconValue;
-  const isPositive = TrendIcon === ArrowUp;
+  const isPositive = TrendIcon === TrendingUp;
 
   const getBackgroundColor = () => {
     switch (title) {

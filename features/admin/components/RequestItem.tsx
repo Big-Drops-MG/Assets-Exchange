@@ -24,13 +24,45 @@ interface RequestItemProps {
 
 const getPriorityBadgeClass = (priority: string) => {
   if (priority.toLowerCase().includes("high")) {
-    return "rounded-[20px] border border-[#FCA5A5] bg-[#FFDFDF] h-7 px-1.5  text-sm font-inter  text-[#D70000]";
+    return "rounded-[20px] border border-[#FCA5A5] bg-[#FFDFDF] h-7 px-1.5 text-xs  xl:text-sm font-inter  text-[#D70000]";
   }
   if (priority.toLowerCase().includes("medium")) {
-    return "rounded-[20px] border border-[#FCD34D] bg-[#FFF8DB] h-7 px-1.5 text-sm font-inter  text-[#B18100]";
+    return "rounded-[20px] border border-[#FCD34D] bg-[#FFF8DB] h-7 px-1.5 text-xs  xl:text-sm font-inter  text-[#B18100]";
   }
 
-  return "rounded-[20px] border border-[#93C5FD] bg-[#DBEAFE] h-7 px-1.5 text-sm font-inter  text-[#1E40AF]";
+  return "rounded-[20px] border border-[#93C5FD] bg-[#DBEAFE] h-7 px-1.5 text-xs  xl:text-sm font-inter  text-[#1E40AF]";
+};
+
+const getPriorityColors = (
+  priority: string,
+  colors: ReturnType<typeof getVariables>["colors"]
+) => {
+  const priorityLower = priority.toLowerCase();
+
+  if (priorityLower.includes("high")) {
+    return {
+      backgroundColor: colors.requestCardHighBackgroundColor,
+      borderColor: colors.requestCardHighBorderColor,
+      offerIdBackgroundColor: colors.requestCardHighOfferIdBackgroundColor,
+      offerIdTextColor: colors.requestCardHighOfferIdTextColor,
+    };
+  }
+
+  if (priorityLower.includes("medium")) {
+    return {
+      backgroundColor: colors.requestCardMediumBackgroundColor,
+      borderColor: colors.requestCardMediumBorderColor,
+      offerIdBackgroundColor: colors.requestCardMediumOfferIdBackgroundColor,
+      offerIdTextColor: colors.requestCardMediumOfferIdTextColor,
+    };
+  }
+
+  return {
+    backgroundColor: colors.requestCardLowBackgroundColor,
+    borderColor: colors.requestCardLowBorderColor,
+    offerIdBackgroundColor: colors.requestCardLowOfferIdBackgroundColor,
+    offerIdTextColor: colors.requestCardLowOfferIdTextColor,
+  };
 };
 
 export function RequestItem({
@@ -41,6 +73,10 @@ export function RequestItem({
   rejectRequest,
 }: RequestItemProps) {
   const variables = getVariables();
+  const priorityColors = getPriorityColors(
+    requestHeader.priority,
+    variables.colors
+  );
 
   const meta = [
     `Creative Type: ${rejectRequest.creativeTypeValue}`,
@@ -54,13 +90,13 @@ export function RequestItem({
       value={requestId}
       className="rounded-[10px] overflow-hidden"
       style={{
-        backgroundColor: variables.colors.requestCardBackgroundColor,
-        border: `1px solid ${variables.colors.requestCardBorderColor}`,
+        backgroundColor: priorityColors.backgroundColor,
+        border: `1px solid ${priorityColors.borderColor}`,
       }}
     >
       <Accordion.Header>
         <Accordion.Trigger className="flex w-full items-center justify-between px-5 py-4 text-left">
-          <div className="flex flex-wrap items-center gap-3 text-sm leading-5">
+          <div className="flex flex-wrap items-center xlg:gap-3 gap-2 text-xs xl:text-sm leading-5">
             <span
               className="font-inter"
               style={{ color: variables.colors.requestCardTextColor }}
@@ -102,29 +138,28 @@ export function RequestItem({
         className="grid grid-cols-[1fr_220px]  items-center border-t bg-white px-5 py-4"
         style={{
           borderTop: "1px solid #D6D6D6",
-          backgroundColor: variables.colors.requestCardBackgroundColor,
+          backgroundColor: priorityColors.backgroundColor,
         }}
       >
-        <div className="flex flex-wrap items-center  gap-2.5 text-sm leading-5">
+        <div className="flex flex-wrap items-center  gap-2.5 text-xs xl:text-sm leading-5">
           <span
-            className="rounded-[20px] h-6 px-1 text-xs font-inter font-medium flex items-center justify-center"
+            className="rounded-[20px] h-6 px-1 text-xs xl:text-sm font-inter font-medium flex items-center justify-center"
             style={{
-              backgroundColor:
-                variables.colors.requestCardOfferIdBackgroundColor,
+              backgroundColor: priorityColors.offerIdBackgroundColor,
             }}
           >
-            <span
-              style={{ color: variables.colors.requestCardOfferIdTextColor }}
-            >
+            <span style={{ color: priorityColors.offerIdTextColor }}>
               {viewRequest.offerId}
             </span>
           </span>
-          <span className="font-inter">{viewRequest.offerName}</span>
+          <span className="font-inter text-xs xl:text-sm">
+            {viewRequest.offerName}
+          </span>
         </div>
 
         <Button
           variant="outline"
-          className="w-full justify-self-end h-11 w-47 font-inter text-sm font-medium rounded-[6px]"
+          className="w-full justify-self-end xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px]"
           style={{
             color: variables.colors.requestCardViewButtonTextColor,
             backgroundColor:
@@ -138,12 +173,12 @@ export function RequestItem({
 
       <Accordion.Content className="bg-white">
         <div
-          className="grid grid-cols-[1fr_220px] gap-6 px-5 pb-5 items-start"
+          className="grid grid-cols-[1fr_220px]  xlg:gap-6 gap-3 px-5 pb-5 items-start"
           style={{
-            backgroundColor: variables.colors.requestCardBackgroundColor,
+            backgroundColor: priorityColors.backgroundColor,
           }}
         >
-          <div className="flex flex-col gap-6 text-sm">
+          <div className="flex flex-col gap-6 text-xs xl:text-sm">
             <div className="leading-5 font-inter flex items-center gap-2">
               <span
                 className="font-inter text-sm font-semibold"
@@ -152,25 +187,25 @@ export function RequestItem({
                 Client:
               </span>{" "}
               <span
-                className="font-inter text-sm "
+                className="font-inter text-xs xl:text-sm "
                 style={{ color: variables.colors.requestCardTextColor }}
               >
                 {approveRequest.clientId}
               </span>{" "}
               |{" "}
               <span
-                className="font-inter text-sm "
+                className="font-inter text-xs xl:text-sm "
                 style={{ color: variables.colors.requestCardTextColor }}
               >
                 {approveRequest.companyNameTitle}
               </span>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap  gap-2">
               {meta.map((m, index) => (
                 <span
                   key={index}
-                  className="rounded-[4px] border bg-white px-2 h-7 text-sm font-normal flex items-center justify-center leading-4 font-inter shadow-[0_0_2px_0_rgba(30,64,175,0.1)]"
+                  className="rounded-[4px] border bg-white px-2 h-7 text-xs xl:text-sm font-normal flex items-center justify-center leading-4 font-inter shadow-[0_0_2px_0_rgba(30,64,175,0.1)]"
                   style={{ color: variables.colors.requestCardTextColor }}
                 >
                   {m}
@@ -179,9 +214,9 @@ export function RequestItem({
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 justify-self-end">
+          <div className="flex flex-col gap-4 xl:gap-4 justify-self-end">
             <Button
-              className="h-11 w-47 font-inter text-sm font-medium rounded-[6px]"
+              className="xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px] "
               style={{
                 color: variables.colors.requestCardApproveButtonTextColor,
                 backgroundColor:
@@ -193,7 +228,7 @@ export function RequestItem({
 
             <Button
               variant="outline"
-              className="w-full h-11 w-47 font-inter text-sm font-medium rounded-[6px]"
+              className=" xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px] "
               style={{
                 color: variables.colors.requestCardRejectedButtonTextColor,
                 backgroundColor:

@@ -57,7 +57,7 @@ export function SignOutButton({ isCollapsed = false }: SignOutButtonProps) {
               color: variables.colors.sidebarFooterSignOutButtonTextColor,
             }}
           >
-            Logout
+            Sign Out
           </span>
         </>
       )}
@@ -77,7 +77,7 @@ export function SignOutButton({ isCollapsed = false }: SignOutButtonProps) {
       <Tooltip>
         <TooltipTrigger asChild>{button}</TooltipTrigger>
         <TooltipContent side="right" align="center">
-          Logout
+          Sign Out
         </TooltipContent>
       </Tooltip>
     );

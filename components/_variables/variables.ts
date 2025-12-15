@@ -74,8 +74,13 @@ export interface AppVariables {
     cardHeaderTextColor: string;
     requestCardTextColor: string;
     requestCardBackgroundColor: string;
+    requestCardHighBackgroundColor: string;
+    requestCardMediumBackgroundColor: string;
+    requestCardLowBackgroundColor: string;
     requestCardButtonTextColor: string;
-    requestCardBorderColor: string;
+    requestCardHighBorderColor: string;
+    requestCardMediumBorderColor: string;
+    requestCardLowBorderColor: string;
     requestCardViewButtonBackgroundColor: string;
     requestCardViewButtonTextColor: string;
     requestCardViewButtonBorderColor: string;
@@ -84,8 +89,12 @@ export interface AppVariables {
     requestCardRejectedButtonBackgroundColor: string;
     requestCardRejectedButtonTextColor: string;
     requestCardRejectedButtonBorderColor: string;
-    requestCardOfferIdBackgroundColor: string;
-    requestCardOfferIdTextColor: string;
+    requestCardHighOfferIdBackgroundColor: string;
+    requestCardMediumOfferIdBackgroundColor: string;
+    requestCardLowOfferIdBackgroundColor: string;
+    requestCardHighOfferIdTextColor: string;
+    requestCardMediumOfferIdTextColor: string;
+    requestCardLowOfferIdTextColor: string;
   };
   branding: {
     appName: string;
@@ -149,7 +158,12 @@ interface BaseColorPalette {
   requestContent: {
     requestCardTextColor: string;
     requestCardBackgroundColor: string;
-    requestCardBorderColor: string;
+    requestCardHighBackgroundColor: string;
+    requestCardMediumBackgroundColor: string;
+    requestCardLowBackgroundColor: string;
+    requestCardHighBorderColor: string;
+    requestCardMediumBorderColor: string;
+    requestCardLowBorderColor: string;
     requestCardButtonTextColor: string;
     requestCardViewButtonBackgroundColor: string;
     requestCardViewButtonTextColor: string;
@@ -157,8 +171,12 @@ interface BaseColorPalette {
     requestCardRejectedButtonBackgroundColor: string;
     requestCardRejectedButtonTextColor: string;
     requestCardRejectedButtonBorderColor: string;
-    requestCardOfferIdBackgroundColor: string;
-    requestCardOfferIdTextColor: string;
+    requestCardHighOfferIdBackgroundColor: string;
+    requestCardMediumOfferIdBackgroundColor: string;
+    requestCardLowOfferIdBackgroundColor: string;
+    requestCardHighOfferIdTextColor: string;
+    requestCardMediumOfferIdTextColor: string;
+    requestCardLowOfferIdTextColor: string;
     requestCardApproveButtonBackgroundColor: string;
     requestCardApproveButtonTextColor: string;
   };
@@ -270,7 +288,18 @@ function generateColorsFromPalette(
     requestCardTextColor: overrides?.requestCardTextColor ?? "#3D3D3D",
     requestCardBackgroundColor:
       overrides?.requestCardBackgroundColor ?? "#F9F7FF",
-    requestCardBorderColor: overrides?.requestCardBorderColor ?? "#9B81D1",
+    requestCardHighBackgroundColor:
+      overrides?.requestCardHighBackgroundColor ?? "#F9F7FF",
+    requestCardMediumBackgroundColor:
+      overrides?.requestCardMediumBackgroundColor ?? "#F1F9FF",
+    requestCardLowBackgroundColor:
+      overrides?.requestCardLowBackgroundColor ?? "#DBEAFE",
+    requestCardHighBorderColor:
+      overrides?.requestCardHighBorderColor ?? "#9B81D1",
+    requestCardMediumBorderColor:
+      overrides?.requestCardMediumBorderColor ?? "#7C90CF",
+    requestCardLowBorderColor:
+      overrides?.requestCardLowBorderColor ?? "#93C5FD",
     requestCardButtonTextColor:
       overrides?.requestCardButtonTextColor ?? "#F3F6FF",
     requestCardViewButtonBackgroundColor:
@@ -289,10 +318,18 @@ function generateColorsFromPalette(
       overrides?.requestCardRejectedButtonTextColor ?? "#EF4444",
     requestCardRejectedButtonBorderColor:
       overrides?.requestCardRejectedButtonBorderColor ?? "#EF4444",
-    requestCardOfferIdBackgroundColor:
-      overrides?.requestCardOfferIdBackgroundColor ?? "#EBE4FF",
-    requestCardOfferIdTextColor:
-      overrides?.requestCardOfferIdTextColor ?? "#5B3E96",
+    requestCardHighOfferIdBackgroundColor:
+      overrides?.requestCardHighOfferIdBackgroundColor ?? "#EBE4FF",
+    requestCardMediumOfferIdBackgroundColor:
+      overrides?.requestCardMediumOfferIdBackgroundColor ?? "#DBE3FF",
+    requestCardLowOfferIdBackgroundColor:
+      overrides?.requestCardLowOfferIdBackgroundColor ?? "#EBE4FF",
+    requestCardHighOfferIdTextColor:
+      overrides?.requestCardHighOfferIdTextColor ?? "#5B3E96",
+    requestCardMediumOfferIdTextColor:
+      overrides?.requestCardMediumOfferIdTextColor ?? "#1E40AF",
+    requestCardLowOfferIdTextColor:
+      overrides?.requestCardLowOfferIdTextColor ?? "#5B3E96",
   };
 }
 
@@ -345,7 +382,14 @@ const baseColorPalette: BaseColorPalette = {
   requestContent: {
     requestCardTextColor: "#3D3D3D",
     requestCardBackgroundColor: "#F9F7FF",
-    requestCardBorderColor: "#9B81D1",
+    requestCardHighBackgroundColor: "#F9F7FF",
+    requestCardMediumBackgroundColor: "#F1F9FF",
+    requestCardLowBackgroundColor: "#DBEAFE",
+
+    requestCardHighBorderColor: "#9B81D1",
+    requestCardMediumBorderColor: "#7C90CF",
+    requestCardLowBorderColor: "#93C5FD",
+
     requestCardButtonTextColor: "#F3F6FF",
     requestCardViewButtonBackgroundColor: "#F3F6FF",
     requestCardViewButtonTextColor: "#2563EB",
@@ -356,8 +400,12 @@ const baseColorPalette: BaseColorPalette = {
     requestCardRejectedButtonTextColor: "#EF4444",
 
     requestCardRejectedButtonBorderColor: "#EF4444",
-    requestCardOfferIdBackgroundColor: "#EBE4FF",
-    requestCardOfferIdTextColor: "#5B3E96",
+    requestCardHighOfferIdBackgroundColor: "#EBE4FF",
+    requestCardMediumOfferIdBackgroundColor: "#DBE3FF",
+    requestCardLowOfferIdBackgroundColor: "#EBE4FF",
+    requestCardHighOfferIdTextColor: "#5B3E96",
+    requestCardMediumOfferIdTextColor: "#1E40AF",
+    requestCardLowOfferIdTextColor: "#5B3E96",
   },
 };
 
