@@ -74,13 +74,11 @@ export interface AppVariables {
     cardHeaderTextColor: string;
     requestCardTextColor: string;
     requestCardBackgroundColor: string;
-    requestCardHighBackgroundColor: string;
-    requestCardMediumBackgroundColor: string;
-    requestCardLowBackgroundColor: string;
+    AccordionPurpleBackgroundColor: string;
+    AccordionBlueBackgroundColor: string;
     requestCardButtonTextColor: string;
-    requestCardHighBorderColor: string;
-    requestCardMediumBorderColor: string;
-    requestCardLowBorderColor: string;
+    AccordionPurpleBorderColor: string;
+    AccordionBlueBorderColor: string;
     requestCardViewButtonBackgroundColor: string;
     requestCardViewButtonTextColor: string;
     requestCardViewButtonBorderColor: string;
@@ -89,12 +87,10 @@ export interface AppVariables {
     requestCardRejectedButtonBackgroundColor: string;
     requestCardRejectedButtonTextColor: string;
     requestCardRejectedButtonBorderColor: string;
-    requestCardHighOfferIdBackgroundColor: string;
-    requestCardMediumOfferIdBackgroundColor: string;
-    requestCardLowOfferIdBackgroundColor: string;
-    requestCardHighOfferIdTextColor: string;
-    requestCardMediumOfferIdTextColor: string;
-    requestCardLowOfferIdTextColor: string;
+    AccordionPurpleOfferIdBackgroundColor: string;
+    AccordionBlueOfferIdBackgroundColor: string;
+    AccordionPurpleOfferIdTextColor: string;
+    AccordionBlueOfferIdTextColor: string;
   };
   branding: {
     appName: string;
@@ -158,12 +154,10 @@ interface BaseColorPalette {
   requestContent: {
     requestCardTextColor: string;
     requestCardBackgroundColor: string;
-    requestCardHighBackgroundColor: string;
-    requestCardMediumBackgroundColor: string;
-    requestCardLowBackgroundColor: string;
-    requestCardHighBorderColor: string;
-    requestCardMediumBorderColor: string;
-    requestCardLowBorderColor: string;
+    AccordionPurpleBackgroundColor: string;
+    AccordionBlueBackgroundColor: string;
+    AccordionPurpleBorderColor: string;
+    AccordionBlueBorderColor: string;
     requestCardButtonTextColor: string;
     requestCardViewButtonBackgroundColor: string;
     requestCardViewButtonTextColor: string;
@@ -171,12 +165,10 @@ interface BaseColorPalette {
     requestCardRejectedButtonBackgroundColor: string;
     requestCardRejectedButtonTextColor: string;
     requestCardRejectedButtonBorderColor: string;
-    requestCardHighOfferIdBackgroundColor: string;
-    requestCardMediumOfferIdBackgroundColor: string;
-    requestCardLowOfferIdBackgroundColor: string;
-    requestCardHighOfferIdTextColor: string;
-    requestCardMediumOfferIdTextColor: string;
-    requestCardLowOfferIdTextColor: string;
+    AccordionPurpleOfferIdBackgroundColor: string;
+    AccordionBlueOfferIdBackgroundColor: string;
+    AccordionPurpleOfferIdTextColor: string;
+    AccordionBlueOfferIdTextColor: string;
     requestCardApproveButtonBackgroundColor: string;
     requestCardApproveButtonTextColor: string;
   };
@@ -288,18 +280,13 @@ function generateColorsFromPalette(
     requestCardTextColor: overrides?.requestCardTextColor ?? "#3D3D3D",
     requestCardBackgroundColor:
       overrides?.requestCardBackgroundColor ?? "#F9F7FF",
-    requestCardHighBackgroundColor:
-      overrides?.requestCardHighBackgroundColor ?? "#F9F7FF",
-    requestCardMediumBackgroundColor:
-      overrides?.requestCardMediumBackgroundColor ?? "#F1F9FF",
-    requestCardLowBackgroundColor:
-      overrides?.requestCardLowBackgroundColor ?? "#DBEAFE",
-    requestCardHighBorderColor:
-      overrides?.requestCardHighBorderColor ?? "#9B81D1",
-    requestCardMediumBorderColor:
-      overrides?.requestCardMediumBorderColor ?? "#7C90CF",
-    requestCardLowBorderColor:
-      overrides?.requestCardLowBorderColor ?? "#93C5FD",
+    AccordionPurpleBackgroundColor:
+      overrides?.AccordionPurpleBackgroundColor ?? "#F9F7FF",
+    AccordionBlueBackgroundColor:
+      overrides?.AccordionBlueBackgroundColor ?? "#F1F9FF",
+    AccordionPurpleBorderColor:
+      overrides?.AccordionPurpleBorderColor ?? "#9B81D1",
+    AccordionBlueBorderColor: overrides?.AccordionBlueBorderColor ?? "#7C90CF",
     requestCardButtonTextColor:
       overrides?.requestCardButtonTextColor ?? "#F3F6FF",
     requestCardViewButtonBackgroundColor:
@@ -318,18 +305,14 @@ function generateColorsFromPalette(
       overrides?.requestCardRejectedButtonTextColor ?? "#EF4444",
     requestCardRejectedButtonBorderColor:
       overrides?.requestCardRejectedButtonBorderColor ?? "#EF4444",
-    requestCardHighOfferIdBackgroundColor:
-      overrides?.requestCardHighOfferIdBackgroundColor ?? "#EBE4FF",
-    requestCardMediumOfferIdBackgroundColor:
-      overrides?.requestCardMediumOfferIdBackgroundColor ?? "#DBE3FF",
-    requestCardLowOfferIdBackgroundColor:
-      overrides?.requestCardLowOfferIdBackgroundColor ?? "#EBE4FF",
-    requestCardHighOfferIdTextColor:
-      overrides?.requestCardHighOfferIdTextColor ?? "#5B3E96",
-    requestCardMediumOfferIdTextColor:
-      overrides?.requestCardMediumOfferIdTextColor ?? "#1E40AF",
-    requestCardLowOfferIdTextColor:
-      overrides?.requestCardLowOfferIdTextColor ?? "#5B3E96",
+    AccordionPurpleOfferIdBackgroundColor:
+      overrides?.AccordionPurpleOfferIdBackgroundColor ?? "#EBE4FF",
+    AccordionBlueOfferIdBackgroundColor:
+      overrides?.AccordionBlueOfferIdBackgroundColor ?? "#DBE3FF",
+    AccordionPurpleOfferIdTextColor:
+      overrides?.AccordionPurpleOfferIdTextColor ?? "#5B3E96",
+    AccordionBlueOfferIdTextColor:
+      overrides?.AccordionBlueOfferIdTextColor ?? "#1E40AF",
   };
 }
 
@@ -382,13 +365,11 @@ const baseColorPalette: BaseColorPalette = {
   requestContent: {
     requestCardTextColor: "#3D3D3D",
     requestCardBackgroundColor: "#F9F7FF",
-    requestCardHighBackgroundColor: "#F9F7FF",
-    requestCardMediumBackgroundColor: "#F1F9FF",
-    requestCardLowBackgroundColor: "#DBEAFE",
+    AccordionPurpleBackgroundColor: "#F9F7FF",
+    AccordionBlueBackgroundColor: "#F1F9FF",
 
-    requestCardHighBorderColor: "#9B81D1",
-    requestCardMediumBorderColor: "#7C90CF",
-    requestCardLowBorderColor: "#93C5FD",
+    AccordionPurpleBorderColor: "#9B81D1",
+    AccordionBlueBorderColor: "#7C90CF",
 
     requestCardButtonTextColor: "#F3F6FF",
     requestCardViewButtonBackgroundColor: "#F3F6FF",
@@ -400,12 +381,11 @@ const baseColorPalette: BaseColorPalette = {
     requestCardRejectedButtonTextColor: "#EF4444",
 
     requestCardRejectedButtonBorderColor: "#EF4444",
-    requestCardHighOfferIdBackgroundColor: "#EBE4FF",
-    requestCardMediumOfferIdBackgroundColor: "#DBE3FF",
-    requestCardLowOfferIdBackgroundColor: "#EBE4FF",
-    requestCardHighOfferIdTextColor: "#5B3E96",
-    requestCardMediumOfferIdTextColor: "#1E40AF",
-    requestCardLowOfferIdTextColor: "#5B3E96",
+    AccordionPurpleOfferIdBackgroundColor: "#EBE4FF",
+    AccordionBlueOfferIdBackgroundColor: "#DBE3FF",
+
+    AccordionPurpleOfferIdTextColor: "#5B3E96",
+    AccordionBlueOfferIdTextColor: "#1E40AF",
   },
 };
 

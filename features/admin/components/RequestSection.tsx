@@ -67,6 +67,7 @@ export function RequestSection({ request }: RequestSectionProps) {
               <RequestItem
                 key={`${request.id}-${index}`}
                 requestId={`${request.id}-${index}`}
+                colorVariant={index % 2 === 0 ? "purple" : "blue"}
                 requestHeader={header}
                 viewRequest={viewRequest}
                 approveRequest={approveRequest}

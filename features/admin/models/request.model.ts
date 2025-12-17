@@ -8,38 +8,38 @@ export const publisherRequests: Request[] = [
     requestHeader: [
       {
         date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} - AFF ID : ",
+        advertiserName: "{Advertiser_Name} ",
         affId: "9001",
         priority: "High Priority",
       },
       {
         date: "25th December 2025 ",
-        advertiserName: "Big Drops MG - AFF ID : ",
+        advertiserName: "Big Drops MG ",
         affId: "9001",
         priority: "Medium Priority",
       },
       {
         date: "25th December 2025 ",
-        advertiserName: "Big Drops MG - AFF ID : ",
+        advertiserName: "Big Drops MG ",
         affId: "9001",
         priority: "High Priority",
       },
     ],
     viewRequests: [
       {
-        offerId: "Offer ID: 1952",
+        offerId: "1952",
         offerName:
           "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
         buttonTitle: "View Request",
       },
       {
-        offerId: "Offer ID: 1952",
+        offerId: "1952",
         offerName:
           "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
         buttonTitle: "View Request",
       },
       {
-        offerId: "Offer ID: 1952",
+        offerId: "1952",
         offerName:
           "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
         buttonTitle: "View Request",
@@ -93,14 +93,14 @@ export const publisherRequests: Request[] = [
     requestHeader: [
       {
         date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} - AFF ID : ",
+        advertiserName: "{Advertiser_Name} ",
         affId: "9001",
         priority: "Medium Priority",
       },
     ],
     viewRequests: [
       {
-        offerId: "Offer ID: 1952",
+        offerId: "1952",
         offerName:
           "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
         buttonTitle: "View Request",
@@ -130,14 +130,14 @@ export const publisherRequests: Request[] = [
     requestHeader: [
       {
         date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} - AFF ID : ",
+        advertiserName: "{Advertiser_Name} ",
         affId: "9001",
         priority: "High Priority",
       },
     ],
     viewRequests: [
       {
-        offerId: "Offer ID: 1952",
+        offerId: "1952",
         offerName:
           "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
         buttonTitle: "View Request",
@@ -173,38 +173,38 @@ export const advertiserResponse: Request[] = [
     requestHeader: [
       {
         date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} - AFF ID : ",
+        advertiserName: "{Advertiser_Name} ",
         affId: "9001",
         priority: "Medium Priority",
       },
       {
         date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} - AFF ID : ",
+        advertiserName: "{Advertiser_Name} ",
         affId: "9001",
         priority: "High Priority",
       },
       {
         date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} - AFF ID : ",
+        advertiserName: "{Advertiser_Name} ",
         affId: "9001",
         priority: "High Priority",
       },
     ],
     viewRequests: [
       {
-        offerId: "Offer ID: 1952",
+        offerId: "1952",
         offerName:
           "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
         buttonTitle: "View Request",
       },
       {
-        offerId: "Offer ID: 1952",
+        offerId: "1952",
         offerName:
           "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
         buttonTitle: "View Request",
       },
       {
-        offerId: "Offer ID: 1952",
+        offerId: "1952",
         offerName:
           "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
         buttonTitle: "View Request",
@@ -214,17 +214,17 @@ export const advertiserResponse: Request[] = [
       {
         clientId: "1234",
         companyNameTitle: "Tesla Marketing Corp",
-        buttonTitle: "Approve and Forward",
+        buttonTitle: "Approve ",
       },
       {
         clientId: "1234",
         companyNameTitle: "Tesla Marketing Corp",
-        buttonTitle: "Approve and Forward",
+        buttonTitle: "Approve ",
       },
       {
         clientId: "1234",
         companyNameTitle: "Tesla Marketing Corp",
-        buttonTitle: "Approve and Forward",
+        buttonTitle: "Approve ",
       },
     ],
     rejectRequest: [
@@ -258,14 +258,14 @@ export const advertiserResponse: Request[] = [
     requestHeader: [
       {
         date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} - AFF ID : ",
+        advertiserName: "{Advertiser_Name} ",
         affId: "9001",
         priority: "High Priority",
       },
     ],
     viewRequests: [
       {
-        offerId: "Offer ID: 1952",
+        offerId: "1952",
         offerName:
           "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
         buttonTitle: "View Request",
@@ -275,7 +275,7 @@ export const advertiserResponse: Request[] = [
       {
         clientId: "1234",
         companyNameTitle: "Tesla Marketing Corp",
-        buttonTitle: "Approve and Forward",
+        buttonTitle: "Approve ",
       },
     ],
     rejectRequest: [
@@ -295,14 +295,14 @@ export const advertiserResponse: Request[] = [
     requestHeader: [
       {
         date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} - AFF ID : ",
+        advertiserName: "{Advertiser_Name} ",
         affId: "9001",
         priority: "High Priority",
       },
     ],
     viewRequests: [
       {
-        offerId: "Offer ID: 1952",
+        offerId: "1952",
         offerName:
           "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
         buttonTitle: "View Request",
@@ -312,7 +312,7 @@ export const advertiserResponse: Request[] = [
       {
         clientId: "1234",
         companyNameTitle: "Tesla Marketing Corp",
-        buttonTitle: "Approve and Forward",
+        buttonTitle: "Approve ",
       },
     ],
     rejectRequest: [

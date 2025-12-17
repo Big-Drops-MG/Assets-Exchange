@@ -1,7 +1,7 @@
 "use client";
 
 import * as Accordion from "@radix-ui/react-accordion";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { getVariables } from "@/components/_variables/variables";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import type {
 
 interface RequestItemProps {
   requestId: string;
+  colorVariant: "purple" | "blue";
   requestHeader: RequestHeader;
   viewRequest: ViewRequests;
   approveRequest: ApproveRequest;
@@ -33,50 +34,37 @@ const getPriorityBadgeClass = (priority: string) => {
   return "rounded-[20px] border border-[#93C5FD] bg-[#DBEAFE] h-7 px-1.5 text-xs  xl:text-sm font-inter  text-[#1E40AF]";
 };
 
-const getPriorityColors = (
-  priority: string,
+const getAccordionColors = (
+  variant: "purple" | "blue",
   colors: ReturnType<typeof getVariables>["colors"]
 ) => {
-  const priorityLower = priority.toLowerCase();
-
-  if (priorityLower.includes("high")) {
+  if (variant === "purple") {
     return {
-      backgroundColor: colors.requestCardHighBackgroundColor,
-      borderColor: colors.requestCardHighBorderColor,
-      offerIdBackgroundColor: colors.requestCardHighOfferIdBackgroundColor,
-      offerIdTextColor: colors.requestCardHighOfferIdTextColor,
-    };
-  }
-
-  if (priorityLower.includes("medium")) {
-    return {
-      backgroundColor: colors.requestCardMediumBackgroundColor,
-      borderColor: colors.requestCardMediumBorderColor,
-      offerIdBackgroundColor: colors.requestCardMediumOfferIdBackgroundColor,
-      offerIdTextColor: colors.requestCardMediumOfferIdTextColor,
+      backgroundColor: colors.AccordionPurpleBackgroundColor,
+      borderColor: colors.AccordionPurpleBorderColor,
+      offerIdBackgroundColor: colors.AccordionPurpleOfferIdBackgroundColor,
+      offerIdTextColor: colors.AccordionPurpleOfferIdTextColor,
     };
   }
 
   return {
-    backgroundColor: colors.requestCardLowBackgroundColor,
-    borderColor: colors.requestCardLowBorderColor,
-    offerIdBackgroundColor: colors.requestCardLowOfferIdBackgroundColor,
-    offerIdTextColor: colors.requestCardLowOfferIdTextColor,
+    backgroundColor: colors.AccordionBlueBackgroundColor,
+    borderColor: colors.AccordionBlueBorderColor,
+    offerIdBackgroundColor: colors.AccordionBlueOfferIdBackgroundColor,
+    offerIdTextColor: colors.AccordionBlueOfferIdTextColor,
   };
 };
 
 export function RequestItem({
   requestId,
+  colorVariant,
   requestHeader,
   viewRequest,
   approveRequest,
   rejectRequest,
 }: RequestItemProps) {
   const variables = getVariables();
-  const priorityColors = getPriorityColors(
-    requestHeader.priority,
-    variables.colors
-  );
+  const accordionColors = getAccordionColors(colorVariant, variables.colors);
 
   const meta = [
     `Creative Type: ${rejectRequest.creativeTypeValue}`,
@@ -90,12 +78,12 @@ export function RequestItem({
       value={requestId}
       className="rounded-[10px] overflow-hidden"
       style={{
-        backgroundColor: priorityColors.backgroundColor,
-        border: `1px solid ${priorityColors.borderColor}`,
+        backgroundColor: accordionColors.backgroundColor,
+        border: `1px solid ${accordionColors.borderColor}`,
       }}
     >
       <Accordion.Header>
-        <Accordion.Trigger className="flex w-full items-center justify-between px-5 py-4 text-left">
+        <Accordion.Trigger className="flex w-full items-center justify-between px-5 py-4 text-left group">
           <div className="flex flex-wrap items-center xlg:gap-3 gap-2 text-xs xl:text-sm leading-5">
             <span
               className="font-inter"
@@ -110,8 +98,8 @@ export function RequestItem({
               className="font-inter"
               style={{ color: variables.colors.requestCardTextColor }}
             >
-              {requestHeader.advertiserName}
-              <span className="font-inter font-medium">
+              {requestHeader.advertiserName}- AFF ID :{" "}
+              <span className="font-inter font-semibold">
                 {requestHeader.affId}
               </span>
             </span>
@@ -130,7 +118,10 @@ export function RequestItem({
             </Badge>
           </div>
 
-          <ChevronDown className="h-7 w-7 text-[#525252] transition-transform data-[state=open]:rotate-180" />
+          <div className="flex items-center">
+            <ChevronDown className="h-7 w-7 text-[#525252] group-data-[state=open]:hidden" />
+            <ChevronUp className="h-7 w-7 text-[#525252] hidden group-data-[state=open]:block" />
+          </div>
         </Accordion.Trigger>
       </Accordion.Header>
 
@@ -138,18 +129,18 @@ export function RequestItem({
         className="grid grid-cols-[1fr_220px]  items-center border-t bg-white px-5 py-4"
         style={{
           borderTop: "1px solid #D6D6D6",
-          backgroundColor: priorityColors.backgroundColor,
+          backgroundColor: accordionColors.backgroundColor,
         }}
       >
         <div className="flex flex-wrap items-center  gap-2.5 text-xs xl:text-sm leading-5">
           <span
             className="rounded-[20px] h-6 px-1 text-xs xl:text-sm font-inter font-medium flex items-center justify-center"
             style={{
-              backgroundColor: priorityColors.offerIdBackgroundColor,
+              backgroundColor: accordionColors.offerIdBackgroundColor,
             }}
           >
-            <span style={{ color: priorityColors.offerIdTextColor }}>
-              {viewRequest.offerId}
+            <span style={{ color: accordionColors.offerIdTextColor }}>
+              Offer ID: {viewRequest.offerId}
             </span>
           </span>
           <span className="font-inter text-xs xl:text-sm">
@@ -171,11 +162,11 @@ export function RequestItem({
         </Button>
       </div>
 
-      <Accordion.Content className="bg-white">
+      <Accordion.Content className="bg-white overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up transition-all duration-300 ease-in-out">
         <div
           className="grid grid-cols-[1fr_220px]  xlg:gap-6 gap-3 px-5 pb-5 items-start"
           style={{
-            backgroundColor: priorityColors.backgroundColor,
+            backgroundColor: accordionColors.backgroundColor,
           }}
         >
           <div className="flex flex-col gap-6 text-xs xl:text-sm">
