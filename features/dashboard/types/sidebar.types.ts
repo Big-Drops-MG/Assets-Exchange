@@ -1,6 +1,7 @@
 export type IconName =
   | "LayoutDashboard"
   | "ClipboardList"
+  | "MessageSquareReply"
   | "Megaphone"
   | "UsersRound"
   | "Target"

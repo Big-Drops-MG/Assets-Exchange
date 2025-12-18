@@ -9,6 +9,7 @@ import {
   ChartColumnIncreasing,
   Settings,
   Settings2,
+  MessageSquareReply,
   type LucideIcon,
 } from "lucide-react";
 import Image from "next/image";
@@ -38,6 +39,7 @@ import type { IconName, SidebarMenuConfig } from "../types/sidebar.types";
 const iconMap: Record<IconName, LucideIcon> = {
   LayoutDashboard,
   ClipboardList,
+  MessageSquareReply,
   Megaphone,
   UsersRound,
   Target,

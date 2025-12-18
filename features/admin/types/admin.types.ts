@@ -15,37 +15,31 @@ export interface AdminStats {
   }>;
 }
 
+export type RequestStatus =
+  | "new"
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "sent-back";
+
+export type ApprovalStage = "admin" | "advertiser" | "completed";
+
 export interface Request {
   id: string;
-  headerTitle: string;
-  buttonTitle: string;
-  requestHeader: RequestHeader[];
-  viewRequests: ViewRequests[];
-  approveRequest: ApproveRequest[];
-  rejectRequest: RejectRequest[];
-}
-export interface RequestHeader {
   date: string;
   advertiserName: string;
-  affId: string;
+  affiliateId: string;
   priority: string;
-}
-export interface ViewRequests {
   offerId: string;
   offerName: string;
-  buttonTitle: string;
-}
-export interface ApproveRequest {
   clientId: string;
-  companyNameTitle: string;
-  buttonTitle: string;
-}
-export interface RejectRequest {
-  creativeTypeValue: string;
-  creattiveCountValue: string;
-  fromlinesCountValue: string;
-  subjectlinesCountValue: string;
-  buttonTitle: string;
+  clientName: string;
+  creativeType: string;
+  creativeCount: number;
+  fromLinesCount: number;
+  subjectLinesCount: number;
+  status: RequestStatus;
+  approvalStage: ApprovalStage;
 }
 
 export interface AdminDashboardData {

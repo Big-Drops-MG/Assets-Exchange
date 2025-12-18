@@ -1,34 +1,122 @@
 "use client";
 
-import { publisherRequests, advertiserResponse } from "../models/request.model";
+import Link from "next/link";
+import { useState, useEffect } from "react";
+
+import { getVariables } from "@/components/_variables/variables";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { getRecentPublisherRequests } from "../services/request.service";
+import type { Request as RequestType } from "../types/admin.types";
 
 import { RequestSection } from "./RequestSection";
 
 export function Request() {
-  const incomingPublisherRequest = publisherRequests.find(
-    (req) => req.headerTitle === "Incoming Publisher Requests"
-  );
+  const variables = getVariables();
+  const [isHovered, setIsHovered] = useState(false);
+  const [requests, setRequests] = useState<RequestType[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const incomingAdvertiserRequest = advertiserResponse.find(
-    (req) => req.headerTitle === "Incoming Advertiser Response"
-  );
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const data = await getRecentPublisherRequests(3);
+        setRequests(data);
+      } catch (error) {
+        console.error("Failed to fetch recent requests:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  if (!incomingPublisherRequest && !incomingAdvertiserRequest) {
+    fetchRequests();
+  }, []);
+
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-muted-foreground">No data available</div>
-      </div>
+      <Card className="overflow-hidden">
+        <CardHeader
+          className="-mt-6 mb-0 px-6 py-6"
+          style={{
+            backgroundColor: variables.colors.cardHeaderBackgroundColor,
+          }}
+        >
+          <CardTitle
+            className="xl:text-lg text-sm lg:text-base font-inter font-medium"
+            style={{ color: variables.colors.cardHeaderTextColor }}
+          >
+            Incoming Publisher Requests
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center p-8">
+          <div className="text-muted-foreground">Loading...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (requests.length === 0) {
+    return (
+      <Card className="overflow-hidden">
+        <CardHeader
+          className="-mt-6 mb-0 px-6 py-6"
+          style={{
+            backgroundColor: variables.colors.cardHeaderBackgroundColor,
+          }}
+        >
+          <CardTitle
+            className="xl:text-lg text-sm lg:text-base font-inter font-medium"
+            style={{ color: variables.colors.cardHeaderTextColor }}
+          >
+            Incoming Publisher Requests
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center p-8">
+          <div className="text-muted-foreground">No requests available</div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {incomingPublisherRequest && (
-        <RequestSection request={incomingPublisherRequest} />
-      )}
-      {incomingAdvertiserRequest && (
-        <RequestSection request={incomingAdvertiserRequest} />
-      )}
-    </div>
+    <Card className="overflow-hidden">
+      <CardHeader
+        className="-mt-6 mb-0 px-6 py-6 gap-4 flex flex-row items-center justify-between"
+        style={{ backgroundColor: variables.colors.cardHeaderBackgroundColor }}
+      >
+        <CardTitle
+          className="xl:text-lg text-sm lg:text-base font-inter font-medium"
+          style={{ color: variables.colors.cardHeaderTextColor }}
+        >
+          Incoming Publisher Requests
+        </CardTitle>
+
+        <div className="flex items-center gap-3 flex-1 max-w-md justify-end">
+          <Link href="/requests">
+            <Button
+              className="md:h-8.5 md:w-20 lg:h-9.5 lg:w-21.5 xl:h-10.5 xl:w-23 font-inter font-medium rounded-[6px] transition-colors"
+              style={{
+                backgroundColor: isHovered ? "#FFFFFF" : "#FFFFFF",
+              }}
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+            >
+              <span
+                className="text-xs lg:text-sm font-medium xl:text-[0.95rem]"
+                style={{
+                  color: isHovered ? "#2563EB" : "#2563EB",
+                }}
+              >
+                View All
+              </span>
+            </Button>
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <RequestSection requests={requests} />
+      </CardContent>
+    </Card>
   );
 }

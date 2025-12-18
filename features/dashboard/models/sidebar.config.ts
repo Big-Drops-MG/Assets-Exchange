@@ -23,7 +23,13 @@ export const adminMenuConfig: SidebarMenuConfig = [
         id: "manage-requests",
         label: "Manage Requests",
         icon: "ClipboardList",
-        href: "/dashboard/manage-requests",
+        href: "/requests",
+      },
+      {
+        id: "manage-response",
+        label: "Manage Response",
+        icon: "MessageSquareReply",
+        href: "/manage-response",
       },
       {
         id: "manage-advertisers",

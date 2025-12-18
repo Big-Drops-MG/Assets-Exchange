@@ -7,20 +7,11 @@ import { getVariables } from "@/components/_variables/variables";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-import type {
-  RequestHeader,
-  ViewRequests,
-  ApproveRequest,
-  RejectRequest,
-} from "../types/admin.types";
+import type { Request } from "../types/admin.types";
 
 interface RequestItemProps {
-  requestId: string;
+  request: Request;
   colorVariant: "purple" | "blue";
-  requestHeader: RequestHeader;
-  viewRequest: ViewRequests;
-  approveRequest: ApproveRequest;
-  rejectRequest: RejectRequest;
 }
 
 const getPriorityBadgeClass = (priority: string) => {
@@ -32,6 +23,77 @@ const getPriorityBadgeClass = (priority: string) => {
   }
 
   return "rounded-[20px] border border-[#93C5FD] bg-[#DBEAFE] h-7 px-1.5 text-xs  xl:text-sm font-inter  text-[#1E40AF]";
+};
+
+const getStatusBadgeClass = (status: string) => {
+  switch (status.toLowerCase()) {
+    case "new":
+      return "rounded-[20px] border border-[#93C5FD] bg-[#DBEAFE] h-7 px-2 text-xs xl:text-sm font-inter font-medium text-[#1E40AF]";
+    case "pending":
+      return "rounded-[20px] border border-[#FCD34D] bg-[#FFF8DB] h-7 px-2 text-xs xl:text-sm font-inter font-medium text-[#B18100]";
+    case "approved":
+      return "rounded-[20px] border border-[#86EFAC] bg-[#DCFCE7] h-7 px-2 text-xs xl:text-sm font-inter font-medium text-[#15803D]";
+    case "rejected":
+      return "rounded-[20px] border border-[#FCA5A5] bg-[#FEE2E2] h-7 px-2 text-xs xl:text-sm font-inter font-medium text-[#DC2626]";
+    case "sent-back":
+      return "rounded-[20px] border border-[#C4B5FD] bg-[#EDE9FE] h-7 px-2 text-xs xl:text-sm font-inter font-medium text-[#7C3AED]";
+    default:
+      return "rounded-[20px] border border-[#D1D5DB] bg-[#F3F4F6] h-7 px-2 text-xs xl:text-sm font-inter font-medium text-[#6B7280]";
+  }
+};
+
+const getStatusLabel = (status: string, approvalStage: string) => {
+  const normalizedStatus = status.toLowerCase();
+  const normalizedStage = approvalStage.toLowerCase();
+
+  if (normalizedStatus === "approved" && normalizedStage === "completed") {
+    return "Fully Approved";
+  }
+
+  if (normalizedStatus === "pending" && normalizedStage === "advertiser") {
+    return "Pending Advertiser Approval";
+  }
+
+  if (normalizedStatus === "rejected" && normalizedStage === "admin") {
+    return "Rejected by Admin";
+  }
+
+  if (normalizedStatus === "rejected" && normalizedStage === "advertiser") {
+    return "Rejected by Advertiser";
+  }
+
+  if (normalizedStatus === "sent-back" && normalizedStage === "admin") {
+    return "Sent Back by Admin";
+  }
+
+  if (normalizedStatus === "sent-back" && normalizedStage === "advertiser") {
+    return "Sent Back by Advertiser";
+  }
+
+  switch (normalizedStatus) {
+    case "new":
+      return "New";
+    case "pending":
+      return "Pending Approval";
+    case "approved":
+      return "Approved";
+    case "rejected":
+      return "Rejected";
+    case "sent-back":
+      return "Sent Back";
+    default:
+      return status;
+  }
+};
+
+const shouldShowActionButtons = (
+  status: string,
+  approvalStage: string
+): boolean => {
+  const normalizedStatus = status.toLowerCase();
+  const normalizedStage = approvalStage.toLowerCase();
+
+  return normalizedStatus === "new" && normalizedStage === "admin";
 };
 
 const getAccordionColors = (
@@ -55,27 +117,20 @@ const getAccordionColors = (
   };
 };
 
-export function RequestItem({
-  requestId,
-  colorVariant,
-  requestHeader,
-  viewRequest,
-  approveRequest,
-  rejectRequest,
-}: RequestItemProps) {
+export function RequestItem({ request, colorVariant }: RequestItemProps) {
   const variables = getVariables();
   const accordionColors = getAccordionColors(colorVariant, variables.colors);
 
   const meta = [
-    `Creative Type: ${rejectRequest.creativeTypeValue}`,
-    `Creative Count: ${rejectRequest.creattiveCountValue}`,
-    `From Lines Count: ${rejectRequest.fromlinesCountValue}`,
-    `Subject Lines Count: ${rejectRequest.subjectlinesCountValue}`,
+    `Creative Type: ${request.creativeType}`,
+    `Creative Count: ${request.creativeCount}`,
+    `From Lines Count: ${request.fromLinesCount}`,
+    `Subject Lines Count: ${request.subjectLinesCount}`,
   ];
 
   return (
     <Accordion.Item
-      value={requestId}
+      value={request.id}
       className="rounded-[10px] overflow-hidden"
       style={{
         backgroundColor: accordionColors.backgroundColor,
@@ -89,7 +144,7 @@ export function RequestItem({
               className="font-inter"
               style={{ color: variables.colors.requestCardTextColor }}
             >
-              {requestHeader.date}
+              {request.date}
             </span>
             <span style={{ color: variables.colors.requestCardTextColor }}>
               |
@@ -98,9 +153,9 @@ export function RequestItem({
               className="font-inter"
               style={{ color: variables.colors.requestCardTextColor }}
             >
-              {requestHeader.advertiserName}- AFF ID :{" "}
+              {request.advertiserName} - AFF ID :{" "}
               <span className="font-inter font-semibold">
-                {requestHeader.affId}
+                {request.affiliateId}
               </span>
             </span>
             <span
@@ -112,9 +167,23 @@ export function RequestItem({
 
             <Badge
               variant="outline"
-              className={getPriorityBadgeClass(requestHeader.priority)}
+              className={getPriorityBadgeClass(request.priority)}
             >
-              {requestHeader.priority}
+              {request.priority}
+            </Badge>
+
+            <span
+              className="font-inter"
+              style={{ color: variables.colors.requestCardTextColor }}
+            >
+              |
+            </span>
+
+            <Badge
+              variant="outline"
+              className={getStatusBadgeClass(request.status)}
+            >
+              {getStatusLabel(request.status, request.approvalStage)}
             </Badge>
           </div>
 
@@ -140,17 +209,17 @@ export function RequestItem({
             }}
           >
             <span style={{ color: accordionColors.offerIdTextColor }}>
-              Offer ID: {viewRequest.offerId}
+              Offer ID: {request.offerId}
             </span>
           </span>
           <span className="font-inter text-xs xl:text-sm">
-            {viewRequest.offerName}
+            {request.offerName}
           </span>
         </div>
 
         <Button
           variant="outline"
-          className="w-full justify-self-end xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px]"
+          className="justify-self-end xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px]"
           style={{
             color: variables.colors.requestCardViewButtonTextColor,
             backgroundColor:
@@ -158,7 +227,7 @@ export function RequestItem({
             border: `1px solid ${variables.colors.requestCardViewButtonBorderColor}`,
           }}
         >
-          {viewRequest.buttonTitle}
+          View Request
         </Button>
       </div>
 
@@ -181,14 +250,14 @@ export function RequestItem({
                 className="font-inter text-xs xl:text-sm "
                 style={{ color: variables.colors.requestCardTextColor }}
               >
-                {approveRequest.clientId}
+                {request.clientId}
               </span>{" "}
               |{" "}
               <span
                 className="font-inter text-xs xl:text-sm "
                 style={{ color: variables.colors.requestCardTextColor }}
               >
-                {approveRequest.companyNameTitle}
+                {request.clientName}
               </span>
             </div>
 
@@ -205,31 +274,33 @@ export function RequestItem({
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 xl:gap-4 justify-self-end">
-            <Button
-              className="xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px] "
-              style={{
-                color: variables.colors.requestCardApproveButtonTextColor,
-                backgroundColor:
-                  variables.colors.requestCardApproveButtonBackgroundColor,
-              }}
-            >
-              {approveRequest.buttonTitle}
-            </Button>
+          {shouldShowActionButtons(request.status, request.approvalStage) ? (
+            <div className="flex flex-col gap-4 xl:gap-4 justify-self-end">
+              <Button
+                className="xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px] "
+                style={{
+                  color: variables.colors.requestCardApproveButtonTextColor,
+                  backgroundColor:
+                    variables.colors.requestCardApproveButtonBackgroundColor,
+                }}
+              >
+                Approve and Forward
+              </Button>
 
-            <Button
-              variant="outline"
-              className=" xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px] "
-              style={{
-                color: variables.colors.requestCardRejectedButtonTextColor,
-                backgroundColor:
-                  variables.colors.requestCardRejectedButtonBackgroundColor,
-                border: `1px solid ${variables.colors.requestCardRejectedButtonBorderColor}`,
-              }}
-            >
-              {rejectRequest.buttonTitle}
-            </Button>
-          </div>
+              <Button
+                variant="outline"
+                className=" xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px] "
+                style={{
+                  color: variables.colors.requestCardRejectedButtonTextColor,
+                  backgroundColor:
+                    variables.colors.requestCardRejectedButtonBackgroundColor,
+                  border: `1px solid ${variables.colors.requestCardRejectedButtonBorderColor}`,
+                }}
+              >
+                Reject and Send Back
+              </Button>
+            </div>
+          ) : null}
         </div>
       </Accordion.Content>
     </Accordion.Item>

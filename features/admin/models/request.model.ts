@@ -1,328 +1,238 @@
 import type { Request } from "../types/admin.types";
 
-export const publisherRequests: Request[] = [
+export const allPublisherRequests: Request[] = [
   {
-    id: "1",
-    headerTitle: "Incoming Publisher Requests",
-    buttonTitle: "View All",
-    requestHeader: [
-      {
-        date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} ",
-        affId: "9001",
-        priority: "High Priority",
-      },
-      {
-        date: "25th December 2025 ",
-        advertiserName: "Big Drops MG ",
-        affId: "9001",
-        priority: "Medium Priority",
-      },
-      {
-        date: "25th December 2025 ",
-        advertiserName: "Big Drops MG ",
-        affId: "9001",
-        priority: "High Priority",
-      },
-    ],
-    viewRequests: [
-      {
-        offerId: "1952",
-        offerName:
-          "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
-        buttonTitle: "View Request",
-      },
-      {
-        offerId: "1952",
-        offerName:
-          "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
-        buttonTitle: "View Request",
-      },
-      {
-        offerId: "1952",
-        offerName:
-          "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
-        buttonTitle: "View Request",
-      },
-    ],
-    approveRequest: [
-      {
-        clientId: "1234",
-        companyNameTitle: "Tesla Marketing Corp",
-        buttonTitle: "Approve and Forward",
-      },
-      {
-        clientId: "1234",
-        companyNameTitle: "Tesla Marketing Corp",
-        buttonTitle: "Approve and Forward",
-      },
-      {
-        clientId: "1234",
-        companyNameTitle: "Tesla Marketing Corp",
-        buttonTitle: "Approve and Forward",
-      },
-    ],
-    rejectRequest: [
-      {
-        creativeTypeValue: "Email",
-        creattiveCountValue: "1",
-        fromlinesCountValue: "1",
-        subjectlinesCountValue: "1",
-        buttonTitle: "Reject and Send Back",
-      },
-      {
-        creativeTypeValue: "Email",
-        creattiveCountValue: "1",
-        fromlinesCountValue: "1",
-        subjectlinesCountValue: "1",
-        buttonTitle: "Reject and Send Back",
-      },
-      {
-        creativeTypeValue: "Email",
-        creattiveCountValue: "1",
-        fromlinesCountValue: "1",
-        subjectlinesCountValue: "1",
-        buttonTitle: "Reject and Send Back",
-      },
-    ],
+    id: "req-1",
+    date: "20th December 2024",
+    advertiserName: "Amazon Affiliates",
+    affiliateId: "AFF-8901",
+    priority: "High Priority",
+    offerId: "5001",
+    offerName:
+      "RETAIL - E-COMMERCE - [Holiday Special] - [US/CA] - [Email/Display] - [All Days]",
+    clientId: "CLI-1001",
+    clientName: "Digital Media Group",
+    creativeType: "Email",
+    creativeCount: 3,
+    fromLinesCount: 2,
+    subjectLinesCount: 3,
+    status: "new",
+    approvalStage: "admin",
   },
   {
-    id: "2",
-    headerTitle: "Outgoing Publisher Requests",
-    buttonTitle: "View All",
-    requestHeader: [
-      {
-        date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} ",
-        affId: "9001",
-        priority: "Medium Priority",
-      },
-    ],
-    viewRequests: [
-      {
-        offerId: "1952",
-        offerName:
-          "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
-        buttonTitle: "View Request",
-      },
-    ],
-    approveRequest: [
-      {
-        clientId: "1234",
-        companyNameTitle: "Tesla Marketing Corp",
-        buttonTitle: "Approve and Forward",
-      },
-    ],
-    rejectRequest: [
-      {
-        creativeTypeValue: "Email",
-        creattiveCountValue: "1",
-        fromlinesCountValue: "1",
-        subjectlinesCountValue: "1",
-        buttonTitle: "Reject and Send Back",
-      },
-    ],
+    id: "req-2",
+    date: "19th December 2024",
+    advertiserName: "Google Marketing",
+    affiliateId: "AFF-8902",
+    priority: "Medium Priority",
+    offerId: "5002",
+    offerName:
+      "TECH - SOFTWARE - [B2B Leads] - [Global] - [Email] - [Mon-Fri Only]",
+    clientId: "CLI-1002",
+    clientName: "Prime Publishers Inc",
+    creativeType: "Display",
+    creativeCount: 5,
+    fromLinesCount: 0,
+    subjectLinesCount: 0,
+    status: "new",
+    approvalStage: "admin",
   },
   {
-    id: "3",
-    headerTitle: "Outgoing Advertiser Requests",
-    buttonTitle: "View All",
-    requestHeader: [
-      {
-        date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} ",
-        affId: "9001",
-        priority: "High Priority",
-      },
-    ],
-    viewRequests: [
-      {
-        offerId: "1952",
-        offerName:
-          "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
-        buttonTitle: "View Request",
-      },
-    ],
-    approveRequest: [
-      {
-        clientId: "1234",
-        companyNameTitle: "Tesla Marketing Corp",
-        buttonTitle: "Approve and Forward",
-      },
-    ],
-    rejectRequest: [
-      {
-        creativeTypeValue: "Email",
-
-        creattiveCountValue: "1",
-        fromlinesCountValue: "1",
-        subjectlinesCountValue: "1",
-        buttonTitle: "Reject and Send Back",
-      },
-    ],
-  },
-];
-
-// Advertiser Requests
-
-export const advertiserResponse: Request[] = [
-  {
-    id: "1",
-    headerTitle: "Incoming Advertiser Response",
-    buttonTitle: "View All",
-    requestHeader: [
-      {
-        date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} ",
-        affId: "9001",
-        priority: "Medium Priority",
-      },
-      {
-        date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} ",
-        affId: "9001",
-        priority: "High Priority",
-      },
-      {
-        date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} ",
-        affId: "9001",
-        priority: "High Priority",
-      },
-    ],
-    viewRequests: [
-      {
-        offerId: "1952",
-        offerName:
-          "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
-        buttonTitle: "View Request",
-      },
-      {
-        offerId: "1952",
-        offerName:
-          "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
-        buttonTitle: "View Request",
-      },
-      {
-        offerId: "1952",
-        offerName:
-          "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
-        buttonTitle: "View Request",
-      },
-    ],
-    approveRequest: [
-      {
-        clientId: "1234",
-        companyNameTitle: "Tesla Marketing Corp",
-        buttonTitle: "Approve ",
-      },
-      {
-        clientId: "1234",
-        companyNameTitle: "Tesla Marketing Corp",
-        buttonTitle: "Approve ",
-      },
-      {
-        clientId: "1234",
-        companyNameTitle: "Tesla Marketing Corp",
-        buttonTitle: "Approve ",
-      },
-    ],
-    rejectRequest: [
-      {
-        creativeTypeValue: "Email",
-        creattiveCountValue: "1",
-        fromlinesCountValue: "1",
-        subjectlinesCountValue: "1",
-        buttonTitle: "Reject and Send Back",
-      },
-      {
-        creativeTypeValue: "Email",
-        creattiveCountValue: "1",
-        fromlinesCountValue: "1",
-        subjectlinesCountValue: "1",
-        buttonTitle: "Reject and Send Back",
-      },
-      {
-        creativeTypeValue: "Email",
-        creattiveCountValue: "1",
-        fromlinesCountValue: "1",
-        subjectlinesCountValue: "1",
-        buttonTitle: "Reject and Send Back",
-      },
-    ],
+    id: "req-3",
+    date: "18th December 2024",
+    advertiserName: "Microsoft Advertising",
+    affiliateId: "AFF-8903",
+    priority: "High Priority",
+    offerId: "5003",
+    offerName:
+      "SOFTWARE - SAAS - [Enterprise] - [US/UK/EU] - [Email/LinkedIn] - [Business Hours]",
+    clientId: "CLI-1003",
+    clientName: "Tech Media Network",
+    creativeType: "Email",
+    creativeCount: 2,
+    fromLinesCount: 2,
+    subjectLinesCount: 2,
+    status: "new",
+    approvalStage: "admin",
   },
   {
-    id: "2",
-    headerTitle: "Outgoing Publisher Requests",
-    buttonTitle: "View All",
-    requestHeader: [
-      {
-        date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} ",
-        affId: "9001",
-        priority: "High Priority",
-      },
-    ],
-    viewRequests: [
-      {
-        offerId: "1952",
-        offerName:
-          "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
-        buttonTitle: "View Request",
-      },
-    ],
-    approveRequest: [
-      {
-        clientId: "1234",
-        companyNameTitle: "Tesla Marketing Corp",
-        buttonTitle: "Approve ",
-      },
-    ],
-    rejectRequest: [
-      {
-        creativeTypeValue: "Email",
-        creattiveCountValue: "1",
-        fromlinesCountValue: "1",
-        subjectlinesCountValue: "1",
-        buttonTitle: "Reject and Send Back",
-      },
-    ],
+    id: "req-4",
+    date: "17th December 2024",
+    advertiserName: "Facebook Ads Network",
+    affiliateId: "AFF-8904",
+    priority: "Medium Priority",
+    offerId: "5004",
+    offerName:
+      "SOCIAL - LEAD GEN - [Age 25-45] - [US/CA/UK] - [Social Media] - [All Days]",
+    clientId: "CLI-1004",
+    clientName: "Social Reach Media",
+    creativeType: "Social Media",
+    creativeCount: 10,
+    fromLinesCount: 0,
+    subjectLinesCount: 0,
+    status: "pending",
+    approvalStage: "advertiser",
   },
   {
-    id: "3",
-    headerTitle: "Outgoing Advertiser Requests",
-    buttonTitle: "View All",
-    requestHeader: [
-      {
-        date: "25th December 2025 ",
-        advertiserName: "{Advertiser_Name} ",
-        affId: "9001",
-        priority: "High Priority",
-      },
-    ],
-    viewRequests: [
-      {
-        offerId: "1952",
-        offerName:
-          "INSURANCE - E-FINANCIAL - [Super Sensitive] - [Proof Req] - [US] - [Email] - [Mon-Fri Only]",
-        buttonTitle: "View Request",
-      },
-    ],
-    approveRequest: [
-      {
-        clientId: "1234",
-        companyNameTitle: "Tesla Marketing Corp",
-        buttonTitle: "Approve ",
-      },
-    ],
-    rejectRequest: [
-      {
-        creativeTypeValue: "Email",
-        creattiveCountValue: "1",
-        fromlinesCountValue: "1",
-        subjectlinesCountValue: "1",
-        buttonTitle: "Reject and Send Back",
-      },
-    ],
+    id: "req-5",
+    date: "16th December 2024",
+    advertiserName: "Booking.com Partners",
+    affiliateId: "AFF-8905",
+    priority: "High Priority",
+    offerId: "5005",
+    offerName:
+      "TRAVEL - HOTEL BOOKING - [Summer Campaign] - [Global] - [Email/Display] - [All Days]",
+    clientId: "CLI-1005",
+    clientName: "Travel Publishers Ltd",
+    creativeType: "Email",
+    creativeCount: 4,
+    fromLinesCount: 3,
+    subjectLinesCount: 4,
+    status: "pending",
+    approvalStage: "advertiser",
+  },
+  {
+    id: "req-6",
+    date: "15th December 2024",
+    advertiserName: "Adobe Creative Cloud",
+    affiliateId: "AFF-8906",
+    priority: "Medium Priority",
+    offerId: "5006",
+    offerName:
+      "DESIGN - SOFTWARE - [Creative Professionals] - [Global] - [Email] - [Business Hours]",
+    clientId: "CLI-1006",
+    clientName: "Creative Publishers Group",
+    creativeType: "Email",
+    creativeCount: 3,
+    fromLinesCount: 2,
+    subjectLinesCount: 3,
+    status: "approved",
+    approvalStage: "completed",
+  },
+  {
+    id: "req-7",
+    date: "14th December 2024",
+    advertiserName: "Salesforce Marketing",
+    affiliateId: "AFF-8907",
+    priority: "High Priority",
+    offerId: "5007",
+    offerName:
+      "CRM - ENTERPRISE - [B2B Sales] - [US/EU] - [Email/LinkedIn] - [Mon-Fri Only]",
+    clientId: "CLI-1007",
+    clientName: "Enterprise Media Solutions",
+    creativeType: "Email",
+    creativeCount: 2,
+    fromLinesCount: 2,
+    subjectLinesCount: 2,
+    status: "approved",
+    approvalStage: "completed",
+  },
+  {
+    id: "req-8",
+    date: "13th December 2024",
+    advertiserName: "Apple Developer Network",
+    affiliateId: "AFF-8908",
+    priority: "Medium Priority",
+    offerId: "5008",
+    offerName:
+      "TECH - DEVELOPMENT - [iOS Developers] - [Global] - [Email] - [All Days]",
+    clientId: "CLI-1008",
+    clientName: "Developer Network Partners",
+    creativeType: "Email",
+    creativeCount: 4,
+    fromLinesCount: 3,
+    subjectLinesCount: 4,
+    status: "approved",
+    approvalStage: "completed",
+  },
+  {
+    id: "req-9",
+    date: "12th December 2024",
+    advertiserName: "Netflix Advertising",
+    affiliateId: "AFF-8909",
+    priority: "High Priority",
+    offerId: "5009",
+    offerName:
+      "STREAMING - ENTERTAINMENT - [Premium Subscribers] - [US/CA/UK] - [Video/Display] - [All Days]",
+    clientId: "CLI-1009",
+    clientName: "Entertainment Media Hub",
+    creativeType: "Video",
+    creativeCount: 6,
+    fromLinesCount: 0,
+    subjectLinesCount: 0,
+    status: "rejected",
+    approvalStage: "admin",
+  },
+  {
+    id: "req-10",
+    date: "11th December 2024",
+    advertiserName: "Spotify for Brands",
+    affiliateId: "AFF-8910",
+    priority: "Medium Priority",
+    offerId: "5010",
+    offerName:
+      "MUSIC - STREAMING - [Ad-Free Trial] - [Global] - [Audio/Display] - [All Days]",
+    clientId: "CLI-1010",
+    clientName: "Audio Publishers Network",
+    creativeType: "Audio",
+    creativeCount: 8,
+    fromLinesCount: 0,
+    subjectLinesCount: 0,
+    status: "rejected",
+    approvalStage: "advertiser",
+  },
+  {
+    id: "req-11",
+    date: "10th December 2024",
+    advertiserName: "Uber for Business",
+    affiliateId: "AFF-8911",
+    priority: "High Priority",
+    offerId: "5011",
+    offerName:
+      "TRANSPORTATION - BUSINESS - [Corporate Accounts] - [US/EU/APAC] - [Email/Mobile] - [All Days]",
+    clientId: "CLI-1011",
+    clientName: "Business Travel Publishers",
+    creativeType: "Mobile",
+    creativeCount: 5,
+    fromLinesCount: 0,
+    subjectLinesCount: 0,
+    status: "sent-back",
+    approvalStage: "advertiser",
+  },
+  {
+    id: "req-12",
+    date: "21st December 2024",
+    advertiserName: "Airbnb Partnerships",
+    affiliateId: "AFF-8912",
+    priority: "Medium Priority",
+    offerId: "5012",
+    offerName:
+      "TRAVEL - VACATION RENTALS - [Holiday Season] - [Global] - [Email/Social] - [All Days]",
+    clientId: "CLI-1012",
+    clientName: "Vacation Media Network",
+    creativeType: "Email",
+    creativeCount: 3,
+    fromLinesCount: 2,
+    subjectLinesCount: 3,
+    status: "new",
+    approvalStage: "admin",
+  },
+  {
+    id: "req-13",
+    date: "9th December 2024",
+    advertiserName: "Zoom Communications",
+    affiliateId: "AFF-8913",
+    priority: "Medium Priority",
+    offerId: "5013",
+    offerName:
+      "COMMUNICATION - VIDEO CONFERENCING - [Business Plans] - [Global] - [Email] - [Business Hours]",
+    clientId: "CLI-1013",
+    clientName: "Enterprise Communication Media",
+    creativeType: "Email",
+    creativeCount: 2,
+    fromLinesCount: 2,
+    subjectLinesCount: 2,
+    status: "pending",
+    approvalStage: "advertiser",
   },
 ];
