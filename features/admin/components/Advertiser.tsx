@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, ListFilter, Plus, Search } from "lucide-react";
+import { ChevronRight, ListFilter, Plus, Search, X } from "lucide-react";
 import { useState } from "react";
 
 import { getVariables } from "@/components/_variables";
@@ -50,11 +50,11 @@ export function Advertiser() {
 
   const columns = [
     { header: "ID", width: "100px" },
-    { header: "Advertiser Name", width: "1.2fr" },
-    { header: "Adv Platform", width: "1.2fr" },
-    { header: "Created Manually / via API", width: "1.2fr" },
-    { header: "Status", width: "140px" },
-    { header: "Actions", width: "340px" },
+    { header: "Advertiser Name", width: "1.8fr", align: "center" as const },
+    { header: "Adv Platform", width: "1fr" },
+    { header: "Created Manually / via API", width: "1fr" },
+    { header: "Status", width: "1fr" },
+    { header: "Actions", width: "1fr" },
   ];
 
   const filteredAdvertisers = manageAdvertisers
@@ -95,6 +95,21 @@ export function Advertiser() {
   const handleEditDetails = (_id: string) => {};
 
   const handleBrandGuidelines = (_id: string) => {};
+
+  const clearAllFilters = () => {
+    setStatusFilter(null);
+    setPlatformFilter(null);
+    setCreationMethodFilter(null);
+    setSortByFilter(null);
+    setIsFilterOpen(false);
+    setActiveCategory(null);
+  };
+
+  const hasActiveFilters =
+    statusFilter !== null ||
+    platformFilter !== null ||
+    creationMethodFilter !== null ||
+    sortByFilter !== null;
 
   if (isLoading) {
     return (
@@ -234,6 +249,8 @@ export function Advertiser() {
                             key={status}
                             onClick={() => {
                               setStatusFilter(status as StatusFilter);
+                              setIsFilterOpen(false);
+                              setActiveCategory(null);
                             }}
                             className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
                               statusFilter === status
@@ -260,6 +277,8 @@ export function Advertiser() {
                             key={platform}
                             onClick={() => {
                               setPlatformFilter(platform as PlatformFilter);
+                              setIsFilterOpen(false);
+                              setActiveCategory(null);
                             }}
                             className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
                               platformFilter === platform
@@ -282,6 +301,8 @@ export function Advertiser() {
                               setCreationMethodFilter(
                                 method as CreationMethodFilter
                               );
+                              setIsFilterOpen(false);
+                              setActiveCategory(null);
                             }}
                             className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
                               creationMethodFilter === method
@@ -302,6 +323,8 @@ export function Advertiser() {
                             key={sort}
                             onClick={() => {
                               setSortByFilter(sort as SortByFilter);
+                              setIsFilterOpen(false);
+                              setActiveCategory(null);
                             }}
                             className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
                               sortByFilter === sort
@@ -317,6 +340,23 @@ export function Advertiser() {
                   </div>
                 )}
               </div>
+              {hasActiveFilters && (
+                <div className="border-t border-gray-200 p-3">
+                  <Button
+                    variant="outline"
+                    onClick={clearAllFilters}
+                    className="w-full h-9 font-inter text-sm gap-2"
+                    style={{
+                      borderColor: variables.colors.inputBorderColor,
+                      color: variables.colors.inputTextColor,
+                      backgroundColor: variables.colors.cardBackground,
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                    Clear All Filters
+                  </Button>
+                </div>
+              )}
             </PopoverContent>
           </Popover>
         </div>
@@ -352,6 +392,10 @@ export function Advertiser() {
             createdMethod={advertiser.createdMethod}
             status={advertiser.status}
             variant={index % 2 === 0 ? "purple" : "blue"}
+            nameAlign="center"
+            gridTemplateColumns={columns
+              .map((col) => col.width || "1fr")
+              .join(" ")}
             onEditDetails={() => handleEditDetails(advertiser.id)}
             onBrandGuidelines={() => handleBrandGuidelines(advertiser.id)}
           />

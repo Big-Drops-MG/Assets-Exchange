@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, ListFilter, Plus, Search } from "lucide-react";
+import { ChevronRight, ListFilter, Plus, Search, X } from "lucide-react";
 import { useState } from "react";
 
 import { getVariables } from "@/components/_variables";
@@ -47,11 +47,11 @@ export function Offers() {
 
   const columns = [
     { header: "ID", width: "100px" },
-    { header: "Offer Name", width: "1.2fr" },
-    { header: "Adv Name", width: "1.2fr" },
-    { header: "Created Manually / via API", width: "1.2fr" },
-    { header: "Status", width: "140px" },
-    { header: "Actions", width: "200px" },
+    { header: "Offer Name", width: "1.8fr" },
+    { header: "Adv Name", width: "1fr" },
+    { header: "Created Manually / via API", width: "1fr" },
+    { header: "Status", width: "1fr" },
+    { header: "Actions", width: "1fr" },
   ];
 
   const offersWithUpdatedVisibility = offers.map((offer) => ({
@@ -110,6 +110,21 @@ export function Offers() {
       [id]: visibility,
     }));
   };
+
+  const clearAllFilters = () => {
+    setStatusFilter(null);
+    setVisibilityFilter(null);
+    setCreationMethodFilter(null);
+    setSortByFilter(null);
+    setIsFilterOpen(false);
+    setActiveCategory(null);
+  };
+
+  const hasActiveFilters =
+    statusFilter !== null ||
+    visibilityFilter !== null ||
+    creationMethodFilter !== null ||
+    sortByFilter !== null;
 
   if (isLoading) {
     return (
@@ -249,6 +264,8 @@ export function Offers() {
                             key={status}
                             onClick={() => {
                               setStatusFilter(status as StatusFilter);
+                              setIsFilterOpen(false);
+                              setActiveCategory(null);
                             }}
                             className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
                               statusFilter === status
@@ -271,6 +288,8 @@ export function Offers() {
                               setVisibilityFilter(
                                 visibility as VisibilityFilter
                               );
+                              setIsFilterOpen(false);
+                              setActiveCategory(null);
                             }}
                             className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
                               visibilityFilter === visibility
@@ -293,6 +312,8 @@ export function Offers() {
                               setCreationMethodFilter(
                                 method as CreationMethodFilter
                               );
+                              setIsFilterOpen(false);
+                              setActiveCategory(null);
                             }}
                             className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
                               creationMethodFilter === method
@@ -313,6 +334,8 @@ export function Offers() {
                             key={sort}
                             onClick={() => {
                               setSortByFilter(sort as SortByFilter);
+                              setIsFilterOpen(false);
+                              setActiveCategory(null);
                             }}
                             className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
                               sortByFilter === sort
@@ -328,6 +351,23 @@ export function Offers() {
                   </div>
                 )}
               </div>
+              {hasActiveFilters && (
+                <div className="border-t border-gray-200 p-3">
+                  <Button
+                    variant="outline"
+                    onClick={clearAllFilters}
+                    className="w-full h-9 font-inter text-sm gap-2"
+                    style={{
+                      borderColor: variables.colors.inputBorderColor,
+                      color: variables.colors.inputTextColor,
+                      backgroundColor: variables.colors.cardBackground,
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                    Clear All Filters
+                  </Button>
+                </div>
+              )}
             </PopoverContent>
           </Popover>
         </div>
@@ -364,6 +404,9 @@ export function Offers() {
             status={offer.status}
             visibility={offer.visibility}
             variant={index % 2 === 0 ? "purple" : "blue"}
+            gridTemplateColumns={columns
+              .map((col) => col.width || "1fr")
+              .join(" ")}
             onEditDetails={() => handleEditDetails(offer.id)}
             onBrandGuidelines={() => handleBrandGuidelines(offer.id)}
             onVisibilityChange={(visibility) =>

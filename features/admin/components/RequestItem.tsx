@@ -158,15 +158,15 @@ export function RequestItem({ request, colorVariant }: RequestItemProps) {
   return (
     <Accordion.Item
       value={request.id}
-      className="rounded-[10px] overflow-hidden"
+      className="rounded-[10px] overflow-hidden shadow-sm transition-all duration-200 hover:shadow-md hover:border-opacity-80"
       style={{
         backgroundColor: accordionColors.backgroundColor,
         border: `1px solid ${accordionColors.borderColor}`,
       }}
     >
       <Accordion.Header>
-        <Accordion.Trigger className="flex w-full items-center justify-between px-5 py-4 text-left group">
-          <div className="flex flex-wrap items-center xlg:gap-3 gap-2 text-xs xl:text-sm leading-5">
+        <Accordion.Trigger className="flex w-full items-center justify-between px-5 py-4 text-left group transition-all duration-200 hover:opacity-90">
+          <div className="flex flex-wrap items-center xlg:gap-3 gap-2 text-xs xl:text-sm leading-relaxed">
             <span
               className="font-inter"
               style={{ color: variables.colors.requestCardTextColor }}
@@ -214,21 +214,21 @@ export function RequestItem({ request, colorVariant }: RequestItemProps) {
             </Badge>
           </div>
 
-          <div className="flex items-center">
-            <ChevronDown className="h-7 w-7 text-[#525252] group-data-[state=open]:hidden" />
-            <ChevronUp className="h-7 w-7 text-[#525252] hidden group-data-[state=open]:block" />
+          <div className="flex items-center transition-transform duration-200 group-hover:scale-105">
+            <ChevronDown className="h-7 w-7 text-[#525252] group-data-[state=open]:hidden transition-all duration-200" />
+            <ChevronUp className="h-7 w-7 text-[#525252] hidden group-data-[state=open]:block transition-all duration-200" />
           </div>
         </Accordion.Trigger>
       </Accordion.Header>
 
       <div
-        className="grid grid-cols-[1fr_220px]  items-center border-t bg-white px-5 py-4"
+        className="grid grid-cols-[1fr_220px] items-center border-t bg-white px-5 py-4 transition-all duration-200"
         style={{
           borderTop: "1px solid #D6D6D6",
           backgroundColor: accordionColors.backgroundColor,
         }}
       >
-        <div className="flex flex-wrap items-center  gap-2.5 text-xs xl:text-sm leading-5">
+        <div className="flex flex-wrap items-center gap-2.5 text-xs xl:text-sm leading-relaxed">
           <span
             className="rounded-[20px] h-6 px-1 text-xs xl:text-sm font-inter font-medium flex items-center justify-center"
             style={{
@@ -246,7 +246,7 @@ export function RequestItem({ request, colorVariant }: RequestItemProps) {
 
         <Button
           variant="outline"
-          className="justify-self-end xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px]"
+          className="justify-self-end xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px] shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-200"
           style={{
             color: variables.colors.requestCardViewButtonTextColor,
             backgroundColor:
@@ -286,7 +286,7 @@ export function RequestItem({ request, colorVariant }: RequestItemProps) {
           }}
         >
           <div className="flex flex-col gap-6 text-xs xl:text-sm">
-            <div className="leading-5 font-inter flex items-center gap-2">
+            <div className="leading-relaxed font-inter flex items-center gap-2">
               <span
                 className="font-inter text-sm font-semibold"
                 style={{ color: variables.colors.requestCardTextColor }}
@@ -308,11 +308,11 @@ export function RequestItem({ request, colorVariant }: RequestItemProps) {
               </span>
             </div>
 
-            <div className="flex flex-wrap  gap-2">
+            <div className="flex flex-wrap gap-2">
               {meta.map((m, index) => (
                 <span
                   key={index}
-                  className="rounded-[4px] border bg-white px-2 h-7 text-xs xl:text-sm font-normal flex items-center justify-center leading-4 font-inter shadow-[0_0_2px_0_rgba(30,64,175,0.1)]"
+                  className="rounded-[4px] border bg-white px-2 h-7 text-xs xl:text-sm font-normal flex items-center justify-center leading-4 font-inter shadow-[0_0_2px_0_rgba(30,64,175,0.1)] transition-all duration-200 hover:shadow-md hover:scale-105"
                   style={{ color: variables.colors.requestCardTextColor }}
                 >
                   {m}
@@ -324,7 +324,7 @@ export function RequestItem({ request, colorVariant }: RequestItemProps) {
           {shouldShowActionButtons(request.status, request.approvalStage) ? (
             <div className="flex flex-col gap-4 xl:gap-4 justify-self-end">
               <Button
-                className="xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px] "
+                className="xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px] shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-200"
                 style={{
                   color: variables.colors.requestCardApproveButtonTextColor,
                   backgroundColor:
@@ -375,7 +375,7 @@ export function RequestItem({ request, colorVariant }: RequestItemProps) {
 
               <Button
                 variant="outline"
-                className=" xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px] "
+                className="xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px] shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-200"
                 style={{
                   color: variables.colors.requestCardRejectedButtonTextColor,
                   backgroundColor:
@@ -431,7 +431,7 @@ export function RequestItem({ request, colorVariant }: RequestItemProps) {
             <div className="flex flex-col gap-4 xl:gap-4 justify-self-end">
               <Button
                 variant="outline"
-                className=" xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px] "
+                className="xl:h-11 xl:w-47 h-10 w-40 font-inter text-xs xl:text-sm font-medium rounded-[6px] shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-200"
                 style={{
                   color: variables.colors.requestCardRejectedButtonTextColor,
                   backgroundColor:

@@ -28,19 +28,24 @@
 
 "use client";
 
-import { Filter, Search } from "lucide-react";
+import {
+  ArrowDownAZ,
+  ArrowUpAZ,
+  ChevronRight,
+  ListFilter,
+  Search,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { getVariables } from "@/components/_variables/variables";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { RequestStatus } from "../types/admin.types";
@@ -67,6 +72,10 @@ export function ManageResponsesPage() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("date-desc");
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<
+    "sortBy" | "priority" | null
+  >(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -218,16 +227,18 @@ export function ManageResponsesPage() {
   };
 
   const hasActiveFilters = useMemo(() => {
-    return sortBy !== "date-desc" || priorityFilter !== "all" || searchQuery;
+    return (
+      sortBy !== "date-desc" || priorityFilter !== "all" || searchQuery.trim()
+    );
   }, [sortBy, priorityFilter, searchQuery]);
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
+    if (searchQuery.trim()) count++;
     if (sortBy !== "date-desc") count++;
     if (priorityFilter !== "all") count++;
-    if (searchQuery) count++;
     return count;
-  }, [sortBy, priorityFilter, searchQuery]);
+  }, [searchQuery, sortBy, priorityFilter]);
 
   if (error) {
     return (
@@ -253,13 +264,188 @@ export function ManageResponsesPage() {
       >
         <div className="space-y-4">
           <div className="flex items-center gap-4">
+            <Popover
+              open={isFilterOpen}
+              onOpenChange={(open) => {
+                setIsFilterOpen(open);
+                if (!open) {
+                  setActiveCategory(null);
+                }
+              }}
+            >
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="h-10 font-inter font-medium rounded-md border shadow-[0_2px_4px_0_rgba(0,0,0,0.1)]"
+                  style={{
+                    color: variables.colors.buttonOutlineTextColor,
+                    borderColor: variables.colors.buttonOutlineBorderColor,
+                    backgroundColor: variables.colors.cardBackground,
+                  }}
+                >
+                  <ListFilter className="h-5 w-5" />
+                  Filter
+                  {activeFiltersCount > 0 && (
+                    <span
+                      className="ml-2 inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full"
+                      style={{
+                        backgroundColor:
+                          variables.colors.buttonDefaultBackgroundColor,
+                        color: variables.colors.buttonDefaultTextColor,
+                      }}
+                    >
+                      {activeFiltersCount}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className={`p-0 transition-all ${activeCategory ? "w-[500px]" : "w-[250px]"}`}
+                align="start"
+              >
+                <div className="flex">
+                  <div
+                    className={`${activeCategory ? "w-1/2 border-r border-gray-200" : "w-full"} p-3`}
+                  >
+                    <button
+                      onClick={() => setActiveCategory("sortBy")}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${
+                        activeCategory === "sortBy"
+                          ? "bg-gray-100 text-gray-900 font-medium"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span>Sort By</span>
+                      <ChevronRight className="h-4 w-4 text-gray-400" />
+                    </button>
+                    <button
+                      onClick={() => setActiveCategory("priority")}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${
+                        activeCategory === "priority"
+                          ? "bg-gray-100 text-gray-900 font-medium"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span>Priority</span>
+                      <ChevronRight className="h-4 w-4 text-gray-400" />
+                    </button>
+                  </div>
+
+                  {activeCategory && (
+                    <div className="w-1/2 p-3">
+                      {activeCategory === "sortBy" && (
+                        <div className="space-y-1">
+                          {[
+                            {
+                              value: "date-desc",
+                              label: "Newest First",
+                              icon: ArrowDownAZ,
+                            },
+                            {
+                              value: "date-asc",
+                              label: "Oldest First",
+                              icon: ArrowUpAZ,
+                            },
+                            {
+                              value: "priority-high",
+                              label: "Priority: High to Medium",
+                              icon: ArrowDownAZ,
+                            },
+                            {
+                              value: "priority-low",
+                              label: "Priority: Medium to High",
+                              icon: ArrowUpAZ,
+                            },
+                            {
+                              value: "advertiser-asc",
+                              label: "Advertiser: A-Z",
+                              icon: ArrowDownAZ,
+                            },
+                            {
+                              value: "advertiser-desc",
+                              label: "Advertiser: Z-A",
+                              icon: ArrowUpAZ,
+                            },
+                          ].map((option) => (
+                            <button
+                              key={option.value}
+                              onClick={() => {
+                                setSortBy(option.value as SortOption);
+                                setIsFilterOpen(false);
+                                setActiveCategory(null);
+                              }}
+                              className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors flex items-center gap-2 ${
+                                sortBy === option.value
+                                  ? "bg-gray-100 text-gray-900 font-medium"
+                                  : "text-gray-600 hover:bg-gray-50"
+                              }`}
+                            >
+                              <option.icon className="h-4 w-4" />
+                              <span>{option.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {activeCategory === "priority" && (
+                        <div className="space-y-1">
+                          {["all", "high", "medium"].map((priority) => (
+                            <button
+                              key={priority}
+                              onClick={() => {
+                                setPriorityFilter(priority as PriorityFilter);
+                                setIsFilterOpen(false);
+                                setActiveCategory(null);
+                              }}
+                              className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
+                                priorityFilter === priority
+                                  ? "bg-gray-100 text-gray-900 font-medium"
+                                  : "text-gray-600 hover:bg-gray-50"
+                              }`}
+                            >
+                              {priority === "all"
+                                ? "All Priorities"
+                                : priority === "high"
+                                  ? "High Priority"
+                                  : "Medium Priority"}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {hasActiveFilters && (
+                  <div className="border-t border-gray-200 p-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        clearFilters();
+                        setIsFilterOpen(false);
+                        setActiveCategory(null);
+                      }}
+                      className="w-full h-9 font-inter text-sm gap-2"
+                      style={{
+                        borderColor: variables.colors.inputBorderColor,
+                        color: variables.colors.inputTextColor,
+                        backgroundColor: variables.colors.cardBackground,
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                      Clear All Filters
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+
             <TabsList
               className="flex-1 grid grid-cols-5 h-auto p-1 gap-1"
               style={{ backgroundColor: variables.colors.inputBackgroundColor }}
             >
               <TabsTrigger
                 value="all"
-                className="h-10 px-4 rounded-md font-medium transition-all"
+                className="h-10 px-4 rounded-md font-medium transition-all cursor-pointer"
                 style={{
                   backgroundColor:
                     activeTab === "all"
@@ -269,13 +455,23 @@ export function ManageResponsesPage() {
                     activeTab === "all"
                       ? variables.colors.buttonDefaultTextColor
                       : variables.colors.inputTextColor,
+                }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== "all") {
+                    e.currentTarget.style.backgroundColor = "#F3F4F6";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== "all") {
+                    e.currentTarget.style.backgroundColor = "#FFFFFF";
+                  }
                 }}
               >
                 All
               </TabsTrigger>
               <TabsTrigger
                 value="new"
-                className="h-10 px-4 rounded-md font-medium transition-all"
+                className="h-10 px-4 rounded-md font-medium transition-all cursor-pointer"
                 style={{
                   backgroundColor:
                     activeTab === "new"
@@ -285,13 +481,23 @@ export function ManageResponsesPage() {
                     activeTab === "new"
                       ? variables.colors.buttonDefaultTextColor
                       : variables.colors.inputTextColor,
+                }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== "new") {
+                    e.currentTarget.style.backgroundColor = "#F3F4F6";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== "new") {
+                    e.currentTarget.style.backgroundColor = "#FFFFFF";
+                  }
                 }}
               >
                 New
               </TabsTrigger>
               <TabsTrigger
                 value="approved"
-                className="h-10 px-4 rounded-md font-medium transition-all"
+                className="h-10 px-4 rounded-md font-medium transition-all cursor-pointer"
                 style={{
                   backgroundColor:
                     activeTab === "approved"
@@ -301,13 +507,23 @@ export function ManageResponsesPage() {
                     activeTab === "approved"
                       ? variables.colors.buttonDefaultTextColor
                       : variables.colors.inputTextColor,
+                }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== "approved") {
+                    e.currentTarget.style.backgroundColor = "#F3F4F6";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== "approved") {
+                    e.currentTarget.style.backgroundColor = "#FFFFFF";
+                  }
                 }}
               >
                 Approved
               </TabsTrigger>
               <TabsTrigger
                 value="rejected"
-                className="h-10 px-4 rounded-md font-medium transition-all"
+                className="h-10 px-4 rounded-md font-medium transition-all cursor-pointer"
                 style={{
                   backgroundColor:
                     activeTab === "rejected"
@@ -318,12 +534,22 @@ export function ManageResponsesPage() {
                       ? variables.colors.buttonDefaultTextColor
                       : variables.colors.inputTextColor,
                 }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== "rejected") {
+                    e.currentTarget.style.backgroundColor = "#F3F4F6";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== "rejected") {
+                    e.currentTarget.style.backgroundColor = "#FFFFFF";
+                  }
+                }}
               >
                 Rejected
               </TabsTrigger>
               <TabsTrigger
                 value="sent-back"
-                className="h-10 px-4 rounded-md font-medium transition-all"
+                className="h-10 px-4 rounded-md font-medium transition-all cursor-pointer"
                 style={{
                   backgroundColor:
                     activeTab === "sent-back"
@@ -333,6 +559,16 @@ export function ManageResponsesPage() {
                     activeTab === "sent-back"
                       ? variables.colors.buttonDefaultTextColor
                       : variables.colors.inputTextColor,
+                }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== "sent-back") {
+                    e.currentTarget.style.backgroundColor = "#F3F4F6";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== "sent-back") {
+                    e.currentTarget.style.backgroundColor = "#FFFFFF";
+                  }
                 }}
               >
                 Sent Back
@@ -356,112 +592,6 @@ export function ManageResponsesPage() {
                   color: variables.colors.inputTextColor,
                 }}
               />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Filter
-                className="h-4 w-4"
-                style={{ color: variables.colors.inputTextColor }}
-              />
-              <span
-                className="text-sm font-medium"
-                style={{ color: variables.colors.inputTextColor }}
-              >
-                Filters:
-              </span>
-              {activeFiltersCount > 0 && (
-                <span
-                  className="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full"
-                  style={{
-                    backgroundColor:
-                      variables.colors.buttonDefaultBackgroundColor,
-                    color: variables.colors.buttonDefaultTextColor,
-                  }}
-                >
-                  {activeFiltersCount}
-                </span>
-              )}
-            </div>
-
-            <Select
-              value={sortBy}
-              onValueChange={(value) => setSortBy(value as SortOption)}
-            >
-              <SelectTrigger
-                className="w-[200px] h-9 font-inter text-sm"
-                style={{
-                  backgroundColor: "#FFFFFF",
-                  borderColor: variables.colors.inputBorderColor,
-                  color: variables.colors.inputTextColor,
-                }}
-              >
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="date-desc">Date: Newest First</SelectItem>
-                <SelectItem value="date-asc">Date: Oldest First</SelectItem>
-                <SelectItem value="priority-high">
-                  Priority: High to Low
-                </SelectItem>
-                <SelectItem value="priority-low">
-                  Priority: Low to High
-                </SelectItem>
-                <SelectItem value="advertiser-asc">
-                  Advertiser: A to Z
-                </SelectItem>
-                <SelectItem value="advertiser-desc">
-                  Advertiser: Z to A
-                </SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={priorityFilter}
-              onValueChange={(value) =>
-                setPriorityFilter(value as PriorityFilter)
-              }
-            >
-              <SelectTrigger
-                className="w-[180px] h-9 font-inter text-sm"
-                style={{
-                  backgroundColor: "#FFFFFF",
-                  borderColor: variables.colors.inputBorderColor,
-                  color: variables.colors.inputTextColor,
-                }}
-              >
-                <SelectValue placeholder="Filter by priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priorities</SelectItem>
-                <SelectItem value="high">High Priority</SelectItem>
-                <SelectItem value="medium">Medium Priority</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {hasActiveFilters && (
-              <Button
-                variant="outline"
-                onClick={clearFilters}
-                className="h-9 font-inter text-sm"
-                style={{
-                  borderColor: variables.colors.inputBorderColor,
-                  color: variables.colors.inputTextColor,
-                }}
-              >
-                Clear All Filters
-              </Button>
-            )}
-
-            <div
-              className="ml-auto text-sm"
-              style={{ color: variables.colors.inputPlaceholderColor }}
-            >
-              {filteredAndSortedResponses.length}{" "}
-              {filteredAndSortedResponses.length === 1
-                ? "response"
-                : "responses"}
             </div>
           </div>
         </div>

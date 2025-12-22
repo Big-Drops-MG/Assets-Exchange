@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 
 import { getVariables } from "@/components/_variables/variables";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import {
 interface EntityDataTableColumn {
   header: string;
   width?: string;
+  align?: "left" | "center" | "right";
 }
 
 interface EntityDataTableProps<T> {
@@ -33,11 +35,14 @@ export function EntityDataTable<T>({
   return (
     <div className="w-full">
       <div
-        className="rounded-t-2xl px-5 py-3.5"
-        style={{ backgroundColor: variables.colors.cardHeaderBackgroundColor }}
+        className="rounded-t-2xl px-5 py-4 border-b"
+        style={{
+          backgroundColor: variables.colors.cardHeaderBackgroundColor,
+          borderColor: variables.colors.cardHeaderBackgroundColor,
+        }}
       >
         <div
-          className="grid items-center justify-center text-center"
+          className="grid items-center"
           style={{
             gridTemplateColumns: columns
               .map((col) => col.width || "1fr")
@@ -48,7 +53,13 @@ export function EntityDataTable<T>({
           {columns.map((column, index) => (
             <div
               key={index}
-              className="font-inter font-medium text-xs xl:text-sm"
+              className={`font-inter font-semibold text-xs xl:text-sm tracking-wide ${
+                column.align === "left"
+                  ? "text-left"
+                  : column.align === "right"
+                    ? "text-right"
+                    : "text-center"
+              }`}
               style={{ color: variables.colors.cardHeaderTextColor }}
             >
               {column.header}
@@ -57,12 +68,80 @@ export function EntityDataTable<T>({
         </div>
       </div>
 
-      <div className="space-y-2.5 mt-2">
+      <div className="space-y-3 mt-3">
         {data.map((item, index) => (
-          <div key={index}>{renderRow(item, index)}</div>
+          <div key={index} className="transition-all duration-200">
+            {renderRow(item, index)}
+          </div>
         ))}
       </div>
     </div>
+  );
+}
+
+interface VisibilityDropdownProps {
+  visibility: "Public" | "Internal" | "Hidden";
+  onVisibilityChange: (visibility: "Public" | "Internal" | "Hidden") => void;
+  variables: ReturnType<typeof getVariables>;
+}
+
+function VisibilityDropdown({
+  visibility,
+  onVisibilityChange,
+  variables,
+}: VisibilityDropdownProps) {
+  const [open, setOpen] = useState(false);
+
+  const handleSelect = (value: "Public" | "Internal" | "Hidden") => {
+    onVisibilityChange(value);
+    setOpen(false);
+  };
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          className="h-8 w-28 text-xs font-medium rounded-md border pointer-events-auto transition-all duration-200 hover:shadow-sm"
+          style={{
+            color: variables.colors.buttonOutlineTextColor,
+            borderColor: variables.colors.buttonOutlineBorderColor,
+            backgroundColor: variables.colors.cardBackground,
+          }}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          {visibility}
+          <ChevronDown className="h-3 w-3 ml-1 transition-transform duration-200" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="center"
+        className="min-w-[7rem] z-[100]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <DropdownMenuItem
+          onSelect={() => handleSelect("Public")}
+          className="text-xs cursor-pointer"
+        >
+          Public
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => handleSelect("Internal")}
+          className="text-xs cursor-pointer"
+        >
+          Internal
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => handleSelect("Hidden")}
+          className="text-xs cursor-pointer"
+        >
+          Hidden
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -75,6 +154,8 @@ interface EntityDataCardProps {
   status: "Active" | "Pending" | "Inactive";
   variant?: "purple" | "blue";
   visibility?: "Public" | "Internal" | "Hidden";
+  nameAlign?: "left" | "center" | "right";
+  gridTemplateColumns?: string;
   onEditDetails?: () => void;
   onBrandGuidelines?: () => void;
   onVisibilityChange?: (visibility: "Public" | "Internal" | "Hidden") => void;
@@ -89,6 +170,8 @@ export function EntityDataCard({
   status,
   variant = "purple",
   visibility,
+  nameAlign = "left",
+  gridTemplateColumns = "100px 2.5fr 1fr 1fr 140px 340px",
   onEditDetails,
   onBrandGuidelines,
   onVisibilityChange,
@@ -104,7 +187,7 @@ export function EntityDataCard({
 
   return (
     <div
-      className="rounded-2xl border px-5 py-5 shadow-sm"
+      className="rounded-2xl border px-5 py-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-opacity-80"
       style={{
         backgroundColor,
         borderColor,
@@ -113,41 +196,47 @@ export function EntityDataCard({
       <div
         className="grid items-center"
         style={{
-          gridTemplateColumns: "100px 1.2fr 1.2fr 1.2fr 140px 340px",
+          gridTemplateColumns,
           gap: "1.5rem",
         }}
       >
         <div
-          className="font-inter text-center text-xs xl:text-sm"
+          className="font-inter text-center text-xs xl:text-sm font-medium leading-relaxed"
           style={{ color: variables.colors.requestCardTextColor }}
         >
           {id}
         </div>
 
         <div
-          className="font-inter text-center  text-xs xl:text-sm"
+          className={`font-inter text-xs xl:text-sm leading-relaxed ${
+            nameAlign === "center"
+              ? "text-center"
+              : nameAlign === "right"
+                ? "text-right"
+                : "text-left"
+          }`}
           style={{ color: variables.colors.requestCardTextColor }}
         >
           {name}
         </div>
 
         <div
-          className="font-inter text-center text-xs xl:text-sm"
+          className="font-inter text-center text-xs xl:text-sm leading-relaxed"
           style={{ color: variables.colors.requestCardTextColor }}
         >
           {advName || platform}
         </div>
 
         <div
-          className="font-inter text-center text-xs xl:text-sm"
+          className="font-inter text-center text-xs xl:text-sm leading-relaxed"
           style={{ color: variables.colors.requestCardTextColor }}
         >
           {createdMethod}
         </div>
 
-        <div className="flex flex-col gap-2 justify-center items-center">
+        <div className="flex flex-col gap-2.5 justify-center items-center">
           <Badge
-            className="h-7 w-28 p-0 text-xs xl:text-sm font-medium rounded-[20px] border flex items-center justify-center"
+            className="h-7 w-28 p-0 text-xs xl:text-sm font-medium rounded-[20px] border flex items-center justify-center transition-all duration-200 hover:scale-105"
             style={{
               backgroundColor:
                 status === "Active"
@@ -172,66 +261,18 @@ export function EntityDataCard({
             {status}
           </Badge>
           {visibility && onVisibilityChange && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="h-8 w-28 text-xs font-medium rounded-md border pointer-events-auto"
-                  style={{
-                    color: variables.colors.buttonOutlineTextColor,
-                    borderColor: variables.colors.buttonOutlineBorderColor,
-                    backgroundColor: variables.colors.cardBackground,
-                  }}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
-                >
-                  {visibility}
-                  <ChevronDown className="h-3 w-3 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="center"
-                className="min-w-[7rem] z-[100]"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <DropdownMenuItem
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    onVisibilityChange("Public");
-                  }}
-                  className="text-xs cursor-pointer"
-                >
-                  Public
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    onVisibilityChange("Internal");
-                  }}
-                  className="text-xs cursor-pointer"
-                >
-                  Internal
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    onVisibilityChange("Hidden");
-                  }}
-                  className="text-xs cursor-pointer"
-                >
-                  Hidden
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <VisibilityDropdown
+              visibility={visibility}
+              onVisibilityChange={onVisibilityChange}
+              variables={variables}
+            />
           )}
         </div>
 
-        <div className="flex flex-row gap-2.5 items-center justify-center">
+        <div className="flex flex-col gap-2.5 items-center justify-center">
           <Button
             variant="outline"
-            className="h-9 w-36 font-inter text-xs xl:text-sm font-medium rounded-md border shadow-sm hover:shadow transition-shadow"
+            className="h-9 w-36 font-inter text-xs xl:text-sm font-medium rounded-md border shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-200"
             style={{
               color: variables.colors.requestCardViewButtonTextColor,
               borderColor: variables.colors.requestCardViewButtonBorderColor,
@@ -243,7 +284,7 @@ export function EntityDataCard({
             Edit Details
           </Button>
           <Button
-            className="h-9 w-36 font-inter text-xs xl:text-sm font-medium rounded-md border-0 shadow-sm hover:shadow transition-shadow"
+            className="h-9 w-36 font-inter text-xs xl:text-sm font-medium rounded-md border-0 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-200"
             style={{
               color: variables.colors.requestCardApproveButtonTextColor,
               backgroundColor:
