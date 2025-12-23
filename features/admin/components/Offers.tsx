@@ -66,6 +66,7 @@ import {
 import type { Offer as OfferType } from "../types/admin.types";
 import { useOffersViewModel } from "../view-models/useOffersViewModel";
 
+import { EditDetailsModal } from "./EditDetailsModal";
 import { EntityDataTable, EntityDataCard } from "./EntityDataTable";
 import { NewOfferManuallyModal } from "./NewOfferManuallyModal";
 
@@ -95,6 +96,8 @@ export function Offers() {
     Record<string, "Public" | "Internal" | "Hidden">
   >({});
   const [isNewOfferModalOpen, setIsNewOfferModalOpen] = useState(false);
+  const [isEditDetailsModalOpen, setIsEditDetailsModalOpen] = useState(false);
+  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
 
   const { offers, isLoading, error } = useOffersViewModel();
 
@@ -197,10 +200,9 @@ export function Offers() {
    *    - Show success notification
    *    - Update local state if needed
    */
-  const handleEditDetails = (_id: string) => {
-    // TODO: Implement API call to fetch offer details
-    // TODO: Open edit modal with fetched data
-    // TODO: Handle form submission and API update
+  const handleEditDetails = (id: string) => {
+    setSelectedOfferId(id);
+    setIsEditDetailsModalOpen(true);
   };
 
   /**
@@ -710,6 +712,16 @@ export function Offers() {
         onOpenChange={setIsNewOfferModalOpen}
         onSuccess={() => {
           setIsNewOfferModalOpen(false);
+        }}
+      />
+
+      <EditDetailsModal
+        open={isEditDetailsModalOpen}
+        onOpenChange={setIsEditDetailsModalOpen}
+        offerId={selectedOfferId}
+        onSuccess={() => {
+          setIsEditDetailsModalOpen(false);
+          setSelectedOfferId(null);
         }}
       />
     </div>
