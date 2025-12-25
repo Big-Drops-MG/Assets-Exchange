@@ -8,7 +8,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useMemo, useCallback, useState, useEffect } from "react";
 
 import { getVariables } from "@/components/_variables";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 
 import { manageAdvertisers } from "../models/advertiser.model";
@@ -59,6 +60,7 @@ type FilterCategory =
 export function Advertiser() {
   const variables = getVariables();
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>(null);
   const [creationMethodFilter, setCreationMethodFilter] =
@@ -84,66 +86,94 @@ export function Advertiser() {
 
   const { advertisers, isLoading, error } = useAdvertiserViewModel();
 
-  const columns = [
-    { header: "ID", width: "100px" },
-    { header: "Advertiser Name", width: "1.8fr", align: "center" as const },
-    { header: "Advertiser Platform", width: "1fr" },
-    { header: "Created Manually / via API", width: "1.2fr" },
-    { header: "Status", width: "1fr" },
-    { header: "Actions", width: "1.8fr" },
-  ];
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
 
-  const filteredAdvertisers = manageAdvertisers
-    .filter((advertiser) => {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch =
-        advertiser.id.toLowerCase().includes(query) ||
-        advertiser.advertiserName.toLowerCase().includes(query) ||
-        advertiser.advPlatform.toLowerCase().includes(query);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-      const matchesStatus = !statusFilter || advertiser.status === statusFilter;
-      const matchesPlatform =
-        !platformFilter || advertiser.advPlatform === platformFilter;
-      const matchesCreationMethod =
-        !creationMethodFilter ||
-        advertiser.createdMethod === creationMethodFilter;
+  const columns = useMemo(
+    () => [
+      { header: "ID", width: "100px" },
+      { header: "Advertiser Name", width: "1.8fr", align: "center" as const },
+      { header: "Advertiser Platform", width: "1fr" },
+      { header: "Created Manually / via API", width: "1.2fr" },
+      { header: "Status", width: "1fr" },
+      { header: "Actions", width: "1.8fr" },
+    ],
+    []
+  );
 
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesPlatform &&
-        matchesCreationMethod
-      );
-    })
-    .sort((a, b) => {
-      if (!sortByFilter) return 0;
+  const filteredAdvertisers = useMemo(
+    () =>
+      manageAdvertisers
+        .filter((advertiser) => {
+          const query = debouncedSearchQuery.toLowerCase();
+          const matchesSearch =
+            advertiser.id.toLowerCase().includes(query) ||
+            advertiser.advertiserName.toLowerCase().includes(query) ||
+            advertiser.advPlatform.toLowerCase().includes(query);
 
-      const aId = parseInt(a.id.replace(/\D/g, ""));
-      const bId = parseInt(b.id.replace(/\D/g, ""));
+          const matchesStatus =
+            !statusFilter || advertiser.status === statusFilter;
+          const matchesPlatform =
+            !platformFilter || advertiser.advPlatform === platformFilter;
+          const matchesCreationMethod =
+            !creationMethodFilter ||
+            advertiser.createdMethod === creationMethodFilter;
 
-      if (sortByFilter === "New to Old") {
-        return bId - aId;
-      } else {
-        return aId - bId;
-      }
-    });
+          return (
+            matchesSearch &&
+            matchesStatus &&
+            matchesPlatform &&
+            matchesCreationMethod
+          );
+        })
+        .sort((a, b) => {
+          if (!sortByFilter) return 0;
+
+          const aId = parseInt(a.id.replace(/\D/g, ""));
+          const bId = parseInt(b.id.replace(/\D/g, ""));
+
+          if (sortByFilter === "New to Old") {
+            return bId - aId;
+          } else {
+            return aId - bId;
+          }
+        }),
+    [
+      debouncedSearchQuery,
+      statusFilter,
+      platformFilter,
+      creationMethodFilter,
+      sortByFilter,
+    ]
+  );
 
   useEffect(() => {
     setCurrentPage(1);
   }, [
-    searchQuery,
+    debouncedSearchQuery,
     statusFilter,
     platformFilter,
     creationMethodFilter,
     sortByFilter,
   ]);
 
-  const totalPages = Math.ceil(filteredAdvertisers.length / itemsPerPage);
+  const totalPages = useMemo(
+    () => Math.ceil(filteredAdvertisers.length / itemsPerPage),
+    [filteredAdvertisers.length, itemsPerPage]
+  );
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedAdvertisers = filteredAdvertisers.slice(startIndex, endIndex);
+  const paginatedAdvertisers = useMemo(
+    () => filteredAdvertisers.slice(startIndex, endIndex),
+    [filteredAdvertisers, startIndex, endIndex]
+  );
 
-  const getPageNumbers = () => {
+  const getPageNumbers = useCallback(() => {
     const pages: (number | "ellipsis")[] = [];
     const maxVisible = 5;
 
@@ -176,7 +206,7 @@ export function Advertiser() {
     }
 
     return pages;
-  };
+  }, [currentPage, totalPages]);
 
   /**
    * TODO: BACKEND - Edit Advertiser Details Handler
@@ -200,10 +230,10 @@ export function Advertiser() {
    * - 403: Forbidden - show permission denied
    * - 500: Server error - show error with retry option
    */
-  const handleEditDetails = (id: string) => {
+  const handleEditDetails = useCallback((id: string) => {
     setSelectedAdvertiserIdForEdit(id);
     setIsEditDetailsModalOpen(true);
-  };
+  }, []);
 
   /**
    * TODO: BACKEND - Brand Guidelines Handler
@@ -254,12 +284,15 @@ export function Advertiser() {
    *    - Show success notification
    *    - Optionally refresh advertiser data
    */
-  const handleBrandGuidelines = (id: string) => {
-    const advertiser = advertisers?.find((a) => a.id === id);
-    setSelectedAdvertiserId(id);
-    setSelectedAdvertiserName(advertiser?.advertiserName || "");
-    setBrandGuidelinesModalOpen(true);
-  };
+  const handleBrandGuidelines = useCallback(
+    (id: string) => {
+      const advertiser = advertisers?.find((a) => a.id === id);
+      setSelectedAdvertiserId(id);
+      setSelectedAdvertiserName(advertiser?.advertiserName || "");
+      setBrandGuidelinesModalOpen(true);
+    },
+    [advertisers]
+  );
 
   /**
    * TODO: BACKEND - Implement Pull Via API Functionality for Advertisers
@@ -364,7 +397,7 @@ export function Advertiser() {
     }
   };
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setStatusFilter(null);
     setPlatformFilter(null);
     setCreationMethodFilter(null);
@@ -372,37 +405,13 @@ export function Advertiser() {
     setIsFilterOpen(false);
     setActiveCategory(null);
     setCurrentPage(1);
-  };
+  }, []);
 
   const hasActiveFilters =
     statusFilter !== null ||
     platformFilter !== null ||
     creationMethodFilter !== null ||
     sortByFilter !== null;
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-muted-foreground">Loading advertisers...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-destructive">Error: {error}</div>
-      </div>
-    );
-  }
-
-  if (!advertisers || advertisers.length === 0) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-muted-foreground">No advertisers available</div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full">
@@ -654,176 +663,211 @@ export function Advertiser() {
         </div>
       </div>
 
-      <EntityDataTable
-        data={paginatedAdvertisers}
-        columns={columns}
-        renderRow={(advertiser: AdvertiserType, index: number) => (
-          <EntityDataCard
-            id={advertiser.id}
-            name={advertiser.advertiserName}
-            platform={advertiser.advPlatform}
-            createdMethod={advertiser.createdMethod}
-            status={advertiser.status}
-            variant={index % 2 === 0 ? "purple" : "blue"}
-            nameAlign="center"
-            gridTemplateColumns={columns
-              .map((col) => col.width || "1fr")
-              .join(" ")}
-            actionButtonsLayout="row"
-            onEditDetails={() => handleEditDetails(advertiser.id)}
-            onBrandGuidelines={() => handleBrandGuidelines(advertiser.id)}
-          />
-        )}
-      />
-
-      {totalPages > 1 && (
-        <div
-          className="flex items-center gap-4 mt-6 pt-6 border-t"
-          style={{ borderColor: variables.colors.inputBorderColor }}
-        >
-          <div
-            className="text-sm font-inter whitespace-nowrap"
-            style={{ color: variables.colors.descriptionColor }}
-          >
-            Showing{" "}
-            <span
-              className="font-medium"
-              style={{ color: variables.colors.inputTextColor }}
+      {isLoading ? (
+        <div className="w-full">
+          <div className="rounded-t-2xl px-5 py-4 border-b">
+            <div
+              className="grid items-center"
+              style={{
+                gridTemplateColumns: "100px 1.8fr 1fr 1.2fr 1fr 1.8fr",
+                gap: "1.5rem",
+              }}
             >
-              {startIndex + 1}
-            </span>{" "}
-            to{" "}
-            <span
-              className="font-medium"
-              style={{ color: variables.colors.inputTextColor }}
-            >
-              {Math.min(endIndex, filteredAdvertisers.length)}
-            </span>{" "}
-            of{" "}
-            <span
-              className="font-medium"
-              style={{ color: variables.colors.inputTextColor }}
-            >
-              {filteredAdvertisers.length}
-            </span>{" "}
-            advertisers
-          </div>
-          <Pagination>
-            <PaginationContent className="gap-1">
-              <PaginationItem>
-                <PaginationPrevious
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (currentPage > 1) {
-                      setCurrentPage((prev) => prev - 1);
-                    }
-                  }}
-                  className={`transition-all duration-200 ${
-                    currentPage === 1
-                      ? "pointer-events-none opacity-40 cursor-not-allowed"
-                      : "cursor-pointer hover:bg-gray-100"
-                  }`}
-                  style={{
-                    color:
-                      currentPage === 1
-                        ? variables.colors.descriptionColor
-                        : variables.colors.inputTextColor,
-                  }}
-                />
-              </PaginationItem>
-              {getPageNumbers().map((page, index) => (
-                <PaginationItem key={index}>
-                  {page === "ellipsis" ? (
-                    <PaginationEllipsis className="text-gray-400" />
-                  ) : (
-                    <PaginationLink
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setCurrentPage(page);
-                      }}
-                      isActive={currentPage === page}
-                      className={`transition-all duration-200 min-w-9 h-9 flex items-center justify-center font-inter text-sm ${
-                        currentPage === page
-                          ? "cursor-default"
-                          : "cursor-pointer hover:bg-gray-100"
-                      }`}
-                      style={{
-                        backgroundColor:
-                          currentPage === page
-                            ? variables.colors.buttonDefaultBackgroundColor
-                            : "transparent",
-                        color:
-                          currentPage === page
-                            ? variables.colors.buttonDefaultTextColor
-                            : variables.colors.inputTextColor,
-                        borderColor:
-                          currentPage === page
-                            ? variables.colors.buttonDefaultBackgroundColor
-                            : variables.colors.inputBorderColor,
-                      }}
-                    >
-                      {page}
-                    </PaginationLink>
-                  )}
-                </PaginationItem>
+              {columns.map((_, index) => (
+                <Skeleton key={index} className="h-4 w-20" />
               ))}
-              <PaginationItem>
-                <PaginationNext
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (currentPage < totalPages) {
-                      setCurrentPage((prev) => prev + 1);
-                    }
-                  }}
-                  className={`transition-all duration-200 ${
-                    currentPage === totalPages
-                      ? "pointer-events-none opacity-40 cursor-not-allowed"
-                      : "cursor-pointer hover:bg-gray-100"
-                  }`}
-                  style={{
-                    color:
-                      currentPage === totalPages
-                        ? variables.colors.descriptionColor
-                        : variables.colors.inputTextColor,
-                  }}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-          <div className="flex items-center gap-2">
-            <span
+            </div>
+          </div>
+          <div className="space-y-3 mt-3">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Skeleton key={index} className="h-24 w-full rounded-2xl" />
+            ))}
+          </div>
+        </div>
+      ) : error ? (
+        <div className="flex items-center justify-center p-8 border rounded-lg">
+          <div className="text-destructive">Error: {error}</div>
+        </div>
+      ) : !advertisers || advertisers.length === 0 ? (
+        <div className="flex items-center justify-center p-8 border rounded-lg">
+          <div className="text-muted-foreground">No advertisers available</div>
+        </div>
+      ) : (
+        <EntityDataTable
+          data={paginatedAdvertisers}
+          columns={columns}
+          renderRow={(advertiser: AdvertiserType, index: number) => (
+            <EntityDataCard
+              id={advertiser.id}
+              name={advertiser.advertiserName}
+              platform={advertiser.advPlatform}
+              createdMethod={advertiser.createdMethod}
+              status={advertiser.status}
+              variant={index % 2 === 0 ? "purple" : "blue"}
+              nameAlign="center"
+              gridTemplateColumns={columns
+                .map((col) => col.width || "1fr")
+                .join(" ")}
+              actionButtonsLayout="row"
+              onEditDetails={() => handleEditDetails(advertiser.id)}
+              onBrandGuidelines={() => handleBrandGuidelines(advertiser.id)}
+            />
+          )}
+        />
+      )}
+
+      {!isLoading &&
+        !error &&
+        advertisers &&
+        advertisers.length > 0 &&
+        totalPages > 1 && (
+          <div
+            className="flex items-center gap-4 mt-6 pt-6 border-t"
+            style={{ borderColor: variables.colors.inputBorderColor }}
+          >
+            <div
               className="text-sm font-inter whitespace-nowrap"
               style={{ color: variables.colors.descriptionColor }}
             >
-              Show:
-            </span>
-            <Select
-              value={itemsPerPage.toString()}
-              onValueChange={(value) => {
-                setItemsPerPage(Number(value));
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger
-                className="h-8 w-20 text-xs font-inter border rounded-md"
-                style={{
-                  backgroundColor: variables.colors.inputBackgroundColor,
-                  borderColor: variables.colors.inputBorderColor,
-                  color: variables.colors.inputTextColor,
+              Showing{" "}
+              <span
+                className="font-medium"
+                style={{ color: variables.colors.inputTextColor }}
+              >
+                {startIndex + 1}
+              </span>{" "}
+              to{" "}
+              <span
+                className="font-medium"
+                style={{ color: variables.colors.inputTextColor }}
+              >
+                {Math.min(endIndex, filteredAdvertisers.length)}
+              </span>{" "}
+              of{" "}
+              <span
+                className="font-medium"
+                style={{ color: variables.colors.inputTextColor }}
+              >
+                {filteredAdvertisers.length}
+              </span>{" "}
+              advertisers
+            </div>
+            <Pagination>
+              <PaginationContent className="gap-1">
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage > 1) {
+                        setCurrentPage((prev) => prev - 1);
+                      }
+                    }}
+                    className={`transition-all duration-200 ${
+                      currentPage === 1
+                        ? "pointer-events-none opacity-40 cursor-not-allowed"
+                        : "cursor-pointer hover:bg-gray-100"
+                    }`}
+                    style={{
+                      color:
+                        currentPage === 1
+                          ? variables.colors.descriptionColor
+                          : variables.colors.inputTextColor,
+                    }}
+                  />
+                </PaginationItem>
+                {getPageNumbers().map((page, index) => (
+                  <PaginationItem key={index}>
+                    {page === "ellipsis" ? (
+                      <PaginationEllipsis className="text-gray-400" />
+                    ) : (
+                      <PaginationLink
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(page);
+                        }}
+                        isActive={currentPage === page}
+                        className={`transition-all duration-200 min-w-9 h-9 flex items-center justify-center font-inter text-sm ${
+                          currentPage === page
+                            ? "cursor-default"
+                            : "cursor-pointer hover:bg-gray-100"
+                        }`}
+                        style={{
+                          backgroundColor:
+                            currentPage === page
+                              ? variables.colors.buttonDefaultBackgroundColor
+                              : "transparent",
+                          color:
+                            currentPage === page
+                              ? variables.colors.buttonDefaultTextColor
+                              : variables.colors.inputTextColor,
+                          borderColor:
+                            currentPage === page
+                              ? variables.colors.buttonDefaultBackgroundColor
+                              : variables.colors.inputBorderColor,
+                        }}
+                      >
+                        {page}
+                      </PaginationLink>
+                    )}
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage < totalPages) {
+                        setCurrentPage((prev) => prev + 1);
+                      }
+                    }}
+                    className={`transition-all duration-200 ${
+                      currentPage === totalPages
+                        ? "pointer-events-none opacity-40 cursor-not-allowed"
+                        : "cursor-pointer hover:bg-gray-100"
+                    }`}
+                    style={{
+                      color:
+                        currentPage === totalPages
+                          ? variables.colors.descriptionColor
+                          : variables.colors.inputTextColor,
+                    }}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+            <div className="flex items-center gap-2">
+              <span
+                className="text-sm font-inter whitespace-nowrap"
+                style={{ color: variables.colors.descriptionColor }}
+              >
+                Show:
+              </span>
+              <Select
+                value={itemsPerPage.toString()}
+                onValueChange={(value) => {
+                  setItemsPerPage(Number(value));
+                  setCurrentPage(1);
                 }}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
+                <SelectTrigger
+                  className="h-8 w-20 text-xs font-inter border rounded-md"
+                  style={{
+                    backgroundColor: variables.colors.inputBackgroundColor,
+                    borderColor: variables.colors.inputBorderColor,
+                    color: variables.colors.inputTextColor,
+                  }}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {selectedAdvertiserId && (
         <BrandGuidelinesModal

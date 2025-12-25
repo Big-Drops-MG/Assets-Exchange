@@ -60,6 +60,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { RequestStatus } from "../types/admin.types";
@@ -298,30 +299,6 @@ export function ManageRequestsPage() {
   }, [searchQuery, sortBy, priorityFilter]);
 
   const hasActiveFilters = activeFiltersCount > 0;
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-muted-foreground">Loading requests...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-destructive">Error: {error}</div>
-      </div>
-    );
-  }
-
-  if (!requests || requests.length === 0) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-muted-foreground">No requests available</div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -690,8 +667,18 @@ export function ManageRequestsPage() {
         </div>
 
         <TabsContent value={activeTab} className="space-y-4 mt-6">
-          {filteredAndSortedRequests.length === 0 ? (
-            <div className="flex items-center justify-center p-8">
+          {isLoading ? (
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <Skeleton key={index} className="h-32 w-full rounded-2xl" />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center p-8 border rounded-lg">
+              <div className="text-destructive">Error: {error}</div>
+            </div>
+          ) : filteredAndSortedRequests.length === 0 ? (
+            <div className="flex items-center justify-center p-8 border rounded-lg">
               <div className="text-muted-foreground">
                 No {activeTab === "all" ? "" : activeTab} requests available
               </div>

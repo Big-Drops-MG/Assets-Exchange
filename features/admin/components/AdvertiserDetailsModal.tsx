@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import {
   getAdvertiserById,
@@ -366,9 +367,35 @@ export function AdvertiserDetailsModal({
 
           <DialogBody className="min-w-0 flex-1 overflow-y-auto px-6 py-6">
             {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-muted-foreground">
-                  Loading advertiser details...
+              <div className="space-y-8 w-full">
+                <div className="space-y-6">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-10 w-full rounded-md" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-10 w-full rounded-md" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-10 w-full rounded-md" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-10 w-full rounded-md" />
+                  </div>
+                </div>
+                <div className="border-t pt-6">
+                  <div className="space-y-6">
+                    <Skeleton className="h-5 w-32" />
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-12 w-full rounded-md" />
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : error && !advertiser ? (

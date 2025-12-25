@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 
 import { getVariables } from "@/components/_variables/variables";
 import { Badge } from "@/components/ui/badge";
@@ -85,17 +85,20 @@ interface VisibilityDropdownProps {
   variables: ReturnType<typeof getVariables>;
 }
 
-function VisibilityDropdown({
+const VisibilityDropdown = memo(({
   visibility,
   onVisibilityChange,
   variables,
-}: VisibilityDropdownProps) {
+}: VisibilityDropdownProps) => {
   const [open, setOpen] = useState(false);
 
-  const handleSelect = (value: "Public" | "Internal" | "Hidden") => {
-    onVisibilityChange(value);
-    setOpen(false);
-  };
+  const handleSelect = useCallback(
+    (value: "Public" | "Internal" | "Hidden") => {
+      onVisibilityChange(value);
+      setOpen(false);
+    },
+    [onVisibilityChange]
+  );
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -143,7 +146,9 @@ function VisibilityDropdown({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
+});
+
+VisibilityDropdown.displayName = "VisibilityDropdown";
 
 interface EntityDataCardProps {
   id: string;
@@ -162,7 +167,7 @@ interface EntityDataCardProps {
   onVisibilityChange?: (visibility: "Public" | "Internal" | "Hidden") => void;
 }
 
-export function EntityDataCard({
+export const EntityDataCard = memo(({
   id,
   name,
   platform,
@@ -177,15 +182,23 @@ export function EntityDataCard({
   onEditDetails,
   onBrandGuidelines,
   onVisibilityChange,
-}: EntityDataCardProps) {
+}: EntityDataCardProps) => {
   const variables = getVariables();
   const isPurple = variant === "purple";
-  const backgroundColor = isPurple
-    ? variables.colors.AccordionPurpleBackgroundColor
-    : variables.colors.AccordionBlueBackgroundColor;
-  const borderColor = isPurple
-    ? variables.colors.AccordionPurpleBorderColor
-    : variables.colors.AccordionBlueBorderColor;
+  const backgroundColor = useMemo(
+    () =>
+      isPurple
+        ? variables.colors.AccordionPurpleBackgroundColor
+        : variables.colors.AccordionBlueBackgroundColor,
+    [isPurple, variables.colors]
+  );
+  const borderColor = useMemo(
+    () =>
+      isPurple
+        ? variables.colors.AccordionPurpleBorderColor
+        : variables.colors.AccordionBlueBorderColor,
+    [isPurple, variables.colors]
+  );
 
   return (
     <div
@@ -293,4 +306,6 @@ export function EntityDataCard({
       </div>
     </div>
   );
-}
+});
+
+EntityDataCard.displayName = "EntityDataCard";

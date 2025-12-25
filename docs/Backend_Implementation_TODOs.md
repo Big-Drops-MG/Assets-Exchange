@@ -12,6 +12,21 @@
 8. [Testing Requirements](#testing-requirements)
 9. [Monitoring & Logging](#monitoring--logging)
 10. [Deployment Checklist](#deployment-checklist)
+11. [Personalization & Color Customization](#personalization--color-customization)
+
+---
+
+## Personalization & Color Customization
+
+**See detailed implementation guide:** [PERSONALIZATION_BACKEND_TODOS.md](./PERSONALIZATION_BACKEND_TODOS.md)
+
+### Quick Summary
+
+- **Database Table**: `color_preferences` (JSONB storage recommended)
+- **API Endpoints**: GET/POST/PUT/DELETE `/api/personalization/colors`
+- **Data Structure**: Matches `GroupedColors` interface from `components/_variables/variables.ts`
+- **Features**: User-level and organization-level color customization
+- **Status**: ⏳ Pending Implementation
 
 ---
 
