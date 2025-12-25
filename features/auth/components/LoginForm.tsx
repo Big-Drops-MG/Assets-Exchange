@@ -2,7 +2,8 @@
 
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { getVariables } from "@/components/_variables/variables";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -30,13 +31,26 @@ import { useLoginViewModel } from "../view-models/useLoginViewModel";
 
 export function LoginForm() {
   const { handleLogin, isLoading, error } = useLoginViewModel();
+  const searchParams = useSearchParams();
+  const [showPassword, setShowPassword] = useState(false);
+
   const form = useForm(loginSchema, {
     defaultValues: {
       email: "",
       password: "",
     },
   });
-  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    const email = searchParams.get("email");
+    const password = searchParams.get("password");
+    if (email) {
+      form.setValue("email", email);
+    }
+    if (password) {
+      form.setValue("password", password);
+    }
+  }, [searchParams, form]);
 
   const onSubmit = async (data: { email: string; password: string }) => {
     await handleLogin(data);
@@ -59,10 +73,10 @@ export function LoginForm() {
           .login-form-input:-webkit-autofill:hover,
           .login-form-input:-webkit-autofill:focus,
           .login-form-input:-webkit-autofill:active {
-            -webkit-box-shadow: 0 0 0 30px ${variables.colors.inputBackgrounColor} inset !important;
+            -webkit-box-shadow: 0 0 0 30px ${variables.colors.inputBackgroundColor} inset !important;
             -webkit-text-fill-color: ${variables.colors.inputTextColor} !important;
-            box-shadow: 0 0 0 30px ${variables.colors.inputBackgrounColor} inset !important;
-            background-color: ${variables.colors.inputBackgrounColor} !important;
+            box-shadow: 0 0 0 30px ${variables.colors.inputBackgroundColor} inset !important;
+            background-color: ${variables.colors.inputBackgroundColor} !important;
             color: ${variables.colors.inputTextColor} !important;
           }
           .login-form-input::selection {
@@ -128,7 +142,8 @@ export function LoginForm() {
                         placeholder="Enter your email"
                         disabled={isLoading}
                         style={{
-                          backgroundColor: variables.colors.inputBackgrounColor,
+                          backgroundColor:
+                            variables.colors.inputBackgroundColor,
                           color: variables.colors.inputTextColor,
                           borderColor: form.formState.errors.email
                             ? variables.colors.inputErrorColor
@@ -164,7 +179,7 @@ export function LoginForm() {
                           disabled={isLoading}
                           style={{
                             backgroundColor:
-                              variables.colors.inputBackgrounColor,
+                              variables.colors.inputBackgroundColor,
                             color: variables.colors.inputTextColor,
                             borderColor: form.formState.errors.password
                               ? variables.colors.inputErrorColor
@@ -176,17 +191,21 @@ export function LoginForm() {
                         />
                         <button
                           type="button"
-                          onClick={() => setShowPassword(!showPassword)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowPassword(!showPassword);
+                          }}
                           disabled={isLoading}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed z-10 p-1"
                           aria-label={
                             showPassword ? "Hide password" : "Show password"
                           }
                         >
                           {showPassword ? (
-                            <EyeOff className="h-5 w-5 lg:h-5.5 lg:w-5.5 xl:h-6 xl:w-6" />
+                            <EyeOff className="h-5 w-5 lg:h-6 lg:w-6 xl:h-6 xl:w-6" />
                           ) : (
-                            <Eye className="h-5 w-5 lg:h-5.5 lg:w-5.5 xl:h-6 xl:w-6" />
+                            <Eye className="h-5 w-5 lg:h-6 lg:w-6 xl:h-6 xl:w-6" />
                           )}
                         </button>
                       </div>

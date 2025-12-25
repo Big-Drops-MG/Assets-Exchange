@@ -218,35 +218,71 @@ assets-exchange/
 
 ## Key Features
 
+### Core Architecture & Framework
+
 - **MVVM Architecture**: Clean separation of concerns with Model-View-ViewModel pattern
 - **Authentication System**: Complete auth flow with BetterAuth and role-based access control
 - **Database Integration**: Neon PostgreSQL with Drizzle ORM for type-safe database operations
 - **Type-Safe RPC**: oRPC for end-to-end type-safe API calls with OpenAPI support
 - **Environment Validation**: Type-safe environment variables with t3-env and Zod
+- **Type Safety**: Full TypeScript support throughout
+
+### User Management & Access Control
+
 - **Role-Based Access**: Three dashboard types (Admin, Advertiser, Administrator) with protected routes
 - **Public Publisher Section**: No authentication required for publisher routes
-- **Login UI**: Enhanced sign-in form with custom validation, password visibility toggle, responsive design, and full theme variable integration
+- **Login UI**: Enhanced sign-in form with custom validation, password visibility toggle, responsive design
+- **Database Seeding**: Scripts to create initial admin and advertiser users
+
+### Admin Dashboard Features
+
+- **Dashboard Statistics**: 5 real-time statistics cards (Total Assets, New Requests, Approved Assets, Rejected Assets, Pending Approval)
+- **Performance Charts**: Interactive time-series charts with 4 comparison types (Today vs Yesterday, Today vs Last Week, Current Week vs Last Week, Current Month vs Last Month)
+- **Request Management**: Complete publisher request workflow with advanced filtering, sorting, search, and status management
+- **Unified Workflow Model**: Single-entity approach where one creative submission flows through entire approval process (Publisher → Admin → Advertiser)
+- **Approval System**: Two-stage approval workflow (Admin → Advertiser) with status transitions tracked in one record
+- **Status Indicators**: Visual badges for all workflow states (New, Pending, Approved, Rejected, Sent Back)
+- **Conditional Actions**: Smart button display based on status and approval stage
+- **Intelligent Routing**: Sent-back items automatically appear in correct tabs for workflow management
+- **Data Integrity**: Offer and creative details remain immutable throughout workflow - no duplication or inconsistency
+
+### UI & Design
+
 - **Component Library**: Pre-built, accessible UI components from shadcn/ui
 - **Dark Mode**: Full dark mode support with theme switching
 - **Form Validation**: Type-safe forms with React Hook Form and Zod, custom error messages, and real-time validation
 - **Responsive Design**: Mobile-first approach with Tailwind CSS
-- **Type Safety**: Full TypeScript support throughout
-- **Database Seeding**: Scripts to create initial admin and advertiser users
-- **Global Error Handling**: Error boundary for unhandled errors
+- **Application Variables**: Centralized configuration for branding, colors, typography, and assets
+
+### Development & Quality
+
 - **Testing Setup**: Jest configured with React Testing Library for component and unit testing
 - **Code Formatting**: Prettier configured for consistent code style
 - **Linting**: ESLint with import ordering, TypeScript rules, and Next.js best practices
 - **Git Hooks**: Husky pre-commit hooks with lint-staged for automatic code quality checks
+- **Global Error Handling**: Error boundary for unhandled errors
+
+### Security & SEO
+
 - **Security**: CORS configuration, Content Security Policy (CSP), and security headers
 - **SEO**: robots.txt configured for search engine optimization
-- **Application Variables**: Centralized configuration for branding, colors, typography, and assets
+
+### Backend Integration Ready
+
+- **Comprehensive TODOs**: Production-ready backend implementation guides with SQL queries, API specifications, and data models
+- **Documentation**: Complete backend documentation including database schema, endpoints, caching strategies, and performance optimization
+- **Mock Data**: Development-ready mock data for all features (to be replaced with real APIs)
 
 ## Application Roles
 
-- **Admin**: Manages users, campaigns, and analytics
-- **Advertiser**: Creates and manages advertising campaigns
-- **Administrator**: System-level access and global settings
-- **Publisher**: Public-facing section (no authentication required)
+- **Admin**: Full dashboard access with request/response management, statistics, and analytics
+  - Manage publisher requests (approve, reject, send back)
+  - Monitor advertiser responses
+  - View real-time statistics and performance charts
+  - Two-stage approval workflow management
+- **Advertiser**: Creates and manages advertising campaigns (coming soon)
+- **Administrator**: System-level access and global settings (coming soon)
+- **Publisher**: Public-facing section (no authentication required, coming soon)
 
 ## Git Branching Strategy
 
@@ -376,19 +412,119 @@ The application includes comprehensive security headers configured in `next.conf
 
 A `robots.txt` file is configured in `public/robots.txt` to control search engine crawling.
 
+## Backend Implementation
+
+This project includes comprehensive backend implementation guides for integrating real APIs:
+
+### Architecture Documentation
+
+- **[UNIFIED_MODEL_EXPLANATION.md](docs/UNIFIED_MODEL_EXPLANATION.md)** - Unified workflow model (18KB, 595 lines)
+  - Why requests and responses are ONE entity, not two
+  - Complete workflow visualization
+  - Database schema for unified model
+  - Benefits and comparison with old approach
+  - **READ THIS FIRST** to understand the architecture
+
+- **[WORKFLOW_VISUALIZATION.md](docs/WORKFLOW_VISUALIZATION.md)** - Visual workflow guide (36KB, 665 lines)
+  - Complete lifecycle diagrams
+  - UI display logic
+  - Real-world scenario walkthrough
+  - State matrix and transitions
+
+- **[MIGRATION_SUMMARY.md](docs/MIGRATION_SUMMARY.md)** - Refactoring changes (12KB, 409 lines)
+  - What changed and why
+  - Files updated
+  - API endpoint changes
+  - Before/after comparison
+
+### Implementation Guides
+
+- **[Backend_Implementation_TODOs.md](docs/Backend_Implementation_TODOs.md)** - Complete backend implementation guide (50KB+, 2000+ lines)
+  - Unified database schema design with SQL
+  - 30+ API endpoints with specifications:
+    - Creative requests/responses (unified endpoints)
+    - Offers management (CRUD, bulk update, pull from API)
+    - Advertisers management (CRUD, pull from API)
+    - Publishers management (CRUD)
+    - Brand guidelines management (URL, file upload, rich text)
+  - Authentication & authorization
+  - Business logic & workflows
+  - Error handling & validation
+  - Performance optimization & caching
+  - Security requirements
+  - File upload handling (FormData, multipart/form-data)
+  - Testing guidelines
+  - Monitoring & logging
+  - Deployment checklist
+
+- **[BACKEND_TODOS_SUMMARY.md](docs/BACKEND_TODOS_SUMMARY.md)** - Quick reference guide (7.7KB, 296 lines)
+  - File-by-file TODO locations
+  - Priority implementation order (4 phases, 8 weeks)
+  - Critical business logic
+  - Testing checklist
+  - Environment setup
+  - Quick start guide for backend engineers
+
+- **[STATS_AND_CHARTS_BACKEND_TODOS.md](docs/STATS_AND_CHARTS_BACKEND_TODOS.md)** - Dashboard statistics guide (17KB, 799 lines)
+  - Dashboard statistics calculations
+  - Performance chart aggregations
+  - SQL queries for all metrics
+  - Data processing examples
+  - Caching strategies
+  - Database optimization
+
+### Finding TODOs in Code
+
+All backend TODOs are marked with `TODO: BACKEND` prefix:
+
+```bash
+# Find all backend TODOs
+grep -r "TODO: BACKEND" features/ app/
+
+# Count TODOs
+grep -r "TODO: BACKEND" features/ app/ | wc -l
+# Result: 29+ comprehensive TODOs
+```
+
+### Key Implementation Areas
+
+1. **Database Schema** - 3 main tables + cache table
+2. **Dashboard Statistics** - 5 metrics with trends
+3. **Performance Charts** - 4 comparison types
+4. **Request/Response APIs** - 11 endpoints
+5. **Authentication** - JWT + role-based access
+6. **Caching** - Redis with TTL strategies
+
 ## Learn More
 
+### Framework & Core
+
 - [Next.js Documentation](https://nextjs.org/docs)
-- [Better Auth Documentation](https://www.better-auth.com)
+- [React Documentation](https://react.dev)
+- [TypeScript Documentation](https://www.typescriptlang.org/docs)
+
+### Backend & Database
+
 - [Neon Documentation](https://neon.tech/docs)
 - [Drizzle ORM Documentation](https://orm.drizzle.team)
+- [Better Auth Documentation](https://www.better-auth.com)
+
+### Type Safety & APIs
+
 - [oRPC Documentation](https://orpc.dev)
 - [t3-env Documentation](https://env.t3.gg)
+- [Zod Documentation](https://zod.dev)
+
+### UI & Styling
+
 - [shadcn/ui Documentation](https://ui.shadcn.com)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
-- [React Documentation](https://react.dev)
 - [Radix UI Documentation](https://www.radix-ui.com)
+
+### Development Tools
+
 - [Jest Documentation](https://jestjs.io/docs/getting-started)
+- [React Testing Library](https://testing-library.com/react)
 - [Prettier Documentation](https://prettier.io/docs/en/)
 - [ESLint Documentation](https://eslint.org/docs/latest/)
 - [Husky Documentation](https://typicode.github.io/husky/)
