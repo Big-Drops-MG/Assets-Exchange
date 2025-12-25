@@ -62,10 +62,10 @@ export const adminMenuConfig: SidebarMenuConfig = [
       //   href: "/ai-settings",
       // },
       {
-        id: "publisher-form-settings",
-        label: "Publisher Form Settings",
+        id: "settings",
+        label: "Settings",
         icon: "Settings2",
-        href: "/publisher-form-settings",
+        href: "/settings",
       },
     ],
   },
