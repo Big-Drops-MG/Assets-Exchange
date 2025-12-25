@@ -40,10 +40,26 @@ import { getVariables } from "@/components/_variables/variables";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { RequestStatus } from "../types/admin.types";
@@ -73,6 +89,8 @@ export function ManageRequestsPage() {
   const [activeCategory, setActiveCategory] = useState<
     "sortBy" | "priority" | null
   >(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -81,6 +99,10 @@ export function ManageRequestsPage() {
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, debouncedSearchQuery, sortBy, priorityFilter]);
 
   const getPriorityValue = useCallback((priority: string): number => {
     const lowerPriority = priority?.toLowerCase() || "";
@@ -216,11 +238,55 @@ export function ManageRequestsPage() {
     searchInText,
   ]);
 
+  const totalPages = Math.ceil(filteredAndSortedRequests.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedRequests = filteredAndSortedRequests.slice(
+    startIndex,
+    endIndex
+  );
+
+  const getPageNumbers = () => {
+    const pages: (number | "ellipsis")[] = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push("ellipsis");
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push("ellipsis");
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push("ellipsis");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push("ellipsis");
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  };
+
   const clearFilters = () => {
     setSearchQuery("");
     setSortBy("date-desc");
     setPriorityFilter("all");
     setActiveTab("all");
+    setCurrentPage(1);
   };
 
   const activeFiltersCount = useMemo(() => {
@@ -631,10 +697,163 @@ export function ManageRequestsPage() {
               </div>
             </div>
           ) : (
-            <RequestSection
-              requests={filteredAndSortedRequests}
-              startIndex={0}
-            />
+            <>
+              <RequestSection
+                requests={paginatedRequests}
+                startIndex={startIndex}
+              />
+              {totalPages > 1 && (
+                <div
+                  className="flex items-center gap-4 mt-6 pt-6 border-t"
+                  style={{ borderColor: variables.colors.inputBorderColor }}
+                >
+                  <div
+                    className="text-sm font-inter whitespace-nowrap"
+                    style={{ color: variables.colors.descriptionColor }}
+                  >
+                    Showing{" "}
+                    <span
+                      className="font-medium"
+                      style={{ color: variables.colors.inputTextColor }}
+                    >
+                      {startIndex + 1}
+                    </span>{" "}
+                    to{" "}
+                    <span
+                      className="font-medium"
+                      style={{ color: variables.colors.inputTextColor }}
+                    >
+                      {Math.min(endIndex, filteredAndSortedRequests.length)}
+                    </span>{" "}
+                    of{" "}
+                    <span
+                      className="font-medium"
+                      style={{ color: variables.colors.inputTextColor }}
+                    >
+                      {filteredAndSortedRequests.length}
+                    </span>{" "}
+                    requests
+                  </div>
+                  <Pagination>
+                    <PaginationContent className="gap-1">
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (currentPage > 1) {
+                              setCurrentPage((prev) => prev - 1);
+                            }
+                          }}
+                          className={`transition-all duration-200 ${
+                            currentPage === 1
+                              ? "pointer-events-none opacity-40 cursor-not-allowed"
+                              : "cursor-pointer hover:bg-gray-100"
+                          }`}
+                          style={{
+                            color:
+                              currentPage === 1
+                                ? variables.colors.descriptionColor
+                                : variables.colors.inputTextColor,
+                          }}
+                        />
+                      </PaginationItem>
+                      {getPageNumbers().map((page, index) => (
+                        <PaginationItem key={index}>
+                          {page === "ellipsis" ? (
+                            <PaginationEllipsis className="text-gray-400" />
+                          ) : (
+                            <PaginationLink
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setCurrentPage(page);
+                              }}
+                              isActive={currentPage === page}
+                              className={`transition-all duration-200 min-w-9 h-9 flex items-center justify-center font-inter text-sm ${
+                                currentPage === page
+                                  ? "cursor-default"
+                                  : "cursor-pointer hover:bg-gray-100"
+                              }`}
+                              style={{
+                                backgroundColor:
+                                  currentPage === page
+                                    ? variables.colors
+                                        .buttonDefaultBackgroundColor
+                                    : "transparent",
+                                color:
+                                  currentPage === page
+                                    ? variables.colors.buttonDefaultTextColor
+                                    : variables.colors.inputTextColor,
+                                borderColor:
+                                  currentPage === page
+                                    ? variables.colors
+                                        .buttonDefaultBackgroundColor
+                                    : variables.colors.inputBorderColor,
+                              }}
+                            >
+                              {page}
+                            </PaginationLink>
+                          )}
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (currentPage < totalPages) {
+                              setCurrentPage((prev) => prev + 1);
+                            }
+                          }}
+                          className={`transition-all duration-200 ${
+                            currentPage === totalPages
+                              ? "pointer-events-none opacity-40 cursor-not-allowed"
+                              : "cursor-pointer hover:bg-gray-100"
+                          }`}
+                          style={{
+                            color:
+                              currentPage === totalPages
+                                ? variables.colors.descriptionColor
+                                : variables.colors.inputTextColor,
+                          }}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="text-sm font-inter whitespace-nowrap"
+                      style={{ color: variables.colors.descriptionColor }}
+                    >
+                      Show:
+                    </span>
+                    <Select
+                      value={itemsPerPage.toString()}
+                      onValueChange={(value) => {
+                        setItemsPerPage(Number(value));
+                        setCurrentPage(1);
+                      }}
+                    >
+                      <SelectTrigger
+                        className="h-8 w-20 text-xs font-inter border rounded-md"
+                        style={{
+                          backgroundColor:
+                            variables.colors.inputBackgroundColor,
+                          borderColor: variables.colors.inputBorderColor,
+                          color: variables.colors.inputTextColor,
+                        }}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </TabsContent>
       </Tabs>

@@ -24,110 +24,158 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { getOfferById, updateOffer } from "../services/offers.service";
-import type { Offer } from "../types/admin.types";
+import {
+  getAdvertiserById,
+  updateAdvertiser,
+} from "../services/advertiser.service";
+import type { Advertiser } from "../types/admin.types";
 
-interface EditDetailsModalProps {
+interface AdvertiserDetailsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  offerId: string | null;
+  advertiserId: string | null;
   onSuccess?: () => void;
 }
 
-interface EditOfferFormData {
-  offerId: string;
-  offerName: string;
-  status: "Active" | "Inactive";
-  visibility: "Public" | "Internal" | "Hidden";
+interface EditAdvertiserFormData {
   advertiserId: string;
   advertiserName: string;
+  status: "Active" | "Inactive";
+  advPlatform: string;
 }
 
-export function EditDetailsModal({
+export function AdvertiserDetailsModal({
   open,
   onOpenChange,
-  offerId,
+  advertiserId,
   onSuccess,
-}: EditDetailsModalProps) {
+}: AdvertiserDetailsModalProps) {
   const variables = getVariables();
   const inputRingColor = variables.colors.inputRingColor;
 
-  // Helper to check if source is API (case-insensitive)
   const isApiSource = (createdMethod: string) => {
     return createdMethod?.toLowerCase() === "api";
   };
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [offer, setOffer] = useState<Offer | null>(null);
-  const [isEditingOfferId, setIsEditingOfferId] = useState(false);
-  const [isEditingOfferName, setIsEditingOfferName] = useState(false);
+  const [advertiser, setAdvertiser] = useState<Advertiser | null>(null);
+  const [isEditingAdvertiserId, setIsEditingAdvertiserId] = useState(false);
+  const [isEditingAdvertiserName, setIsEditingAdvertiserName] = useState(false);
 
-  const [formData, setFormData] = useState<EditOfferFormData>({
-    offerId: "",
-    offerName: "",
-    status: "Active",
-    visibility: "Public",
+  const [formData, setFormData] = useState<EditAdvertiserFormData>({
     advertiserId: "",
     advertiserName: "",
+    status: "Active",
+    advPlatform: "Everflow",
   });
 
   const [validationErrors, setValidationErrors] = useState<
-    Partial<Record<keyof EditOfferFormData, string>>
+    Partial<Record<keyof EditAdvertiserFormData, string>>
   >({});
 
+  /**
+   * TODO: BACKEND - Fetch Advertiser Details
+   *
+   * Currently uses getAdvertiserById service which should call:
+   * GET /api/admin/advertisers/:id
+   *
+   * Backend should return:
+   * {
+   *   id: string,
+   *   advertiserName: string,
+   *   advPlatform: string,
+   *   createdMethod: "Manually" | "API",
+   *   status: "Active" | "Inactive",
+   *   createdAt: string,              // ISO timestamp
+   *   updatedAt: string,               // ISO timestamp
+   *   createdBy?: string,              // User ID who created
+   *   updatedBy?: string              // User ID who last updated
+   * }
+   *
+   * Error Handling:
+   * - 404: Advertiser not found - show error message
+   * - 401: Unauthorized - redirect to login
+   * - 403: Forbidden - show permission denied
+   * - 500: Server error - show error with retry option
+   */
   useEffect(() => {
-    if (open && offerId) {
-      const fetchOffer = async () => {
+    if (open && advertiserId) {
+      const fetchAdvertiser = async () => {
         try {
           setIsLoading(true);
           setError(null);
-          const fetchedOffer = await getOfferById(offerId);
-          if (fetchedOffer) {
-            setOffer(fetchedOffer);
+          const fetchedAdvertiser = await getAdvertiserById(advertiserId);
+          if (fetchedAdvertiser) {
+            setAdvertiser(fetchedAdvertiser);
             setFormData({
-              offerId: fetchedOffer.id,
-              offerName: fetchedOffer.offerName,
-              status: fetchedOffer.status,
-              visibility: fetchedOffer.visibility,
-              advertiserId: "",
-              advertiserName: fetchedOffer.advName,
+              advertiserId: fetchedAdvertiser.id,
+              advertiserName: fetchedAdvertiser.advertiserName,
+              status: fetchedAdvertiser.status,
+              advPlatform: fetchedAdvertiser.advPlatform,
             });
-            setIsEditingOfferId(false);
-            setIsEditingOfferName(false);
+            setIsEditingAdvertiserId(false);
+            setIsEditingAdvertiserName(false);
           } else {
-            setError("Offer not found");
+            setError("Advertiser not found");
           }
         } catch (err) {
           setError(
-            err instanceof Error ? err.message : "Failed to load offer details"
+            err instanceof Error
+              ? err.message
+              : "Failed to load advertiser details"
           );
         } finally {
           setIsLoading(false);
         }
       };
-      fetchOffer();
+      fetchAdvertiser();
     }
-  }, [open, offerId]);
+  }, [open, advertiserId]);
 
+  /**
+   * TODO: BACKEND - Form Validation
+   *
+   * Current validation is client-side only. Backend should also validate:
+   *
+   * 1. Advertiser ID (if manually created):
+   *    - Required if createdMethod is "Manually"
+   *    - Format validation: M#### (M followed by exactly 4 digits)
+   *    - Uniqueness check if ID is being changed
+   *
+   * 2. Advertiser Name (if manually created):
+   *    - Required if createdMethod is "Manually"
+   *    - Max length validation
+   *    - Character restrictions
+   *
+   * 3. Platform:
+   *    - Required, must be "Everflow"
+   *    - Validate against allowed platform values
+   *
+   * 4. Status (if manually created):
+   *    - Must be "Active" or "Inactive"
+   *    - Only editable if createdMethod is "Manually"
+   *
+   * Return field-specific errors for better UX:
+   * {
+   *   field: string,
+   *   message: string
+   * }[]
+   */
   const validateForm = (): boolean => {
-    const errors: Partial<Record<keyof EditOfferFormData, string>> = {};
+    const errors: Partial<Record<keyof EditAdvertiserFormData, string>> = {};
 
-    if (offer && !isApiSource(offer.createdMethod)) {
-      if (!formData.offerId.trim()) {
-        errors.offerId = "Offer ID is required";
+    if (advertiser && !isApiSource(advertiser.createdMethod)) {
+      if (!formData.advertiserId.trim()) {
+        errors.advertiserId = "Advertiser ID is required";
       }
-      if (!formData.offerName.trim()) {
-        errors.offerName = "Offer name is required";
+      if (!formData.advertiserName.trim()) {
+        errors.advertiserName = "Advertiser name is required";
       }
     }
 
-    if (!formData.advertiserId.trim()) {
-      errors.advertiserId = "Advertiser ID is required";
-    }
-
-    if (!formData.advertiserName.trim()) {
-      errors.advertiserName = "Advertiser name is required";
+    if (!formData.advPlatform.trim()) {
+      errors.advPlatform = "Platform is required";
     }
 
     setValidationErrors(errors);
@@ -135,56 +183,52 @@ export function EditDetailsModal({
   };
 
   /**
-   * TODO: BACKEND - Implement Offer Update
+   * TODO: BACKEND - Implement Advertiser Update
    *
-   * This function handles updating offer details.
+   * This function handles updating advertiser details.
    *
-   * Endpoint: PUT /api/admin/offers/:id
+   * Endpoint: PUT /api/admin/advertisers/:id
    *
    * Request Body:
    * {
-   *   offerId?: string,                    // Only if offer was created manually
-   *   offerName?: string,                   // Only if offer was created manually
-   *   advertiserId?: string,
-   *   advertiserName?: string,
-   *   status?: "Active" | "Inactive",       // Only if offer was created manually
-   *   visibility?: "Public" | "Internal" | "Hidden"
+   *   advertiserId?: string,                // Only if advertiser was created manually
+   *   advertiserName?: string,                // Only if advertiser was created manually
+   *   status?: "Active" | "Inactive",         // Only if advertiser was created manually
+   *   advPlatform?: string
    * }
    *
    * Business Rules:
-   * - Offer ID and Offer Name can only be updated if createdMethod is "Manually"
+   * - Advertiser ID and Advertiser Name can only be updated if createdMethod is "Manually"
    * - Status can only be updated if createdMethod is "Manually"
-   * - API-created offers: Only visibility, advertiserId, and advertiserName can be updated
-   * - Manually-created offers: All fields can be updated
+   * - API-created advertisers: Only advPlatform can be updated
+   * - Manually-created advertisers: All fields can be updated
    *
    * Response:
    * {
    *   id: string,
-   *   offerName: string,
-   *   advName: string,
+   *   advertiserName: string,
+   *   advPlatform: string,
    *   createdMethod: "Manually" | "API",
    *   status: "Active" | "Inactive",
-   *   visibility: "Public" | "Internal" | "Hidden",
    *   updatedAt: string                     // ISO timestamp
    * }
    *
    * Error Handling:
    * - 400: Validation errors
-   *   - Invalid offerId format (if provided)
+   *   - Invalid advertiserId format (if provided)
    *   - Invalid status value (if provided)
-   *   - Invalid visibility value
    *   - Return field-specific errors
    *
    * - 401: Unauthorized - redirect to login
    * - 403: Forbidden - show permission denied
-   * - 404: Offer not found
-   * - 409: Conflict - offerId already exists (if changing offerId)
+   * - 404: Advertiser not found
+   * - 409: Conflict - advertiserId already exists (if changing advertiserId)
    * - 500: Server error - show error with retry option
    *
    * Success:
-   * - Return updated offer object
+   * - Return updated advertiser object
    * - Show success notification
-   * - Refresh offers list
+   * - Refresh advertisers list
    * - Close modal
    *
    * Audit Trail:
@@ -196,7 +240,7 @@ export function EditDetailsModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm() || !offer) {
+    if (!validateForm() || !advertiser) {
       return;
     }
 
@@ -204,25 +248,33 @@ export function EditDetailsModal({
       setIsSubmitting(true);
       setError(null);
 
-      const updatePayload: Partial<Offer> = {
-        visibility: formData.visibility,
-        advName: formData.advertiserName,
+      // TODO: BACKEND - Include all form fields in update payload
+      // TODO: Validate business rules (e.g., can't edit ID/Name/Status if API-created)
+      // TODO: Handle optimistic updates and rollback on error
+
+      const updatePayload: Partial<Advertiser> = {
+        advPlatform: formData.advPlatform,
       };
 
-      if (!isApiSource(offer.createdMethod)) {
-        updatePayload.id = formData.offerId;
-        updatePayload.offerName = formData.offerName;
+      if (!isApiSource(advertiser.createdMethod)) {
+        updatePayload.id = formData.advertiserId;
+        updatePayload.advertiserName = formData.advertiserName;
         updatePayload.status = formData.status;
       }
 
-      const updatedOffer = await updateOffer(offer.id, updatePayload);
+      const updatedAdvertiser = await updateAdvertiser(
+        advertiser.id,
+        updatePayload
+      );
 
-      if (updatedOffer) {
+      if (updatedAdvertiser) {
         onSuccess?.();
         onOpenChange(false);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update offer");
+      setError(
+        err instanceof Error ? err.message : "Failed to update advertiser"
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -243,9 +295,9 @@ export function EditDetailsModal({
     }
   }, [isSubmitting, onOpenChange]);
 
-  const updateFormField = <K extends keyof EditOfferFormData>(
+  const updateFormField = <K extends keyof EditAdvertiserFormData>(
     field: K,
-    value: EditOfferFormData[K]
+    value: EditAdvertiserFormData[K]
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (validationErrors[field]) {
@@ -262,35 +314,30 @@ export function EditDetailsModal({
       <style
         dangerouslySetInnerHTML={{
           __html: `
-          .edit-offer-modal-input:focus-visible {
+          .edit-advertiser-modal-input:focus-visible {
             outline: none !important;
             border-color: ${inputRingColor} !important;
             box-shadow: 0 0 0 3px ${inputRingColor}50 !important;
           }
-          .edit-offer-modal-input:-webkit-autofill,
-          .edit-offer-modal-input:-webkit-autofill:hover,
-          .edit-offer-modal-input:-webkit-autofill:focus,
-          .edit-offer-modal-input:-webkit-autofill:active {
+          .edit-advertiser-modal-input:-webkit-autofill,
+          .edit-advertiser-modal-input:-webkit-autofill:hover,
+          .edit-advertiser-modal-input:-webkit-autofill:focus,
+          .edit-advertiser-modal-input:-webkit-autofill:active {
             -webkit-box-shadow: 0 0 0 30px ${variables.colors.inputBackgroundColor} inset !important;
             -webkit-text-fill-color: ${variables.colors.inputTextColor} !important;
             box-shadow: 0 0 0 30px ${variables.colors.inputBackgroundColor} inset !important;
             background-color: ${variables.colors.inputBackgroundColor} !important;
             color: ${variables.colors.inputTextColor} !important;
           }
-          .edit-offer-modal-input::selection {
+          .edit-advertiser-modal-input::selection {
             background-color: ${inputRingColor}40 !important;
             color: ${variables.colors.inputTextColor} !important;
           }
-          .edit-offer-modal-input::-moz-selection {
+          .edit-advertiser-modal-input::-moz-selection {
             background-color: ${inputRingColor}40 !important;
             color: ${variables.colors.inputTextColor} !important;
           }
-          .edit-offer-modal-select:focus-visible {
-            outline: none !important;
-            border-color: ${inputRingColor} !important;
-            box-shadow: 0 0 0 3px ${inputRingColor}50 !important;
-          }
-          .edit-offer-modal-textarea:focus-visible {
+          .edit-advertiser-modal-select:focus-visible {
             outline: none !important;
             border-color: ${inputRingColor} !important;
             box-shadow: 0 0 0 3px ${inputRingColor}50 !important;
@@ -313,7 +360,7 @@ export function EditDetailsModal({
               className="text-lg font-semibold font-inter"
               style={{ color: variables.colors.cardHeaderTextColor }}
             >
-              Offer Details
+              Advertiser Details
             </DialogTitle>
           </DialogHeader>
 
@@ -321,32 +368,32 @@ export function EditDetailsModal({
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="text-muted-foreground">
-                  Loading offer details...
+                  Loading advertiser details...
                 </div>
               </div>
-            ) : error && !offer ? (
+            ) : error && !advertiser ? (
               <div className="flex items-center justify-center py-8">
                 <div className="text-destructive">{error}</div>
               </div>
-            ) : offer ? (
+            ) : advertiser ? (
               <div className="space-y-8 w-full">
                 <div className="space-y-6">
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-1.5">
                       <Label className="font-inter text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Offer ID
+                        Advertiser ID
                       </Label>
                       <div className="min-h-10 flex items-center">
-                        {!isApiSource(offer.createdMethod) &&
-                        isEditingOfferId ? (
+                        {!isApiSource(advertiser.createdMethod) &&
+                        isEditingAdvertiserId ? (
                           <div className="flex items-center gap-2 w-full">
                             <Input
-                              value={formData.offerId}
+                              value={formData.advertiserId}
                               onChange={(e) =>
-                                updateFormField("offerId", e.target.value)
+                                updateFormField("advertiserId", e.target.value)
                               }
                               disabled={isSubmitting}
-                              className="h-10 font-inter edit-offer-modal-input flex-1 text-sm"
+                              className="h-10 font-inter edit-advertiser-modal-input flex-1 text-sm"
                               style={{
                                 backgroundColor:
                                   variables.colors.inputBackgroundColor,
@@ -357,10 +404,13 @@ export function EditDetailsModal({
                             <button
                               type="button"
                               onClick={() => {
-                                if (offer) {
-                                  updateFormField("offerId", offer.id);
+                                if (advertiser) {
+                                  updateFormField(
+                                    "advertiserId",
+                                    advertiser.id
+                                  );
                                 }
-                                setIsEditingOfferId(false);
+                                setIsEditingAdvertiserId(false);
                               }}
                               disabled={isSubmitting}
                               className="p-1.5 rounded-md transition-colors shrink-0 border"
@@ -374,7 +424,7 @@ export function EditDetailsModal({
                             </button>
                             <button
                               type="button"
-                              onClick={() => setIsEditingOfferId(false)}
+                              onClick={() => setIsEditingAdvertiserId(false)}
                               disabled={isSubmitting}
                               className="p-1.5 rounded-md transition-colors shrink-0 border"
                               style={{
@@ -389,12 +439,12 @@ export function EditDetailsModal({
                         ) : (
                           <div className="font-inter text-sm flex items-center gap-2 w-full min-h-10 px-3 py-2 rounded-md bg-muted/30">
                             <span className="flex-1 font-medium">
-                              {offer.id}
+                              {advertiser.id}
                             </span>
-                            {!isApiSource(offer.createdMethod) && (
+                            {!isApiSource(advertiser.createdMethod) && (
                               <button
                                 type="button"
-                                onClick={() => setIsEditingOfferId(true)}
+                                onClick={() => setIsEditingAdvertiserId(true)}
                                 disabled={isSubmitting}
                                 className="p-1 rounded-md hover:bg-gray-100 transition-colors shrink-0 opacity-60 hover:opacity-100"
                                 style={{
@@ -407,9 +457,9 @@ export function EditDetailsModal({
                           </div>
                         )}
                       </div>
-                      {validationErrors.offerId && (
+                      {validationErrors.advertiserId && (
                         <p className="text-xs text-destructive font-inter mt-1">
-                          {validationErrors.offerId}
+                          {validationErrors.advertiserId}
                         </p>
                       )}
                     </div>
@@ -418,7 +468,7 @@ export function EditDetailsModal({
                       <Label className="font-inter text-xs font-medium text-muted-foreground uppercase tracking-wide">
                         Status
                       </Label>
-                      {!isApiSource(offer.createdMethod) ? (
+                      {!isApiSource(advertiser.createdMethod) ? (
                         <Select
                           value={formData.status}
                           onValueChange={(value: "Active" | "Inactive") =>
@@ -427,7 +477,7 @@ export function EditDetailsModal({
                           disabled={isSubmitting}
                         >
                           <SelectTrigger
-                            className="w-full h-10 font-inter edit-offer-modal-select text-sm"
+                            className="w-full h-10 font-inter edit-advertiser-modal-select text-sm"
                             style={{
                               backgroundColor:
                                 variables.colors.inputBackgroundColor,
@@ -448,22 +498,22 @@ export function EditDetailsModal({
                             className="inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-medium border"
                             style={{
                               backgroundColor:
-                                offer.status === "Active"
+                                advertiser.status === "Active"
                                   ? variables.colors
                                       .approvedAssetsBackgroundColor
                                   : variables.colors
                                       .rejectedAssetsBackgroundColor,
                               borderColor:
-                                offer.status === "Active"
+                                advertiser.status === "Active"
                                   ? "#86EFAC"
                                   : "#FFC2A3",
                               color:
-                                offer.status === "Active"
+                                advertiser.status === "Active"
                                   ? variables.colors.approvedAssetsIconColor
                                   : variables.colors.rejectedAssetsIconColor,
                             }}
                           >
-                            {offer.status}
+                            {advertiser.status}
                           </span>
                         </div>
                       )}
@@ -475,7 +525,7 @@ export function EditDetailsModal({
                       </Label>
                       <div className="font-inter text-sm flex items-center min-h-10 px-3 py-2 rounded-md bg-muted/30">
                         <span className="font-medium">
-                          {offer.createdMethod}
+                          {advertiser.createdMethod}
                         </span>
                       </div>
                     </div>
@@ -483,19 +533,19 @@ export function EditDetailsModal({
 
                   <div className="space-y-1.5">
                     <Label className="font-inter text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Offer Name
+                      Advertiser Name
                     </Label>
                     <div className="min-h-10 flex items-center">
-                      {!isApiSource(offer.createdMethod) &&
-                      isEditingOfferName ? (
+                      {!isApiSource(advertiser.createdMethod) &&
+                      isEditingAdvertiserName ? (
                         <div className="flex items-center gap-2 w-full">
                           <Input
-                            value={formData.offerName}
+                            value={formData.advertiserName}
                             onChange={(e) =>
-                              updateFormField("offerName", e.target.value)
+                              updateFormField("advertiserName", e.target.value)
                             }
                             disabled={isSubmitting}
-                            className="h-10 font-inter edit-offer-modal-input flex-1 text-sm"
+                            className="h-10 font-inter edit-advertiser-modal-input flex-1 text-sm"
                             style={{
                               backgroundColor:
                                 variables.colors.inputBackgroundColor,
@@ -506,10 +556,13 @@ export function EditDetailsModal({
                           <button
                             type="button"
                             onClick={() => {
-                              if (offer) {
-                                updateFormField("offerName", offer.offerName);
+                              if (advertiser) {
+                                updateFormField(
+                                  "advertiserName",
+                                  advertiser.advertiserName
+                                );
                               }
-                              setIsEditingOfferName(false);
+                              setIsEditingAdvertiserName(false);
                             }}
                             disabled={isSubmitting}
                             className="p-1.5 rounded-md transition-colors shrink-0 border"
@@ -523,7 +576,7 @@ export function EditDetailsModal({
                           </button>
                           <button
                             type="button"
-                            onClick={() => setIsEditingOfferName(false)}
+                            onClick={() => setIsEditingAdvertiserName(false)}
                             disabled={isSubmitting}
                             className="p-1.5 rounded-md transition-colors shrink-0 border"
                             style={{
@@ -538,12 +591,12 @@ export function EditDetailsModal({
                       ) : (
                         <div className="font-inter text-sm flex items-center gap-2 w-full min-h-10 px-3 py-2 rounded-md bg-muted/30">
                           <span className="flex-1 font-medium">
-                            {offer.offerName}
+                            {advertiser.advertiserName}
                           </span>
-                          {!isApiSource(offer.createdMethod) && (
+                          {!isApiSource(advertiser.createdMethod) && (
                             <button
                               type="button"
-                              onClick={() => setIsEditingOfferName(true)}
+                              onClick={() => setIsEditingAdvertiserName(true)}
                               disabled={isSubmitting}
                               className="p-1 rounded-md hover:bg-gray-100 transition-colors shrink-0 opacity-60 hover:opacity-100"
                               style={{
@@ -556,9 +609,9 @@ export function EditDetailsModal({
                         </div>
                       )}
                     </div>
-                    {validationErrors.offerName && (
+                    {validationErrors.advertiserName && (
                       <p className="text-xs text-destructive font-inter mt-1">
-                        {validationErrors.offerName}
+                        {validationErrors.advertiserName}
                       </p>
                     )}
                   </div>
@@ -571,100 +624,39 @@ export function EditDetailsModal({
                         Editable Fields
                       </h3>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <Label
-                          htmlFor="advertiserId"
-                          className="font-inter text-xs font-medium text-muted-foreground uppercase tracking-wide"
-                        >
-                          Advertiser ID{" "}
-                          <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="advertiserId"
-                          value={formData.advertiserId}
-                          onChange={(e) =>
-                            updateFormField("advertiserId", e.target.value)
-                          }
-                          placeholder="e.g. 21"
-                          disabled={isSubmitting}
-                          aria-invalid={!!validationErrors.advertiserId}
-                          className="h-12 font-inter edit-offer-modal-input"
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="advPlatform"
+                        className="font-inter text-xs font-medium text-muted-foreground uppercase tracking-wide"
+                      >
+                        Platform <span className="text-destructive">*</span>
+                      </Label>
+                      <Select
+                        value={formData.advPlatform}
+                        onValueChange={(value) =>
+                          updateFormField("advPlatform", value)
+                        }
+                        disabled={isSubmitting}
+                      >
+                        <SelectTrigger
+                          id="advPlatform"
+                          className="w-full h-12! font-inter edit-advertiser-modal-select"
                           style={{
                             backgroundColor:
                               variables.colors.inputBackgroundColor,
                             borderColor: variables.colors.inputBorderColor,
                             color: variables.colors.inputTextColor,
                           }}
-                        />
-                        {validationErrors.advertiserId && (
-                          <p className="text-sm text-destructive font-inter">
-                            {validationErrors.advertiserId}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label
-                          htmlFor="visibility"
-                          className="font-inter text-xs font-medium text-muted-foreground uppercase tracking-wide"
                         >
-                          Visibility
-                        </Label>
-                        <Select
-                          value={formData.visibility}
-                          onValueChange={(
-                            value: "Public" | "Internal" | "Hidden"
-                          ) => updateFormField("visibility", value)}
-                          disabled={isSubmitting}
-                        >
-                          <SelectTrigger
-                            id="visibility"
-                            className="w-full h-12! font-inter edit-offer-modal-select"
-                            style={{
-                              backgroundColor:
-                                variables.colors.inputBackgroundColor,
-                              borderColor: variables.colors.inputBorderColor,
-                              color: variables.colors.inputTextColor,
-                            }}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Public">Public</SelectItem>
-                            <SelectItem value="Internal">Internal</SelectItem>
-                            <SelectItem value="Hidden">Hidden</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label
-                        htmlFor="advertiserName"
-                        className="font-inter text-xs font-medium text-muted-foreground uppercase tracking-wide"
-                      >
-                        Advertiser Name{" "}
-                        <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="advertiserName"
-                        value={formData.advertiserName}
-                        onChange={(e) =>
-                          updateFormField("advertiserName", e.target.value)
-                        }
-                        placeholder="Advertiser name"
-                        disabled={isSubmitting}
-                        aria-invalid={!!validationErrors.advertiserName}
-                        className="h-12 font-inter edit-offer-modal-input"
-                        style={{
-                          backgroundColor:
-                            variables.colors.inputBackgroundColor,
-                          borderColor: variables.colors.inputBorderColor,
-                          color: variables.colors.inputTextColor,
-                        }}
-                      />
-                      {validationErrors.advertiserName && (
+                          <SelectValue placeholder="Select platform" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Everflow">Everflow</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {validationErrors.advPlatform && (
                         <p className="text-sm text-destructive font-inter">
-                          {validationErrors.advertiserName}
+                          {validationErrors.advPlatform}
                         </p>
                       )}
                     </div>

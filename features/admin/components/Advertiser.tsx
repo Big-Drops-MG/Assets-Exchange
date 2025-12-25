@@ -8,33 +8,45 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { getVariables } from "@/components/_variables";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 
 import { manageAdvertisers } from "../models/advertiser.model";
 import type { Advertiser as AdvertiserType } from "../types/admin.types";
 import { useAdvertiserViewModel } from "../view-models/useAdvertiserViewModel";
 
+import { AdvertiserDetailsModal } from "./AdvertiserDetailsModal";
 import { BrandGuidelinesModal } from "./BrandGuidelinesModal";
 import { EntityDataTable, EntityDataCard } from "./EntityDataTable";
+import { NewAdvertiserManuallyModal } from "./NewAdvertiserManuallyModal";
 
 type StatusFilter = "Active" | "Inactive" | null;
-type PlatformFilter =
-  | "Cake"
-  | "HasOffers"
-  | "Tune"
-  | "Impact"
-  | "Everflow"
-  | null;
+type PlatformFilter = "Everflow" | null;
 type CreationMethodFilter = "Manually" | "API" | null;
 type SortByFilter = "New to Old" | "Old to New" | null;
 type FilterCategory =
@@ -62,6 +74,13 @@ export function Advertiser() {
   >(null);
   const [selectedAdvertiserName, setSelectedAdvertiserName] =
     useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isNewAdvertiserModalOpen, setIsNewAdvertiserModalOpen] =
+    useState(false);
+  const [isEditDetailsModalOpen, setIsEditDetailsModalOpen] = useState(false);
+  const [selectedAdvertiserIdForEdit, setSelectedAdvertiserIdForEdit] =
+    useState<string | null>(null);
 
   const { advertisers, isLoading, error } = useAdvertiserViewModel();
 
@@ -109,57 +128,132 @@ export function Advertiser() {
       }
     });
 
-  /**
-   * TODO: BACKEND - Implement Edit Advertiser Details Handler
-   *
-   * Endpoint: GET /api/admin/advertisers/:id
-   *
-   * Requirements:
-   * 1. Fetch full advertiser details by ID including:
-   *    - All advertiser fields (advertiserName, platform, status, etc.)
-   *    - Brand guidelines (URL, file, or text content)
-   *    - Creation metadata (createdAt, createdBy, updatedAt, etc.)
-   *
-   * 2. Open a modal/form with pre-filled data for editing
-   *    - Pre-populate all form fields with fetched data
-   *    - Handle brand guidelines based on type (url/file/text)
-   *
-   * 3. On save, call: PUT /api/admin/advertisers/:id
-   *    - Request body: {
-   *        advertiserName: string,
-   *        advPlatform: string,
-   *        status: "Active" | "Inactive",
-   *        brandGuidelines?: {
-   *          type: "url" | "file" | "text",
-   *          url?: string,
-   *          file?: File,
-   *          text?: string
-   *        }
-   *      }
-   *    - Validate all required fields
-   *    - Return updated advertiser object
-   *
-   * 4. Error Handling:
-   *    - 404: Advertiser not found - show error message
-   *    - 400: Validation errors - show field-specific errors in form
-   *    - 401: Unauthorized - redirect to login
-   *    - 403: Forbidden - show permission denied message
-   *    - 500: Server error - show generic error with retry option
-   *
-   * 5. Success:
-   *    - Close edit modal
-   *    - Refresh advertisers list
-   *    - Show success notification
-   *    - Update local state if needed
-   */
-  const handleEditDetails = (_id: string) => {
-    // TODO: BACKEND - Implement edit advertiser details functionality
-    // 1. Fetch advertiser details: GET /api/admin/advertisers/:id
-    // 2. Open edit modal with pre-filled data
-    // 3. On save: PUT /api/admin/advertisers/:id
-    // 4. Handle success/error and refresh list
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    searchQuery,
+    statusFilter,
+    platformFilter,
+    creationMethodFilter,
+    sortByFilter,
+  ]);
+
+  const totalPages = Math.ceil(filteredAdvertisers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedAdvertisers = filteredAdvertisers.slice(startIndex, endIndex);
+
+  const getPageNumbers = () => {
+    const pages: (number | "ellipsis")[] = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push("ellipsis");
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push("ellipsis");
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push("ellipsis");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push("ellipsis");
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
   };
 
+  /**
+   * TODO: BACKEND - Edit Advertiser Details Handler
+   *
+   * This function opens the edit modal for an advertiser.
+   *
+   * Current Implementation:
+   * - Opens AdvertiserDetailsModal with the selected advertiser ID
+   * - Modal fetches advertiser details via getAdvertiserById
+   *
+   * Backend Requirements:
+   * - Ensure GET /api/admin/advertisers/:id endpoint exists
+   * - Return full advertiser details including:
+   *   - All advertiser fields (id, advertiserName, advPlatform, status, createdMethod)
+   *   - Creation metadata (createdAt, createdBy, updatedAt, updatedBy)
+   *   - Any additional fields needed for editing
+   *
+   * Error Handling:
+   * - 404: Advertiser not found - show error in modal
+   * - 401: Unauthorized - redirect to login
+   * - 403: Forbidden - show permission denied
+   * - 500: Server error - show error with retry option
+   */
+  const handleEditDetails = (id: string) => {
+    setSelectedAdvertiserIdForEdit(id);
+    setIsEditDetailsModalOpen(true);
+  };
+
+  /**
+   * TODO: BACKEND - Brand Guidelines Handler
+   *
+   * This function opens the brand guidelines modal for an advertiser.
+   *
+   * Endpoint: GET /api/admin/advertisers/:id/brand-guidelines
+   *
+   * Requirements:
+   * 1. Fetch brand guidelines for the advertiser:
+   *    - If type is "url": return { type: "url", url: string }
+   *    - If type is "file": return {
+   *        type: "file",
+   *        fileName: string,
+   *        fileUrl: string,
+   *        fileSize?: number,
+   *        mimeType?: string
+   *      }
+   *    - If type is "text": return { type: "text", content: string }
+   *
+   * 2. Display brand guidelines in a modal/viewer:
+   *    - For URL: Show link with "Open in new tab" button and iframe preview if possible
+   *    - For file: Show download button, file info (name, size), and preview if possible
+   *      - PDF: Use PDF viewer component
+   *      - DOCX: Show download option with file info
+   *    - For text: Display formatted rich text content in read-only editor
+   *
+   * 3. Allow editing brand guidelines:
+   *    - PUT /api/admin/advertisers/:id/brand-guidelines
+   *    - Request body: {
+   *        type: "url" | "file" | "text",
+   *        url?: string,
+   *        file?: File,
+   *        content?: string
+   *      }
+   *    - For file uploads: Use multipart/form-data
+   *    - Validate file size (max 10MB) and type (DOCX, PDF)
+   *    - If replacing existing file, delete old file from storage
+   *
+   * 4. Error Handling:
+   *    - 404: Advertiser or brand guidelines not found
+   *    - 400: Invalid file type/size or validation errors
+   *    - 413: File too large - show specific error message
+   *    - 500: Server error or file storage error
+   *
+   * 5. Success:
+   *    - Close modal
+   *    - Show success notification
+   *    - Optionally refresh advertiser data
+   */
   const handleBrandGuidelines = (id: string) => {
     const advertiser = advertisers?.find((a) => a.id === id);
     setSelectedAdvertiserId(id);
@@ -277,6 +371,7 @@ export function Advertiser() {
     setSortByFilter(null);
     setIsFilterOpen(false);
     setActiveCategory(null);
+    setCurrentPage(1);
   };
 
   const hasActiveFilters =
@@ -320,6 +415,7 @@ export function Advertiser() {
               borderColor: variables.colors.buttonOutlineBorderColor,
               backgroundColor: variables.colors.cardBackground,
             }}
+            onClick={() => setIsNewAdvertiserModalOpen(true)}
           >
             <Plus className="h-5 w-5" />
             Create New Manually
@@ -452,29 +548,20 @@ export function Advertiser() {
 
                     {activeCategory === "platform" && (
                       <div className="space-y-1">
-                        {[
-                          "Cake",
-                          "HasOffers",
-                          "Tune",
-                          "Impact",
-                          "Everflow",
-                        ].map((platform) => (
-                          <button
-                            key={platform}
-                            onClick={() => {
-                              setPlatformFilter(platform as PlatformFilter);
-                              setIsFilterOpen(false);
-                              setActiveCategory(null);
-                            }}
-                            className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
-                              platformFilter === platform
-                                ? "bg-gray-100 text-gray-900 font-medium"
-                                : "text-gray-600 hover:bg-gray-50"
-                            }`}
-                          >
-                            {platform}
-                          </button>
-                        ))}
+                        <button
+                          onClick={() => {
+                            setPlatformFilter("Everflow");
+                            setIsFilterOpen(false);
+                            setActiveCategory(null);
+                          }}
+                          className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
+                            platformFilter === "Everflow"
+                              ? "bg-gray-100 text-gray-900 font-medium"
+                              : "text-gray-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          Everflow
+                        </button>
                       </div>
                     )}
 
@@ -568,7 +655,7 @@ export function Advertiser() {
       </div>
 
       <EntityDataTable
-        data={filteredAdvertisers}
+        data={paginatedAdvertisers}
         columns={columns}
         renderRow={(advertiser: AdvertiserType, index: number) => (
           <EntityDataCard
@@ -589,6 +676,155 @@ export function Advertiser() {
         )}
       />
 
+      {totalPages > 1 && (
+        <div
+          className="flex items-center gap-4 mt-6 pt-6 border-t"
+          style={{ borderColor: variables.colors.inputBorderColor }}
+        >
+          <div
+            className="text-sm font-inter whitespace-nowrap"
+            style={{ color: variables.colors.descriptionColor }}
+          >
+            Showing{" "}
+            <span
+              className="font-medium"
+              style={{ color: variables.colors.inputTextColor }}
+            >
+              {startIndex + 1}
+            </span>{" "}
+            to{" "}
+            <span
+              className="font-medium"
+              style={{ color: variables.colors.inputTextColor }}
+            >
+              {Math.min(endIndex, filteredAdvertisers.length)}
+            </span>{" "}
+            of{" "}
+            <span
+              className="font-medium"
+              style={{ color: variables.colors.inputTextColor }}
+            >
+              {filteredAdvertisers.length}
+            </span>{" "}
+            advertisers
+          </div>
+          <Pagination>
+            <PaginationContent className="gap-1">
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage > 1) {
+                      setCurrentPage((prev) => prev - 1);
+                    }
+                  }}
+                  className={`transition-all duration-200 ${
+                    currentPage === 1
+                      ? "pointer-events-none opacity-40 cursor-not-allowed"
+                      : "cursor-pointer hover:bg-gray-100"
+                  }`}
+                  style={{
+                    color:
+                      currentPage === 1
+                        ? variables.colors.descriptionColor
+                        : variables.colors.inputTextColor,
+                  }}
+                />
+              </PaginationItem>
+              {getPageNumbers().map((page, index) => (
+                <PaginationItem key={index}>
+                  {page === "ellipsis" ? (
+                    <PaginationEllipsis className="text-gray-400" />
+                  ) : (
+                    <PaginationLink
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page);
+                      }}
+                      isActive={currentPage === page}
+                      className={`transition-all duration-200 min-w-9 h-9 flex items-center justify-center font-inter text-sm ${
+                        currentPage === page
+                          ? "cursor-default"
+                          : "cursor-pointer hover:bg-gray-100"
+                      }`}
+                      style={{
+                        backgroundColor:
+                          currentPage === page
+                            ? variables.colors.buttonDefaultBackgroundColor
+                            : "transparent",
+                        color:
+                          currentPage === page
+                            ? variables.colors.buttonDefaultTextColor
+                            : variables.colors.inputTextColor,
+                        borderColor:
+                          currentPage === page
+                            ? variables.colors.buttonDefaultBackgroundColor
+                            : variables.colors.inputBorderColor,
+                      }}
+                    >
+                      {page}
+                    </PaginationLink>
+                  )}
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < totalPages) {
+                      setCurrentPage((prev) => prev + 1);
+                    }
+                  }}
+                  className={`transition-all duration-200 ${
+                    currentPage === totalPages
+                      ? "pointer-events-none opacity-40 cursor-not-allowed"
+                      : "cursor-pointer hover:bg-gray-100"
+                  }`}
+                  style={{
+                    color:
+                      currentPage === totalPages
+                        ? variables.colors.descriptionColor
+                        : variables.colors.inputTextColor,
+                  }}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+          <div className="flex items-center gap-2">
+            <span
+              className="text-sm font-inter whitespace-nowrap"
+              style={{ color: variables.colors.descriptionColor }}
+            >
+              Show:
+            </span>
+            <Select
+              value={itemsPerPage.toString()}
+              onValueChange={(value) => {
+                setItemsPerPage(Number(value));
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger
+                className="h-8 w-20 text-xs font-inter border rounded-md"
+                style={{
+                  backgroundColor: variables.colors.inputBackgroundColor,
+                  borderColor: variables.colors.inputBorderColor,
+                  color: variables.colors.inputTextColor,
+                }}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
       {selectedAdvertiserId && (
         <BrandGuidelinesModal
           open={brandGuidelinesModalOpen}
@@ -596,6 +832,72 @@ export function Advertiser() {
           entityId={selectedAdvertiserId}
           entityName={selectedAdvertiserName}
           entityType="advertiser"
+        />
+      )}
+
+      <NewAdvertiserManuallyModal
+        open={isNewAdvertiserModalOpen}
+        onOpenChange={setIsNewAdvertiserModalOpen}
+        onSuccess={() => {
+          setIsNewAdvertiserModalOpen(false);
+          /**
+           * TODO: BACKEND - Refresh Advertisers List After Creation
+           *
+           * After successfully creating a new advertiser, refresh the list:
+           * 1. Call getAllAdvertisers() to fetch updated list
+           * 2. Update the advertisers state
+           * 3. Reset filters if needed
+           * 4. Show success notification
+           * 5. Optionally navigate to the newly created advertiser
+           *
+           * Implementation:
+           * ```typescript
+           * try {
+           *   const updatedAdvertisers = await getAllAdvertisers();
+           *   setAdvertisers(updatedAdvertisers);
+           *   // Show success toast
+           * } catch (error) {
+           *   // Handle error
+           * }
+           * ```
+           */
+        }}
+      />
+
+      {selectedAdvertiserIdForEdit && (
+        <AdvertiserDetailsModal
+          open={isEditDetailsModalOpen}
+          onOpenChange={setIsEditDetailsModalOpen}
+          advertiserId={selectedAdvertiserIdForEdit}
+          onSuccess={() => {
+            setIsEditDetailsModalOpen(false);
+            setSelectedAdvertiserIdForEdit(null);
+            /**
+             * TODO: BACKEND - Refresh Advertisers List After Update
+             *
+             * After successfully updating an advertiser, refresh the list:
+             * 1. Call getAllAdvertisers() to fetch updated list
+             * 2. Update the advertisers state
+             * 3. Maintain current filters and pagination if possible
+             * 4. Show success notification
+             * 5. Optionally update only the specific advertiser in the list (optimistic update)
+             *
+             * Implementation:
+             * ```typescript
+             * try {
+             *   const updatedAdvertisers = await getAllAdvertisers();
+             *   setAdvertisers(updatedAdvertisers);
+             *   // OR: Optimistically update only the changed advertiser
+             *   // setAdvertisers(prev => prev.map(adv =>
+             *   //   adv.id === updatedAdvertiser.id ? updatedAdvertiser : adv
+             *   // ));
+             *   // Show success toast
+             * } catch (error) {
+             *   // Handle error
+             * }
+             * ```
+             */
+          }}
         />
       )}
     </div>
