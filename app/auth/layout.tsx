@@ -10,6 +10,14 @@ export const metadata: Metadata = {
   icons: {
     icon: variables.favicon.path,
   },
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
 };
 
 export default function AuthLayout({
