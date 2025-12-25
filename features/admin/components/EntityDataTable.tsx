@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 
 import { getVariables } from "@/components/_variables/variables";
 import { Badge } from "@/components/ui/badge";
@@ -85,17 +85,20 @@ interface VisibilityDropdownProps {
   variables: ReturnType<typeof getVariables>;
 }
 
-function VisibilityDropdown({
+const VisibilityDropdown = memo(({
   visibility,
   onVisibilityChange,
   variables,
-}: VisibilityDropdownProps) {
+}: VisibilityDropdownProps) => {
   const [open, setOpen] = useState(false);
 
-  const handleSelect = (value: "Public" | "Internal" | "Hidden") => {
-    onVisibilityChange(value);
-    setOpen(false);
-  };
+  const handleSelect = useCallback(
+    (value: "Public" | "Internal" | "Hidden") => {
+      onVisibilityChange(value);
+      setOpen(false);
+    },
+    [onVisibilityChange]
+  );
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -143,7 +146,9 @@ function VisibilityDropdown({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
+});
+
+VisibilityDropdown.displayName = "VisibilityDropdown";
 
 interface EntityDataCardProps {
   id: string;
@@ -156,12 +161,13 @@ interface EntityDataCardProps {
   visibility?: "Public" | "Internal" | "Hidden";
   nameAlign?: "left" | "center" | "right";
   gridTemplateColumns?: string;
+  actionButtonsLayout?: "row" | "col";
   onEditDetails?: () => void;
   onBrandGuidelines?: () => void;
   onVisibilityChange?: (visibility: "Public" | "Internal" | "Hidden") => void;
 }
 
-export function EntityDataCard({
+export const EntityDataCard = memo(({
   id,
   name,
   platform,
@@ -172,18 +178,27 @@ export function EntityDataCard({
   visibility,
   nameAlign = "left",
   gridTemplateColumns = "100px 2.5fr 1fr 1fr 140px 340px",
+  actionButtonsLayout = "col",
   onEditDetails,
   onBrandGuidelines,
   onVisibilityChange,
-}: EntityDataCardProps) {
+}: EntityDataCardProps) => {
   const variables = getVariables();
   const isPurple = variant === "purple";
-  const backgroundColor = isPurple
-    ? variables.colors.AccordionPurpleBackgroundColor
-    : variables.colors.AccordionBlueBackgroundColor;
-  const borderColor = isPurple
-    ? variables.colors.AccordionPurpleBorderColor
-    : variables.colors.AccordionBlueBorderColor;
+  const backgroundColor = useMemo(
+    () =>
+      isPurple
+        ? variables.colors.AccordionPurpleBackgroundColor
+        : variables.colors.AccordionBlueBackgroundColor,
+    [isPurple, variables.colors]
+  );
+  const borderColor = useMemo(
+    () =>
+      isPurple
+        ? variables.colors.AccordionPurpleBorderColor
+        : variables.colors.AccordionBlueBorderColor,
+    [isPurple, variables.colors]
+  );
 
   return (
     <div
@@ -260,7 +275,9 @@ export function EntityDataCard({
           )}
         </div>
 
-        <div className="flex flex-col gap-2.5 items-center justify-center">
+        <div
+          className={`flex ${actionButtonsLayout === "row" ? "flex-row" : "flex-col"} gap-2.5 items-center justify-center`}
+        >
           <Button
             variant="outline"
             className="h-9 w-36 font-inter text-xs xl:text-sm font-medium rounded-md border shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-200"
@@ -289,4 +306,6 @@ export function EntityDataCard({
       </div>
     </div>
   );
-}
+});
+
+EntityDataCard.displayName = "EntityDataCard";

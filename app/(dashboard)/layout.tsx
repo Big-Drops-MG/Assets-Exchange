@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { getVariables } from "@/components/_variables/variables";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LastUpdated } from "@/components/ui/last-updated";
 import {
   SidebarProvider,
@@ -74,7 +75,7 @@ export default async function DashboardLayout({
           </div>
         </header>
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4">
-          {children}
+          <ErrorBoundary>{children}</ErrorBoundary>
         </main>
       </SidebarInset>
     </SidebarProvider>

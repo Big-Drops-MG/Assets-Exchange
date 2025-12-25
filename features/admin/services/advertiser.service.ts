@@ -94,13 +94,14 @@ export async function getAdvertiserById(
  * Replace with: POST /api/admin/advertisers
  */
 export async function createAdvertiser(
-  advertiser: Omit<Advertiser, "id">
+  advertiser: Omit<Advertiser, "id">,
+  advertiserId?: string
 ): Promise<Advertiser> {
   return new Promise((resolve) => {
     setTimeout(() => {
       const newAdvertiser: Advertiser = {
         ...advertiser,
-        id: Math.random().toString(36).substring(7),
+        id: advertiserId || Math.random().toString(36).substring(7),
       };
       resolve(newAdvertiser);
     }, 100);

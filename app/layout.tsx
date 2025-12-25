@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 
 import "./globals.css";
 import { getVariables } from "@/components/_variables/variables";
+import { Toaster } from "@/components/ui/sonner";
 
 const variables = getVariables();
 
@@ -30,6 +31,7 @@ export default function RootLayout({
         <div className="h-screen overflow-y-auto overflow-x-hidden">
           {children}
         </div>
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );

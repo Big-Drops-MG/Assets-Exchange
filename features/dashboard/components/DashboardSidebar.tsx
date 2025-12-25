@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { getVariables } from "@/components/_variables/variables";
@@ -60,6 +60,7 @@ export function DashboardSidebar({
   userEmail,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { state } = useSidebar();
   const variables = getVariables();
   const isCollapsed = state === "collapsed";
@@ -81,6 +82,21 @@ export function DashboardSidebar({
     }
   }, [isExpanded]);
 
+  useEffect(() => {
+    const prefetchAllRoutes = () => {
+      menuConfig.forEach((group) => {
+        group.items.forEach((item) => {
+          if (item.href && item.href !== pathname) {
+            router.prefetch(item.href);
+          }
+        });
+      });
+    };
+
+    const timer = setTimeout(prefetchAllRoutes, 500);
+    return () => clearTimeout(timer);
+  }, [menuConfig, pathname, router]);
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-2 py-4 bg-white">
@@ -94,6 +110,8 @@ export function DashboardSidebar({
                   width={200}
                   height={60}
                   className="h-auto w-full max-w-[200px] object-contain"
+                  priority
+                  loading="eager"
                 />
               </div>
             )}
@@ -105,6 +123,8 @@ export function DashboardSidebar({
                   width={56}
                   height={56}
                   className="h-auto w-14 object-contain"
+                  priority
+                  loading="eager"
                 />
               </div>
             )}
@@ -142,10 +162,15 @@ export function DashboardSidebar({
                             ? variables.colors.sidebarMenuItemTextActiveColor
                             : variables.colors.sidebarMenuItemTextInactiveColor,
                         }}
-                        onMouseEnter={() => setHoveredItemId(item.id)}
+                        onMouseEnter={() => {
+                          setHoveredItemId(item.id);
+                          if (!isActive && item.href) {
+                            router.prefetch(item.href);
+                          }
+                        }}
                         onMouseLeave={() => setHoveredItemId(null)}
                       >
-                        <Link href={item.href}>
+                        <Link href={item.href} prefetch={true}>
                           <Icon
                             style={{
                               color: shouldApplyActiveStyles

@@ -1,3 +1,186 @@
+/**
+ * TODO: BACKEND - Personalization Color Storage
+ *
+ * This file defines the color structure for UI personalization.
+ * Backend developers need to implement database storage for these color preferences.
+ *
+ * Requirements:
+ * 1. Create a database table to store color personalization settings
+ * 2. Implement API endpoints to save/load color preferences
+ * 3. Support per-user or per-organization color customization
+ * 4. Provide default fallback to baseColorPalette if no customization exists
+ *
+ * See: docs/PERSONALIZATION_BACKEND_TODOS.md for detailed implementation guide
+ */
+
+// Grouped color structure for easier personalization form creation
+interface GroupedColors {
+  // Base colors
+  backgrounds: {
+    base: string;
+    card: string;
+    dashboard: string;
+    sidebar: string;
+  };
+  // Typography colors
+  text: {
+    title: string;
+    label: string;
+    description: string;
+    primary: string;
+    secondary: string;
+  };
+  // Input field colors
+  inputs: {
+    background: string;
+    disabled: string;
+    text: string;
+    placeholder: string;
+    border: string;
+    borderFocus: string;
+    borderDisabled: string;
+    error: string;
+    ring: string;
+  };
+  // Button colors
+  buttons: {
+    default: {
+      background: string;
+      text: string;
+    };
+    outline: {
+      background: string;
+      border: string;
+      text: string;
+    };
+    disabled: {
+      background: string;
+      text: string;
+    };
+    hover: {
+      background: string;
+      text: string;
+    };
+  };
+  // Sidebar colors
+  sidebar: {
+    background: string;
+    menuItem: {
+      active: {
+        background: string;
+        icon: string;
+        text: string;
+      };
+      inactive: {
+        icon: string;
+        text: string;
+      };
+    };
+    footer: {
+      background: string;
+      signOutButton: {
+        background: string;
+        text: string;
+        icon: string;
+      };
+    };
+  };
+  // Header colors
+  header: {
+    background: string;
+    text: string;
+    icon: string;
+  };
+  // Stats card colors
+  statsCards: {
+    title: string;
+    value: string;
+    trend: {
+      text: string;
+      positive: {
+        text: string;
+        icon: string;
+      };
+      negative: {
+        text: string;
+        icon: string;
+      };
+    };
+    historicalData: {
+      label: string;
+      value: string;
+    };
+    status: {
+      totalAssets: {
+        background: string;
+        icon: string;
+      };
+      newRequests: {
+        background: string;
+        icon: string;
+      };
+      approvedAssets: {
+        background: string;
+        icon: string;
+      };
+      rejectedAssets: {
+        background: string;
+        icon: string;
+      };
+      pendingApproval: {
+        background: string;
+        icon: string;
+      };
+    };
+  };
+  // Card header colors
+  cardHeader: {
+    background: string;
+    text: string;
+  };
+  // Request/Response card colors
+  requestCards: {
+    text: string;
+    background: string;
+    buttons: {
+      view: {
+        background: string;
+        text: string;
+        border: string;
+      };
+      approve: {
+        background: string;
+        text: string;
+      };
+      reject: {
+        background: string;
+        text: string;
+        border: string;
+      };
+    };
+  };
+  // Accordion colors
+  accordions: {
+    purple: {
+      background: string;
+      border: string;
+      offerId: {
+        background: string;
+        text: string;
+      };
+    };
+    blue: {
+      background: string;
+      border: string;
+      offerId: {
+        background: string;
+        text: string;
+      };
+    };
+  };
+}
+
+// Flattened color structure for backward compatibility
 export interface AppVariables {
   logo: {
     path: string;
@@ -11,7 +194,8 @@ export interface AppVariables {
     path: string;
     alt: string;
   };
-  colors: {
+  colors: GroupedColors & {
+    // Flattened properties for backward compatibility
     background: string;
     cardBackground: string;
     dashboardBackground: string;
@@ -125,52 +309,6 @@ interface BaseColorPalette {
     card: string;
     dashboard: string;
     sidebar: string;
-    sidebarMenuItemActiveColor: string;
-    sidebarMenuItemIconActiveColor: string;
-    sidebarMenuItemIconInactiveColor: string;
-    sidebarMenuItemTextInactiveColor: string;
-    sidebarMenuItemTextActiveColor: string;
-    sidebarFooterSignOutButtonBackgroundColor: string;
-    sidebarFooterSignOutButtonTextColor: string;
-    sidebarFooterSignOutButtonIconColor: string;
-    sidebarFooterBackgroundColor: string;
-    headerBackgroundColor: string;
-    headerTextColor: string;
-    headerIconColor: string;
-  };
-  statsCardContent: {
-    statsCardTitleColor: string;
-    statsCardIconColor: string;
-    statsCardIconBackgroundColor: string;
-    statsCardValueColor: string;
-    statsCardTrendTextColor: string;
-    statsCardTrendTextColorPositive: string;
-    statsCardTrendIconColorPositive: string;
-    statsCardTrendTextColorNegative: string;
-    statsCardTrendIconColorNegative: string;
-    statsCardHistoricalDataLabelColor: string;
-    statsCardHistoricalDataValueColor: string;
-  };
-  requestContent: {
-    requestCardTextColor: string;
-    requestCardBackgroundColor: string;
-    AccordionPurpleBackgroundColor: string;
-    AccordionBlueBackgroundColor: string;
-    AccordionPurpleBorderColor: string;
-    AccordionBlueBorderColor: string;
-    requestCardButtonTextColor: string;
-    requestCardViewButtonBackgroundColor: string;
-    requestCardViewButtonTextColor: string;
-    requestCardViewButtonBorderColor: string;
-    requestCardRejectedButtonBackgroundColor: string;
-    requestCardRejectedButtonTextColor: string;
-    requestCardRejectedButtonBorderColor: string;
-    AccordionPurpleOfferIdBackgroundColor: string;
-    AccordionBlueOfferIdBackgroundColor: string;
-    AccordionPurpleOfferIdTextColor: string;
-    AccordionBlueOfferIdTextColor: string;
-    requestCardApproveButtonBackgroundColor: string;
-    requestCardApproveButtonTextColor: string;
   };
 }
 
@@ -178,141 +316,293 @@ interface ColorOverrides {
   [key: string]: string | undefined;
 }
 
-function generateColorsFromPalette(
+function generateGroupedColors(
   palette: BaseColorPalette,
   overrides?: ColorOverrides
-): AppVariables["colors"] {
+): GroupedColors {
   const { primary, neutral, semantic, text, background } = palette;
-
   const disabledColor = neutral.base;
   const white = "#FFFFFF";
   const transparent = "transparent";
 
   return {
-    background: overrides?.background ?? background.base,
-    cardBackground: overrides?.cardBackground ?? background.card,
-    dashboardBackground: overrides?.dashboardBackground ?? background.dashboard,
-    sidebarBackground: overrides?.sidebarBackground ?? background.sidebar,
-    titleColor: overrides?.titleColor ?? primary,
-    labelColor: overrides?.labelColor ?? primary,
-    descriptionColor: overrides?.descriptionColor ?? text.secondary,
-    inputBackgroundColor: overrides?.inputBackgroundColor ?? white,
-    inputDisabledColor: overrides?.inputDisabledColor ?? disabledColor,
-    inputTextColor: overrides?.inputTextColor ?? text.primary,
-    inputPlaceholderColor: overrides?.inputPlaceholderColor ?? text.secondary,
-    inputBorderColor: overrides?.inputBorderColor ?? neutral.base,
-    inputBorderFocusColor: overrides?.inputBorderFocusColor ?? primary,
-    inputErrorColor: overrides?.inputErrorColor ?? semantic.error,
-    inputBorderDisabledColor:
-      overrides?.inputBorderDisabledColor ?? neutral.base,
-    inputRingColor: overrides?.inputRingColor ?? primary,
-    buttonDefaultBackgroundColor:
-      overrides?.buttonDefaultBackgroundColor ?? primary,
-    buttonDefaultTextColor: overrides?.buttonDefaultTextColor ?? white,
-    buttonOutlineBackgroundColor:
-      overrides?.buttonOutlineBackgroundColor ?? transparent,
-    buttonOutlineBorderColor: overrides?.buttonOutlineBorderColor ?? primary,
-    buttonOutlineTextColor: overrides?.buttonOutlineTextColor ?? primary,
-    buttonDisabledBackgroundColor:
-      overrides?.buttonDisabledBackgroundColor ?? disabledColor,
-    buttonDisabledTextColor: overrides?.buttonDisabledTextColor ?? white,
-    buttonHoverBackgroundColor:
-      overrides?.buttonHoverBackgroundColor ?? primary,
-    buttonHoverTextColor: overrides?.buttonHoverTextColor ?? white,
+    backgrounds: {
+      base: overrides?.background ?? background.base,
+      card: overrides?.cardBackground ?? background.card,
+      dashboard: overrides?.dashboardBackground ?? background.dashboard,
+      sidebar: overrides?.sidebarBackground ?? background.sidebar,
+    },
+    text: {
+      title: overrides?.titleColor ?? primary,
+      label: overrides?.labelColor ?? primary,
+      description: overrides?.descriptionColor ?? text.secondary,
+      primary: text.primary,
+      secondary: text.secondary,
+    },
+    inputs: {
+      background: overrides?.inputBackgroundColor ?? white,
+      disabled: overrides?.inputDisabledColor ?? disabledColor,
+      text: overrides?.inputTextColor ?? text.primary,
+      placeholder: overrides?.inputPlaceholderColor ?? text.secondary,
+      border: overrides?.inputBorderColor ?? neutral.base,
+      borderFocus: overrides?.inputBorderFocusColor ?? primary,
+      borderDisabled: overrides?.inputBorderDisabledColor ?? neutral.base,
+      error: overrides?.inputErrorColor ?? semantic.error,
+      ring: overrides?.inputRingColor ?? primary,
+    },
+    buttons: {
+      default: {
+        background: overrides?.buttonDefaultBackgroundColor ?? primary,
+        text: overrides?.buttonDefaultTextColor ?? white,
+      },
+      outline: {
+        background: overrides?.buttonOutlineBackgroundColor ?? transparent,
+        border: overrides?.buttonOutlineBorderColor ?? primary,
+        text: overrides?.buttonOutlineTextColor ?? primary,
+      },
+      disabled: {
+        background: overrides?.buttonDisabledBackgroundColor ?? disabledColor,
+        text: overrides?.buttonDisabledTextColor ?? white,
+      },
+      hover: {
+        background: overrides?.buttonHoverBackgroundColor ?? primary,
+        text: overrides?.buttonHoverTextColor ?? white,
+      },
+    },
+    sidebar: {
+      background: overrides?.sidebarBackground ?? background.sidebar,
+      menuItem: {
+        active: {
+          background:
+            overrides?.sidebarMenuItemActiveColor ??
+            overrides?.sidebarActiveOptionHighlightBackgroundColor ??
+            "#E9EEFF",
+          icon:
+            overrides?.sidebarMenuItemIconActiveColor ??
+            overrides?.sidebarActiveOptionHighlightTextColor ??
+            "#1E40AF",
+          text:
+            overrides?.sidebarMenuItemTextActiveColor ??
+            overrides?.sidebarActiveOptionHighlightTextColor ??
+            "#1E40AF",
+        },
+        inactive: {
+          icon: overrides?.sidebarMenuItemIconInactiveColor ?? "#3D3D3D",
+          text: overrides?.sidebarMenuItemTextInactiveColor ?? "#3D3D3D",
+        },
+      },
+      footer: {
+        background: overrides?.sidebarFooterBackgroundColor ?? "#F6F7F9",
+        signOutButton: {
+          background:
+            overrides?.sidebarFooterSignOutButtonBackgroundColor ?? "#FFDFDF",
+          text: overrides?.sidebarFooterSignOutButtonTextColor ?? "#D70000",
+          icon: overrides?.sidebarFooterSignOutButtonIconColor ?? "#D70000",
+        },
+      },
+    },
+    header: {
+      background: overrides?.headerBackgroundColor ?? "#DEF3FF",
+      text: overrides?.headerTextColor ?? "#3D3D3D",
+      icon: overrides?.headerIconColor ?? "#2563EB",
+    },
+    statsCards: {
+      title: overrides?.statsCardTitleColor ?? "#525252",
+      value: overrides?.statsCardValueColor ?? "#000000",
+      trend: {
+        text: overrides?.statsCardTrendTextColor ?? "#3D3D3D",
+        positive: {
+          text: overrides?.statsCardTrendTextColorPositive ?? "#16A34A",
+          icon: overrides?.statsCardTrendIconColorPositive ?? "#16A34A",
+        },
+        negative: {
+          text: overrides?.statsCardTrendTextColorNegative ?? "#DC2626",
+          icon: overrides?.statsCardTrendIconColorNegative ?? "#DC2626",
+        },
+      },
+      historicalData: {
+        label: overrides?.statsCardHistoricalDataLabelColor ?? "#3D3D3D",
+        value: overrides?.statsCardHistoricalDataValueColor ?? "#000000",
+      },
+      status: {
+        totalAssets: {
+          background: overrides?.totalAssetsBackgroundColor ?? "#EBE4FF",
+          icon: overrides?.totalAssetsIconColor ?? "#5B3E96",
+        },
+        newRequests: {
+          background: overrides?.newRequestsBackgroundColor ?? "#DBE3FF",
+          icon: overrides?.newRequestsIconColor ?? "#1E40AF",
+        },
+        approvedAssets: {
+          background: overrides?.approvedAssetsBackgroundColor ?? "#DAF3DC",
+          icon: overrides?.approvedAssetsIconColor ?? "#14532D",
+        },
+        rejectedAssets: {
+          background: overrides?.rejectedAssetsBackgroundColor ?? "#FFEDE3",
+          icon: overrides?.rejectedAssetsIconColor ?? "#FF8743",
+        },
+        pendingApproval: {
+          background: overrides?.pendingApprovalBackgroundColor ?? "#DBFBFC",
+          icon: overrides?.pendingApprovalIconColor ?? "#006D77",
+        },
+      },
+    },
+    cardHeader: {
+      background: overrides?.cardHeaderBackgroundColor ?? "#2c91cc",
+      text: overrides?.cardHeaderTextColor ?? "#FFFFFF",
+    },
+    requestCards: {
+      text: overrides?.requestCardTextColor ?? "#3D3D3D",
+      background: overrides?.requestCardBackgroundColor ?? "#F9F7FF",
+      buttons: {
+        view: {
+          background:
+            overrides?.requestCardViewButtonBackgroundColor ?? "#F3F6FF",
+          text: overrides?.requestCardViewButtonTextColor ?? "#2563EB",
+          border: overrides?.requestCardViewButtonBorderColor ?? "#2563EB",
+        },
+        approve: {
+          background:
+            overrides?.requestCardApproveButtonBackgroundColor ?? "#3B82F6",
+          text: overrides?.requestCardApproveButtonTextColor ?? "#EFF8FF",
+        },
+        reject: {
+          background:
+            overrides?.requestCardRejectedButtonBackgroundColor ?? "#FFFFFF",
+          text: overrides?.requestCardRejectedButtonTextColor ?? "#EF4444",
+          border: overrides?.requestCardRejectedButtonBorderColor ?? "#EF4444",
+        },
+      },
+    },
+    accordions: {
+      purple: {
+        background: overrides?.AccordionPurpleBackgroundColor ?? "#F9F7FF",
+        border: overrides?.AccordionPurpleBorderColor ?? "#9B81D1",
+        offerId: {
+          background:
+            overrides?.AccordionPurpleOfferIdBackgroundColor ?? "#EBE4FF",
+          text: overrides?.AccordionPurpleOfferIdTextColor ?? "#5B3E96",
+        },
+      },
+      blue: {
+        background: overrides?.AccordionBlueBackgroundColor ?? "#F1F9FF",
+        border: overrides?.AccordionBlueBorderColor ?? "#7C90CF",
+        offerId: {
+          background:
+            overrides?.AccordionBlueOfferIdBackgroundColor ?? "#DBE3FF",
+          text: overrides?.AccordionBlueOfferIdTextColor ?? "#1E40AF",
+        },
+      },
+    },
+  };
+}
+
+function generateColorsFromPalette(
+  palette: BaseColorPalette,
+  overrides?: ColorOverrides
+): AppVariables["colors"] {
+  const grouped = generateGroupedColors(palette, overrides);
+
+  // Flatten for backward compatibility
+  return {
+    ...grouped,
+    // Flattened properties
+    background: grouped.backgrounds.base,
+    cardBackground: grouped.backgrounds.card,
+    dashboardBackground: grouped.backgrounds.dashboard,
+    sidebarBackground: grouped.backgrounds.sidebar,
+    titleColor: grouped.text.title,
+    labelColor: grouped.text.label,
+    descriptionColor: grouped.text.description,
+    inputBackgroundColor: grouped.inputs.background,
+    inputDisabledColor: grouped.inputs.disabled,
+    inputTextColor: grouped.inputs.text,
+    inputPlaceholderColor: grouped.inputs.placeholder,
+    inputBorderColor: grouped.inputs.border,
+    inputBorderFocusColor: grouped.inputs.borderFocus,
+    inputErrorColor: grouped.inputs.error,
+    inputBorderDisabledColor: grouped.inputs.borderDisabled,
+    inputRingColor: grouped.inputs.ring,
+    buttonDefaultBackgroundColor: grouped.buttons.default.background,
+    buttonDefaultTextColor: grouped.buttons.default.text,
+    buttonOutlineBackgroundColor: grouped.buttons.outline.background,
+    buttonOutlineBorderColor: grouped.buttons.outline.border,
+    buttonOutlineTextColor: grouped.buttons.outline.text,
+    buttonDisabledBackgroundColor: grouped.buttons.disabled.background,
+    buttonDisabledTextColor: grouped.buttons.disabled.text,
+    buttonHoverBackgroundColor: grouped.buttons.hover.background,
+    buttonHoverTextColor: grouped.buttons.hover.text,
     sidebarActiveOptionHighlightBackgroundColor:
-      overrides?.sidebarActiveOptionHighlightBackgroundColor ?? "#E9EEFF",
-    sidebarActiveOptionHighlightTextColor:
-      overrides?.sidebarActiveOptionHighlightTextColor ?? "#1E40AF",
-    sidebarMenuItemActiveColor:
-      overrides?.sidebarMenuItemActiveColor ?? "#E9EEFF",
-    sidebarMenuItemIconActiveColor:
-      overrides?.sidebarMenuItemIconActiveColor ?? "#1E40AF",
-    sidebarMenuItemTextActiveColor:
-      overrides?.sidebarMenuItemTextActiveColor ?? "#1E40AF",
-    sidebarMenuItemTextInactiveColor:
-      overrides?.sidebarMenuItemTextInactiveColor ?? "#3D3D3D",
-    sidebarMenuItemIconInactiveColor:
-      overrides?.sidebarMenuItemIconInactiveColor ?? "#3D3D3D",
+      grouped.sidebar.menuItem.active.background,
+    sidebarActiveOptionHighlightTextColor: grouped.sidebar.menuItem.active.text,
+    sidebarMenuItemActiveColor: grouped.sidebar.menuItem.active.background,
+    sidebarMenuItemIconActiveColor: grouped.sidebar.menuItem.active.icon,
+    sidebarMenuItemTextActiveColor: grouped.sidebar.menuItem.active.text,
+    sidebarMenuItemTextInactiveColor: grouped.sidebar.menuItem.inactive.text,
+    sidebarMenuItemIconInactiveColor: grouped.sidebar.menuItem.inactive.icon,
     sidebarFooterSignOutButtonBackgroundColor:
-      overrides?.sidebarFooterSignOutButtonBackgroundColor ?? "#FFDFDF",
+      grouped.sidebar.footer.signOutButton.background,
     sidebarFooterSignOutButtonTextColor:
-      overrides?.sidebarFooterSignOutButtonTextColor ?? "#D70000",
+      grouped.sidebar.footer.signOutButton.text,
     sidebarFooterSignOutButtonIconColor:
-      overrides?.sidebarFooterSignOutButtonIconColor ?? "#D70000",
-    sidebarFooterBackgroundColor:
-      overrides?.sidebarFooterBackgroundColor ?? "#F6F7F9",
-    headerBackgroundColor: overrides?.headerBackgroundColor ?? "#DEF3FF",
-    headerTextColor: overrides?.headerTextColor ?? "#3D3D3D",
-    headerIconColor: overrides?.headerIconColor ?? "#2563EB",
-    statsCardTitleColor: overrides?.statsCardTitleColor ?? "#525252",
-    statsCardValueColor: overrides?.statsCardValueColor ?? "#000000",
-    statsCardTrendTextColor: overrides?.statsCardTrendTextColor ?? "#3D3D3D",
-    statsCardTrendTextColorPositive:
-      overrides?.statsCardTrendTextColorPositive ?? "#16A34A",
-    statsCardTrendIconColorPositive:
-      overrides?.statsCardTrendIconColorPositive ?? "#16A34A",
-    statsCardTrendTextColorNegative:
-      overrides?.statsCardTrendTextColorNegative ?? "#DC2626",
-    statsCardTrendIconColorNegative:
-      overrides?.statsCardTrendIconColorNegative ?? "#DC2626",
-    statsCardHistoricalDataLabelColor:
-      overrides?.statsCardHistoricalDataLabelColor ?? "#3D3D3D",
-    statsCardHistoricalDataValueColor:
-      overrides?.statsCardHistoricalDataValueColor ?? "#000000",
+      grouped.sidebar.footer.signOutButton.icon,
+    sidebarFooterBackgroundColor: grouped.sidebar.footer.background,
+    headerBackgroundColor: grouped.header.background,
+    headerTextColor: grouped.header.text,
+    headerIconColor: grouped.header.icon,
+    statsCardTitleColor: grouped.statsCards.title,
+    statsCardValueColor: grouped.statsCards.value,
+    statsCardTrendTextColor: grouped.statsCards.trend.text,
+    statsCardTrendTextColorPositive: grouped.statsCards.trend.positive.text,
+    statsCardTrendIconColorPositive: grouped.statsCards.trend.positive.icon,
+    statsCardTrendTextColorNegative: grouped.statsCards.trend.negative.text,
+    statsCardTrendIconColorNegative: grouped.statsCards.trend.negative.icon,
+    statsCardHistoricalDataLabelColor: grouped.statsCards.historicalData.label,
+    statsCardHistoricalDataValueColor: grouped.statsCards.historicalData.value,
     totalAssetsBackgroundColor:
-      overrides?.totalAssetsBackgroundColor ?? "#EBE4FF",
-    totalAssetsIconColor: overrides?.totalAssetsIconColor ?? "#5B3E96",
+      grouped.statsCards.status.totalAssets.background,
+    totalAssetsIconColor: grouped.statsCards.status.totalAssets.icon,
     newRequestsBackgroundColor:
-      overrides?.newRequestsBackgroundColor ?? "#DBE3FF",
-    newRequestsIconColor: overrides?.newRequestsIconColor ?? "#1E40AF",
+      grouped.statsCards.status.newRequests.background,
+    newRequestsIconColor: grouped.statsCards.status.newRequests.icon,
     approvedAssetsBackgroundColor:
-      overrides?.approvedAssetsBackgroundColor ?? "#DAF3DC",
-    approvedAssetsIconColor: overrides?.approvedAssetsIconColor ?? "#14532D",
+      grouped.statsCards.status.approvedAssets.background,
+    approvedAssetsIconColor: grouped.statsCards.status.approvedAssets.icon,
     rejectedAssetsBackgroundColor:
-      overrides?.rejectedAssetsBackgroundColor ?? "#FFEDE3",
-    rejectedAssetsIconColor: overrides?.rejectedAssetsIconColor ?? "#FF8743",
+      grouped.statsCards.status.rejectedAssets.background,
+    rejectedAssetsIconColor: grouped.statsCards.status.rejectedAssets.icon,
     pendingApprovalBackgroundColor:
-      overrides?.pendingApprovalBackgroundColor ?? "#DBFBFC",
-    pendingApprovalIconColor: overrides?.pendingApprovalIconColor ?? "#006D77",
-    cardHeaderBackgroundColor:
-      overrides?.cardHeaderBackgroundColor ?? "#2c91cc",
-    cardHeaderTextColor: overrides?.cardHeaderTextColor ?? "#FFFFFF",
-    requestCardTextColor: overrides?.requestCardTextColor ?? "#3D3D3D",
-    requestCardBackgroundColor:
-      overrides?.requestCardBackgroundColor ?? "#F9F7FF",
-    AccordionPurpleBackgroundColor:
-      overrides?.AccordionPurpleBackgroundColor ?? "#F9F7FF",
-    AccordionBlueBackgroundColor:
-      overrides?.AccordionBlueBackgroundColor ?? "#F1F9FF",
-    AccordionPurpleBorderColor:
-      overrides?.AccordionPurpleBorderColor ?? "#9B81D1",
-    AccordionBlueBorderColor: overrides?.AccordionBlueBorderColor ?? "#7C90CF",
-    requestCardButtonTextColor:
-      overrides?.requestCardButtonTextColor ?? "#F3F6FF",
+      grouped.statsCards.status.pendingApproval.background,
+    pendingApprovalIconColor: grouped.statsCards.status.pendingApproval.icon,
+    cardHeaderBackgroundColor: grouped.cardHeader.background,
+    cardHeaderTextColor: grouped.cardHeader.text,
+    requestCardTextColor: grouped.requestCards.text,
+    requestCardBackgroundColor: grouped.requestCards.background,
+    AccordionPurpleBackgroundColor: grouped.accordions.purple.background,
+    AccordionBlueBackgroundColor: grouped.accordions.blue.background,
+    requestCardButtonTextColor: grouped.requestCards.buttons.view.text,
+    AccordionPurpleBorderColor: grouped.accordions.purple.border,
+    AccordionBlueBorderColor: grouped.accordions.blue.border,
     requestCardViewButtonBackgroundColor:
-      overrides?.requestCardViewButtonBackgroundColor ?? "#F3F6FF",
-    requestCardViewButtonTextColor:
-      overrides?.requestCardViewButtonTextColor ?? "#2563EB",
-    requestCardViewButtonBorderColor:
-      overrides?.requestCardViewButtonBorderColor ?? "#2563EB",
+      grouped.requestCards.buttons.view.background,
+    requestCardViewButtonTextColor: grouped.requestCards.buttons.view.text,
+    requestCardViewButtonBorderColor: grouped.requestCards.buttons.view.border,
     requestCardApproveButtonBackgroundColor:
-      overrides?.requestCardApproveButtonBackgroundColor ?? "#3B82F6",
+      grouped.requestCards.buttons.approve.background,
     requestCardApproveButtonTextColor:
-      overrides?.requestCardApproveButtonTextColor ?? "#EFF8FF",
+      grouped.requestCards.buttons.approve.text,
     requestCardRejectedButtonBackgroundColor:
-      overrides?.requestCardRejectedButtonBackgroundColor ?? "#FFFFFF",
+      grouped.requestCards.buttons.reject.background,
     requestCardRejectedButtonTextColor:
-      overrides?.requestCardRejectedButtonTextColor ?? "#EF4444",
+      grouped.requestCards.buttons.reject.text,
     requestCardRejectedButtonBorderColor:
-      overrides?.requestCardRejectedButtonBorderColor ?? "#EF4444",
+      grouped.requestCards.buttons.reject.border,
     AccordionPurpleOfferIdBackgroundColor:
-      overrides?.AccordionPurpleOfferIdBackgroundColor ?? "#EBE4FF",
+      grouped.accordions.purple.offerId.background,
     AccordionBlueOfferIdBackgroundColor:
-      overrides?.AccordionBlueOfferIdBackgroundColor ?? "#DBE3FF",
-    AccordionPurpleOfferIdTextColor:
-      overrides?.AccordionPurpleOfferIdTextColor ?? "#5B3E96",
-    AccordionBlueOfferIdTextColor:
-      overrides?.AccordionBlueOfferIdTextColor ?? "#1E40AF",
+      grouped.accordions.blue.offerId.background,
+    AccordionPurpleOfferIdTextColor: grouped.accordions.purple.offerId.text,
+    AccordionBlueOfferIdTextColor: grouped.accordions.blue.offerId.text,
   };
 }
 
@@ -335,57 +625,6 @@ const baseColorPalette: BaseColorPalette = {
     card: "#FFFFFF",
     dashboard: "#FFFFFF",
     sidebar: "#FAFAFA",
-    sidebarMenuItemActiveColor: "#E9EEFF",
-    sidebarMenuItemIconActiveColor: "#1E40AF",
-    sidebarMenuItemTextActiveColor: "#1E40AF",
-    sidebarMenuItemTextInactiveColor: "#3D3D3D",
-    sidebarMenuItemIconInactiveColor: "#3D3D3D",
-    sidebarFooterBackgroundColor: "#F6F7F9",
-    sidebarFooterSignOutButtonBackgroundColor: "#FFDFDF",
-    sidebarFooterSignOutButtonTextColor: "#D70000",
-    sidebarFooterSignOutButtonIconColor: "#D70000",
-    headerBackgroundColor: "#DEF3FF",
-    headerTextColor: "#3D3D3D",
-    headerIconColor: "#2563EB",
-  },
-  statsCardContent: {
-    statsCardTitleColor: "#525252",
-    statsCardIconColor: "#5B3E96",
-    statsCardIconBackgroundColor: "#EBE4FF",
-    statsCardValueColor: "#000000",
-    statsCardTrendTextColor: "#3D3D3D",
-    statsCardTrendTextColorPositive: "#16A34A",
-    statsCardTrendIconColorPositive: "#16A34A",
-    statsCardTrendTextColorNegative: "#DC2626",
-    statsCardTrendIconColorNegative: "#DC2626",
-    statsCardHistoricalDataLabelColor: "#3D3D3D",
-    statsCardHistoricalDataValueColor: "#000000",
-  },
-
-  requestContent: {
-    requestCardTextColor: "#3D3D3D",
-    requestCardBackgroundColor: "#F9F7FF",
-    AccordionPurpleBackgroundColor: "#F9F7FF",
-    AccordionBlueBackgroundColor: "#F1F9FF",
-
-    AccordionPurpleBorderColor: "#9B81D1",
-    AccordionBlueBorderColor: "#7C90CF",
-
-    requestCardButtonTextColor: "#F3F6FF",
-    requestCardViewButtonBackgroundColor: "#F3F6FF",
-    requestCardViewButtonTextColor: "#2563EB",
-    requestCardViewButtonBorderColor: "#2563EB",
-    requestCardApproveButtonBackgroundColor: "#3B82F6",
-    requestCardApproveButtonTextColor: "#EFF8FF",
-    requestCardRejectedButtonBackgroundColor: "#FFFFFF",
-    requestCardRejectedButtonTextColor: "#EF4444",
-
-    requestCardRejectedButtonBorderColor: "#EF4444",
-    AccordionPurpleOfferIdBackgroundColor: "#EBE4FF",
-    AccordionBlueOfferIdBackgroundColor: "#DBE3FF",
-
-    AccordionPurpleOfferIdTextColor: "#5B3E96",
-    AccordionBlueOfferIdTextColor: "#1E40AF",
   },
 };
 
@@ -419,6 +658,24 @@ export const defaultVariables: AppVariables = {
   },
 };
 
+/**
+ * TODO: BACKEND - Load Personalization from Database
+ *
+ * This function should be updated to:
+ * 1. Check for user/organization-specific color preferences in database
+ * 2. Load customPalette and overrides from database if they exist
+ * 3. Fall back to defaultVariables if no customization is found
+ * 4. Cache the loaded preferences to avoid repeated database queries
+ *
+ * Suggested implementation:
+ * - Create a service function: getUserColorPreferences(userId: string)
+ * - Store preferences in a JSONB column or separate color_preferences table
+ * - Return Partial<BaseColorPalette> and ColorOverrides from database
+ *
+ * Example:
+ * const userPreferences = await getUserColorPreferences(userId);
+ * return getVariables(userPreferences.palette, userPreferences.overrides);
+ */
 export const getVariables = (
   customPalette?: Partial<BaseColorPalette>,
   overrides?: ColorOverrides
@@ -453,3 +710,6 @@ export const getVariables = (
     colors: generateColorsFromPalette(mergedPalette, overrides),
   };
 };
+
+// Export grouped colors type for form generation
+export type { GroupedColors };

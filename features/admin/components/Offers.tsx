@@ -52,22 +52,43 @@ import {
   Edit,
   Download,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useCallback, useState, useEffect } from "react";
 
 import { getVariables } from "@/components/_variables";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 
 import type { Offer as OfferType } from "../types/admin.types";
 import { useOffersViewModel } from "../view-models/useOffersViewModel";
 
+import { BrandGuidelinesModal } from "./BrandGuidelinesModal";
+import { BulkEditModal } from "./BulkEditModal";
 import { EntityDataTable, EntityDataCard } from "./EntityDataTable";
 import { NewOfferManuallyModal } from "./NewOfferManuallyModal";
+import { EditDetailsModal } from "./OfferDetailsModal";
 
 type StatusFilter = "Active" | "Inactive" | null;
 type VisibilityFilter = "Public" | "Internal" | "Hidden" | null;
@@ -83,6 +104,7 @@ type FilterCategory =
 export function Offers() {
   const variables = getVariables();
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(null);
   const [visibilityFilter, setVisibilityFilter] =
     useState<VisibilityFilter>(null);
@@ -95,60 +117,148 @@ export function Offers() {
     Record<string, "Public" | "Internal" | "Hidden">
   >({});
   const [isNewOfferModalOpen, setIsNewOfferModalOpen] = useState(false);
+  const [isPullingViaAPI, setIsPullingViaAPI] = useState(false);
+  const [isEditDetailsModalOpen, setIsEditDetailsModalOpen] = useState(false);
+  const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
+  const [brandGuidelinesModalOpen, setBrandGuidelinesModalOpen] =
+    useState(false);
+  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
+  const [selectedOfferName, setSelectedOfferName] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const { offers, isLoading, error } = useOffersViewModel();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const columns = [
     { header: "ID", width: "100px" },
     { header: "Offer Name", width: "1.8fr" },
-    { header: "Adv Name", width: "1fr" },
+    { header: "Advertiser Name", width: "1fr" },
     { header: "Created Manually / via API", width: "1fr" },
     { header: "Status", width: "1fr" },
     { header: "Actions", width: "1fr" },
   ];
 
-  const offersWithUpdatedVisibility = offers.map((offer) => ({
-    ...offer,
-    visibility: offersVisibility[offer.id] || offer.visibility,
-  }));
+  const offersWithUpdatedVisibility = useMemo(
+    () =>
+      offers.map((offer) => ({
+        ...offer,
+        visibility: offersVisibility[offer.id] || offer.visibility,
+      })),
+    [offers, offersVisibility]
+  );
 
-  const filteredOffers = offersWithUpdatedVisibility
-    .filter((offer) => {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch =
-        offer.id.toLowerCase().includes(query) ||
-        offer.offerName.toLowerCase().includes(query) ||
-        offer.advName.toLowerCase().includes(query);
+  const filteredOffers = useMemo(
+    () =>
+      offersWithUpdatedVisibility
+        .filter((offer) => {
+          const query = debouncedSearchQuery.toLowerCase();
+          const matchesSearch =
+            offer.id.toLowerCase().includes(query) ||
+            offer.offerName.toLowerCase().includes(query) ||
+            offer.advName.toLowerCase().includes(query);
 
-      const matchesStatus = !statusFilter || offer.status === statusFilter;
-      const matchesVisibility =
-        !visibilityFilter || offer.visibility === visibilityFilter;
-      const matchesCreationMethod =
-        !creationMethodFilter ||
-        (creationMethodFilter === "Manually" &&
-          offer.createdMethod === "Manually") ||
-        (creationMethodFilter === "API" &&
-          offer.createdMethod.startsWith("API"));
+          const matchesStatus = !statusFilter || offer.status === statusFilter;
+          const matchesVisibility =
+            !visibilityFilter || offer.visibility === visibilityFilter;
+          const matchesCreationMethod =
+            !creationMethodFilter ||
+            (creationMethodFilter === "Manually" &&
+              offer.createdMethod === "Manually") ||
+            (creationMethodFilter === "API" &&
+              offer.createdMethod.startsWith("API"));
 
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesVisibility &&
-        matchesCreationMethod
-      );
-    })
-    .sort((a, b) => {
-      if (!sortByFilter) return 0;
+          return (
+            matchesSearch &&
+            matchesStatus &&
+            matchesVisibility &&
+            matchesCreationMethod
+          );
+        })
+        .sort((a, b) => {
+          if (!sortByFilter) return 0;
 
-      const aId = parseInt(a.id.replace(/\D/g, ""));
-      const bId = parseInt(b.id.replace(/\D/g, ""));
+          const aId = parseInt(a.id.replace(/\D/g, ""));
+          const bId = parseInt(b.id.replace(/\D/g, ""));
 
-      if (sortByFilter === "New to Old") {
-        return bId - aId;
-      } else {
-        return aId - bId;
+          if (sortByFilter === "New to Old") {
+            return bId - aId;
+          } else {
+            return aId - bId;
+          }
+        }),
+    [
+      offersWithUpdatedVisibility,
+      debouncedSearchQuery,
+      statusFilter,
+      visibilityFilter,
+      creationMethodFilter,
+      sortByFilter,
+    ]
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    debouncedSearchQuery,
+    statusFilter,
+    visibilityFilter,
+    creationMethodFilter,
+    sortByFilter,
+  ]);
+
+  const totalPages = useMemo(
+    () => Math.ceil(filteredOffers.length / itemsPerPage),
+    [filteredOffers.length, itemsPerPage]
+  );
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedOffers = useMemo(
+    () => filteredOffers.slice(startIndex, endIndex),
+    [filteredOffers, startIndex, endIndex]
+  );
+
+  const getPageNumbers = useCallback(() => {
+    const pages: (number | "ellipsis")[] = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
       }
-    });
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push("ellipsis");
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push("ellipsis");
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push("ellipsis");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push("ellipsis");
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  }, [currentPage, totalPages]);
 
   /**
    * TODO: BACKEND - Implement Edit Details Handler
@@ -197,11 +307,10 @@ export function Offers() {
    *    - Show success notification
    *    - Update local state if needed
    */
-  const handleEditDetails = (_id: string) => {
-    // TODO: Implement API call to fetch offer details
-    // TODO: Open edit modal with fetched data
-    // TODO: Handle form submission and API update
-  };
+  const handleEditDetails = useCallback((id: string) => {
+    setSelectedOfferId(id);
+    setIsEditDetailsModalOpen(true);
+  }, []);
 
   /**
    * TODO: BACKEND - Implement Brand Guidelines Handler
@@ -250,11 +359,15 @@ export function Offers() {
    *    - Show success notification
    *    - Optionally refresh offer data
    */
-  const handleBrandGuidelines = (_id: string) => {
-    // TODO: Implement API call to fetch brand guidelines
-    // TODO: Open brand guidelines viewer/modal
-    // TODO: Handle editing and file uploads
-  };
+  const handleBrandGuidelines = useCallback(
+    (id: string) => {
+      const offer = offers?.find((o) => o.id === id);
+      setSelectedOfferId(id);
+      setSelectedOfferName(offer?.offerName || "");
+      setBrandGuidelinesModalOpen(true);
+    },
+    [offers]
+  );
 
   /**
    * TODO: BACKEND - Implement Visibility Change Handler
@@ -291,59 +404,35 @@ export function Offers() {
    *    - Revert on error
    *    - Consider debouncing if user changes visibility rapidly
    */
-  const handleVisibilityChange = (
-    id: string,
-    visibility: "Public" | "Internal" | "Hidden"
-  ) => {
-    // Optimistic update (keep this)
-    setOffersVisibility((prev) => ({
-      ...prev,
-      [id]: visibility,
-    }));
+  const handleVisibilityChange = useCallback(
+    (id: string, visibility: "Public" | "Internal" | "Hidden") => {
+      setOffersVisibility((prev) => ({
+        ...prev,
+        [id]: visibility,
+      }));
 
-    // TODO: Call API: PATCH /api/admin/offers/:id/visibility
-    // TODO: Handle error and revert optimistic update if failed
-    // TODO: Show success/error notification
-  };
+      // TODO: Call API: PATCH /api/admin/offers/:id/visibility
+      // TODO: Handle error and revert optimistic update if failed
+      // TODO: Show success/error notification
+    },
+    []
+  );
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setStatusFilter(null);
     setVisibilityFilter(null);
     setCreationMethodFilter(null);
     setSortByFilter(null);
     setIsFilterOpen(false);
     setActiveCategory(null);
-  };
+    setCurrentPage(1);
+  }, []);
 
   const hasActiveFilters =
     statusFilter !== null ||
     visibilityFilter !== null ||
     creationMethodFilter !== null ||
     sortByFilter !== null;
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-muted-foreground">Loading offers...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-destructive">Error: {error}</div>
-      </div>
-    );
-  }
-
-  if (!offers || offers.length === 0) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-muted-foreground">No offers available</div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full">
@@ -370,6 +459,7 @@ export function Offers() {
               borderColor: variables.colors.buttonOutlineBorderColor,
               backgroundColor: variables.colors.cardBackground,
             }}
+            onClick={() => setIsBulkEditModalOpen(true)}
           >
             <Edit className="h-5 w-5" />
             Bulk Edit
@@ -455,16 +545,35 @@ export function Offers() {
               borderColor: variables.colors.buttonOutlineBorderColor,
               backgroundColor: variables.colors.cardBackground,
             }}
-            onClick={() => {
-              // TODO: Implement API pull functionality
-              // TODO: Show loading/progress indicator
-              // TODO: Call POST /api/admin/offers/pull-from-api
-              // TODO: Handle response and refresh offers list
-              // TODO: Show success/error notification with statistics
+            onClick={async () => {
+              setIsPullingViaAPI(true);
+              try {
+                // TODO: Implement API pull functionality
+                // TODO: Call POST /api/admin/offers/pull-from-api
+                // TODO: Handle response and refresh offers list
+                // TODO: Show success/error notification with statistics
+
+                // Simulate API call for now
+                await new Promise((resolve) => setTimeout(resolve, 2000));
+              } catch (error) {
+                console.error("Failed to pull offers via API:", error);
+              } finally {
+                setIsPullingViaAPI(false);
+              }
             }}
+            disabled={isPullingViaAPI}
           >
-            <Download className="h-5 w-5" />
-            Pull Via API
+            {isPullingViaAPI ? (
+              <>
+                <Spinner className="h-5 w-5" />
+                Pulling...
+              </>
+            ) : (
+              <>
+                <Download className="h-5 w-5" />
+                Pull Via API
+              </>
+            )}
           </Button>
 
           <Popover
@@ -681,35 +790,249 @@ export function Offers() {
         </div>
       </div>
 
-      <EntityDataTable
-        data={filteredOffers}
-        columns={columns}
-        renderRow={(offer: OfferType, index: number) => (
-          <EntityDataCard
-            id={offer.id}
-            name={offer.offerName}
-            advName={offer.advName}
-            createdMethod={offer.createdMethod}
-            status={offer.status}
-            visibility={offer.visibility}
-            variant={index % 2 === 0 ? "purple" : "blue"}
-            gridTemplateColumns={columns
-              .map((col) => col.width || "1fr")
-              .join(" ")}
-            onEditDetails={() => handleEditDetails(offer.id)}
-            onBrandGuidelines={() => handleBrandGuidelines(offer.id)}
-            onVisibilityChange={(visibility) =>
-              handleVisibilityChange(offer.id, visibility)
-            }
-          />
+      {isLoading ? (
+        <div className="w-full">
+          <div className="rounded-t-2xl px-5 py-4 border-b">
+            <div
+              className="grid items-center"
+              style={{
+                gridTemplateColumns: "100px 1.8fr 1fr 1fr 1fr 1fr",
+                gap: "1.5rem",
+              }}
+            >
+              {columns.map((_, index) => (
+                <Skeleton key={index} className="h-4 w-20" />
+              ))}
+            </div>
+          </div>
+          <div className="space-y-3 mt-3">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Skeleton key={index} className="h-24 w-full rounded-2xl" />
+            ))}
+          </div>
+        </div>
+      ) : error ? (
+        <div className="flex items-center justify-center p-8 border rounded-lg">
+          <div className="text-destructive">Error: {error}</div>
+        </div>
+      ) : !offers || offers.length === 0 ? (
+        <div className="flex items-center justify-center p-8 border rounded-lg">
+          <div className="text-muted-foreground">No offers available</div>
+        </div>
+      ) : (
+        <EntityDataTable
+          data={paginatedOffers}
+          columns={columns}
+          renderRow={(offer: OfferType, index: number) => (
+            <EntityDataCard
+              id={offer.id}
+              name={offer.offerName}
+              advName={offer.advName}
+              createdMethod={offer.createdMethod}
+              status={offer.status}
+              visibility={offer.visibility}
+              variant={index % 2 === 0 ? "purple" : "blue"}
+              gridTemplateColumns={columns
+                .map((col) => col.width || "1fr")
+                .join(" ")}
+              onEditDetails={() => handleEditDetails(offer.id)}
+              onBrandGuidelines={() => handleBrandGuidelines(offer.id)}
+              onVisibilityChange={(visibility) =>
+                handleVisibilityChange(offer.id, visibility)
+              }
+            />
+          )}
+        />
+      )}
+
+      {!isLoading &&
+        !error &&
+        offers &&
+        offers.length > 0 &&
+        totalPages > 1 && (
+          <div
+            className="flex items-center gap-4 mt-6 pt-6 border-t"
+            style={{ borderColor: variables.colors.inputBorderColor }}
+          >
+            <div
+              className="text-sm font-inter whitespace-nowrap"
+              style={{ color: variables.colors.descriptionColor }}
+            >
+              Showing{" "}
+              <span
+                className="font-medium"
+                style={{ color: variables.colors.inputTextColor }}
+              >
+                {startIndex + 1}
+              </span>{" "}
+              to{" "}
+              <span
+                className="font-medium"
+                style={{ color: variables.colors.inputTextColor }}
+              >
+                {Math.min(endIndex, filteredOffers.length)}
+              </span>{" "}
+              of{" "}
+              <span
+                className="font-medium"
+                style={{ color: variables.colors.inputTextColor }}
+              >
+                {filteredOffers.length}
+              </span>{" "}
+              offers
+            </div>
+            <Pagination>
+              <PaginationContent className="gap-1">
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage > 1) {
+                        setCurrentPage((prev) => prev - 1);
+                      }
+                    }}
+                    className={`transition-all duration-200 ${
+                      currentPage === 1
+                        ? "pointer-events-none opacity-40 cursor-not-allowed"
+                        : "cursor-pointer hover:bg-gray-100"
+                    }`}
+                    style={{
+                      color:
+                        currentPage === 1
+                          ? variables.colors.descriptionColor
+                          : variables.colors.inputTextColor,
+                    }}
+                  />
+                </PaginationItem>
+                {getPageNumbers().map((page, index) => (
+                  <PaginationItem key={index}>
+                    {page === "ellipsis" ? (
+                      <PaginationEllipsis className="text-gray-400" />
+                    ) : (
+                      <PaginationLink
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(page);
+                        }}
+                        isActive={currentPage === page}
+                        className={`transition-all duration-200 min-w-9 h-9 flex items-center justify-center font-inter text-sm ${
+                          currentPage === page
+                            ? "cursor-default"
+                            : "cursor-pointer hover:bg-gray-100"
+                        }`}
+                        style={{
+                          backgroundColor:
+                            currentPage === page
+                              ? variables.colors.buttonDefaultBackgroundColor
+                              : "transparent",
+                          color:
+                            currentPage === page
+                              ? variables.colors.buttonDefaultTextColor
+                              : variables.colors.inputTextColor,
+                          borderColor:
+                            currentPage === page
+                              ? variables.colors.buttonDefaultBackgroundColor
+                              : variables.colors.inputBorderColor,
+                        }}
+                      >
+                        {page}
+                      </PaginationLink>
+                    )}
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage < totalPages) {
+                        setCurrentPage((prev) => prev + 1);
+                      }
+                    }}
+                    className={`transition-all duration-200 ${
+                      currentPage === totalPages
+                        ? "pointer-events-none opacity-40 cursor-not-allowed"
+                        : "cursor-pointer hover:bg-gray-100"
+                    }`}
+                    style={{
+                      color:
+                        currentPage === totalPages
+                          ? variables.colors.descriptionColor
+                          : variables.colors.inputTextColor,
+                    }}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+            <div className="flex items-center gap-2">
+              <span
+                className="text-sm font-inter whitespace-nowrap"
+                style={{ color: variables.colors.descriptionColor }}
+              >
+                Show:
+              </span>
+              <Select
+                value={itemsPerPage.toString()}
+                onValueChange={(value) => {
+                  setItemsPerPage(Number(value));
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger
+                  className="h-8 w-20 text-xs font-inter border rounded-md"
+                  style={{
+                    backgroundColor: variables.colors.inputBackgroundColor,
+                    borderColor: variables.colors.inputBorderColor,
+                    color: variables.colors.inputTextColor,
+                  }}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         )}
-      />
 
       <NewOfferManuallyModal
         open={isNewOfferModalOpen}
         onOpenChange={setIsNewOfferModalOpen}
         onSuccess={() => {
           setIsNewOfferModalOpen(false);
+        }}
+      />
+
+      {selectedOfferId && selectedOfferName && (
+        <BrandGuidelinesModal
+          open={brandGuidelinesModalOpen}
+          onOpenChange={setBrandGuidelinesModalOpen}
+          entityId={selectedOfferId}
+          entityName={selectedOfferName}
+          entityType="offer"
+        />
+      )}
+
+      {selectedOfferId && (
+        <EditDetailsModal
+          open={isEditDetailsModalOpen}
+          onOpenChange={setIsEditDetailsModalOpen}
+          offerId={selectedOfferId}
+          onSuccess={() => {
+            setIsEditDetailsModalOpen(false);
+            setSelectedOfferId(null);
+          }}
+        />
+      )}
+
+      <BulkEditModal
+        open={isBulkEditModalOpen}
+        onOpenChange={setIsBulkEditModalOpen}
+        onSuccess={() => {
+          setIsBulkEditModalOpen(false);
         }}
       />
     </div>
