@@ -29,24 +29,44 @@ interface NewAdvertiserManuallyModalProps {
 }
 
 /**
- * TODO: BACKEND - Advertiser ID Generation
+ * Generates incremental advertiser IDs in format M#### (e.g., M0001, M0002, M0003)
  *
- * Currently generates client-side: M + 4 random digits (e.g., M1234)
+ * Implementation:
+ * 1. Fetches all existing advertisers
+ * 2. Extracts numeric parts from IDs matching M#### pattern
+ * 3. Finds the highest number and increments by 1
+ * 4. Formats as M#### with leading zeros (4 digits)
  *
- * Backend should:
- * 1. Generate unique advertiser IDs in format M####
- * 2. Check for uniqueness before assigning
- * 3. Handle ID conflicts (if M1234 exists, try M1235, etc.)
- * 4. Return the generated ID to the frontend
- *
- * Consider:
- * - Sequential numbering vs random
- * - Handling ID exhaustion (what if all M#### are used?)
- * - ID format validation on backend
+ * TODO: BACKEND - Move this logic to backend
+ * - Backend should handle ID generation atomically to prevent race conditions
+ * - Consider using database sequences or transactions for ID generation
+ * - Handle ID exhaustion (what if all M#### are used? - up to M9999)
  */
-function generateAdvertiserId(): string {
-  const randomDigits = Math.floor(1000 + Math.random() * 9000);
-  return `M${randomDigits}`;
+async function generateAdvertiserId(): Promise<string> {
+  try {
+    const { getAllAdvertisers } =
+      await import("../services/advertiser.service");
+    const advertisers = await getAllAdvertisers();
+
+    // Extract numeric parts from existing advertiser IDs (format: M####)
+    const existingNumbers = advertisers
+      .map((adv) => {
+        const match = adv.id.match(/^M(\d+)$/);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+      .filter((num) => num > 0);
+
+    // Find the highest number and increment by 1
+    const nextNumber =
+      existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
+
+    // Format as M0001, M0002, etc. (4 digits with leading zeros)
+    return `M${nextNumber.toString().padStart(4, "0")}`;
+  } catch (error) {
+    // Fallback to M0001 if fetching fails
+    console.error("Failed to generate advertiser ID:", error);
+    return "M0001";
+  }
 }
 
 /**
@@ -105,14 +125,15 @@ export function NewAdvertiserManuallyModal({
   useEffect(() => {
     if (open) {
       reset();
-      const newAdvertiserId = generateAdvertiserId();
-      setFormData({
-        companyName: "",
-        advertiserId: newAdvertiserId,
-        firstName: "",
-        lastName: "",
-        email: "",
-        password: "",
+      generateAdvertiserId().then((newAdvertiserId) => {
+        setFormData({
+          companyName: "",
+          advertiserId: newAdvertiserId,
+          firstName: "",
+          lastName: "",
+          email: "",
+          password: "",
+        });
       });
       setValidationErrors({});
     }
@@ -165,7 +186,7 @@ export function NewAdvertiserManuallyModal({
     if (!formData.advertiserId.trim()) {
       errors.advertiserId = "Advertiser ID is required";
     } else if (!/^M\d{4}$/.test(formData.advertiserId)) {
-      errors.advertiserId = "Advertiser ID must be in format M1234";
+      errors.advertiserId = "Advertiser ID must be in format M0001";
     }
 
     if (!formData.firstName.trim()) {
@@ -236,8 +257,8 @@ export function NewAdvertiserManuallyModal({
     }
   };
 
-  const handleGenerateAdvertiserId = () => {
-    const newId = generateAdvertiserId();
+  const handleGenerateAdvertiserId = async () => {
+    const newId = await generateAdvertiserId();
     updateFormField("advertiserId", newId);
   };
 
@@ -336,7 +357,7 @@ export function NewAdvertiserManuallyModal({
                         updateFormField("advertiserId", value);
                       }
                     }}
-                    placeholder="M1234"
+                    placeholder="M0001"
                     disabled={isSubmitting}
                     aria-invalid={!!validationErrors.advertiserId}
                     className="h-12 font-inter advertiser-modal-input flex-1"
@@ -371,7 +392,7 @@ export function NewAdvertiserManuallyModal({
                   className="text-xs font-inter"
                   style={{ color: variables.colors.descriptionColor }}
                 >
-                  Auto-generated ID format: M + 4 digits (e.g., M1234)
+                  Auto-generated ID format: M + 4 digits (e.g., M0001, M0002)
                 </p>
               </div>
 
