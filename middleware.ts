@@ -16,8 +16,13 @@ const isAllowedOrigin = (origin: string | null): boolean => {
     return true;
   }
 
-  // Allow Vercel preview URLs
-  if (origin.includes(".vercel.app") || origin.includes(".vercel.dev")) {
+  // Allow all Vercel preview URLs
+  if (
+    origin.includes(".vercel.app") ||
+    origin.includes(".vercel.dev") ||
+    origin.endsWith(".vercel.app") ||
+    origin.endsWith(".vercel.dev")
+  ) {
     return true;
   }
 
