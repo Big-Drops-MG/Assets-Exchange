@@ -1,7 +1,8 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { Loader2, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { getVariables } from "@/components/_variables";
 import { Button } from "@/components/ui/button";
@@ -118,22 +119,32 @@ export function NewAdvertiserManuallyModal({
     password: "",
   });
 
+  const [initialFormData, setInitialFormData] =
+    useState<NewAdvertiserFormData | null>(null);
+
   const [validationErrors, setValidationErrors] = useState<
     Partial<Record<keyof NewAdvertiserFormData, string>>
   >({});
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!initialFormData) return false;
+    return JSON.stringify(formData) !== JSON.stringify(initialFormData);
+  }, [formData, initialFormData]);
 
   useEffect(() => {
     if (open) {
       reset();
       generateAdvertiserId().then((newAdvertiserId) => {
-        setFormData({
+        const initialData = {
           companyName: "",
           advertiserId: newAdvertiserId,
           firstName: "",
           lastName: "",
           email: "",
           password: "",
-        });
+        };
+        setFormData(initialData);
+        setInitialFormData(initialData);
       });
       setValidationErrors({});
     }
@@ -217,24 +228,54 @@ export function NewAdvertiserManuallyModal({
     e.preventDefault();
 
     if (!validateForm()) {
+      toast.error("Validation failed", {
+        description: "Please fix the errors in the form before submitting.",
+      });
       return;
     }
 
-    const createdAdvertiser = await submitAdvertiser(formData);
+    try {
+      const createdAdvertiser = await submitAdvertiser(formData);
 
-    if (createdAdvertiser) {
-      onSuccess?.(createdAdvertiser.id);
-      onOpenChange(false);
+      if (createdAdvertiser) {
+        toast.success("Advertiser created successfully", {
+          description: `Advertiser ${createdAdvertiser.id} has been created.`,
+        });
+        setInitialFormData(null);
+        onSuccess?.(createdAdvertiser.id);
+        onOpenChange(false);
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Failed to create advertiser. Please try again.";
+      toast.error("Failed to create advertiser", {
+        description: errorMessage,
+      });
     }
   };
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
-      if (!isSubmitting && !open) {
+      if (isSubmitting) {
+        return;
+      }
+
+      if (!open && hasUnsavedChanges) {
+        if (
+          window.confirm(
+            "You have unsaved changes. Are you sure you want to close?"
+          )
+        ) {
+          setInitialFormData(null);
+          onOpenChange(false);
+        }
+      } else if (!open) {
         onOpenChange(false);
       }
     },
-    [isSubmitting, onOpenChange]
+    [isSubmitting, hasUnsavedChanges, onOpenChange]
   );
 
   const handleClose = useCallback(() => {
@@ -554,8 +595,16 @@ export function NewAdvertiserManuallyModal({
                   : variables.colors.buttonDefaultTextColor,
                 height: "3rem",
               }}
+              aria-label="Create new advertiser"
             >
-              {isSubmitting ? "Creating..." : "Create Advertiser"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Creating...
+                </>
+              ) : (
+                "Create Advertiser"
+              )}
             </Button>
           </DialogFooter>
         </form>
