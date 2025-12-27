@@ -1,7 +1,8 @@
 "use client";
 
-import { Pencil, Check, X as XIcon } from "lucide-react";
+import { Loader2, Pencil, Check, X as XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { getVariables } from "@/components/_variables";
 import { Button } from "@/components/ui/button";
@@ -74,9 +75,17 @@ export function EditDetailsModal({
     advertiserName: "",
   });
 
+  const [initialFormData, setInitialFormData] =
+    useState<EditOfferFormData | null>(null);
+
   const [validationErrors, setValidationErrors] = useState<
     Partial<Record<keyof EditOfferFormData, string>>
   >({});
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!initialFormData) return false;
+    return JSON.stringify(formData) !== JSON.stringify(initialFormData);
+  }, [formData, initialFormData]);
   const [advertisers, setAdvertisers] = useState<Advertiser[]>([]);
   const [isLoadingAdvertisers, setIsLoadingAdvertisers] = useState(false);
   const [advertiserSearchQuery, setAdvertiserSearchQuery] = useState("");
@@ -128,14 +137,16 @@ export function EditDetailsModal({
               (adv) => adv.advertiserName === fetchedOffer.advName
             );
 
-            setFormData({
+            const initialData = {
               offerId: fetchedOffer.id,
               offerName: fetchedOffer.offerName,
               status: fetchedOffer.status,
               visibility: fetchedOffer.visibility,
               advertiserId: matchedAdvertiser?.id || "",
               advertiserName: fetchedOffer.advName,
-            });
+            };
+            setFormData(initialData);
+            setInitialFormData(initialData);
             setIsEditingOfferId(false);
             setIsEditingOfferName(false);
           } else {
@@ -241,6 +252,9 @@ export function EditDetailsModal({
     e.preventDefault();
 
     if (!validateForm() || !offer) {
+      toast.error("Validation failed", {
+        description: "Please fix the errors in the form before submitting.",
+      });
       return;
     }
 
@@ -262,11 +276,22 @@ export function EditDetailsModal({
       const updatedOffer = await updateOffer(offer.id, updatePayload);
 
       if (updatedOffer) {
+        toast.success("Offer updated successfully", {
+          description: `Offer ${updatedOffer.id} has been updated.`,
+        });
+        setInitialFormData(null);
         onSuccess?.();
         onOpenChange(false);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update offer");
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Failed to update offer. Please try again.";
+      setError(errorMessage);
+      toast.error("Failed to update offer", {
+        description: errorMessage,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -274,11 +299,24 @@ export function EditDetailsModal({
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
-      if (!isSubmitting && !open) {
+      if (isSubmitting) {
+        return;
+      }
+
+      if (!open && hasUnsavedChanges) {
+        if (
+          window.confirm(
+            "You have unsaved changes. Are you sure you want to close?"
+          )
+        ) {
+          setInitialFormData(null);
+          onOpenChange(false);
+        }
+      } else if (!open) {
         onOpenChange(false);
       }
     },
-    [isSubmitting, onOpenChange]
+    [isSubmitting, hasUnsavedChanges, onOpenChange]
   );
 
   const handleClose = useCallback(() => {
@@ -875,7 +913,14 @@ export function EditDetailsModal({
                   : variables.colors.buttonDefaultTextColor,
               }}
             >
-              {isSubmitting ? "Saving..." : "Save Changes"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
             </Button>
           </DialogFooter>
         </form>

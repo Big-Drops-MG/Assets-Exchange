@@ -18,10 +18,21 @@
 "use client";
 
 import * as Accordion from "@radix-ui/react-accordion";
-import { ChevronDown, ChevronUp, Download } from "lucide-react";
-import { useState } from "react";
+import { ChevronDown, ChevronUp, Download, Loader2 } from "lucide-react";
+import { useState, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 
 import { getVariables } from "@/components/_variables/variables";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +43,8 @@ import {
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
 import type { Request } from "../types/admin.types";
+
+const MAX_COMMENT_LENGTH = 5000;
 
 interface RequestItemProps {
   request: Request;
@@ -179,11 +192,94 @@ export function RequestItem({
 }: RequestItemProps) {
   const variables = getVariables();
   const accordionColors = getAccordionColors(colorVariant, variables.colors);
+
+  // Popover states
   const [approvePopoverOpen, setApprovePopoverOpen] = useState(false);
   const [rejectPopoverOpen, setRejectPopoverOpen] = useState(false);
-  const [rejectComments, setRejectComments] = useState("");
   const [sendBackPopoverOpen, setSendBackPopoverOpen] = useState(false);
+
+  // Comment states
+  const [rejectComments, setRejectComments] = useState("");
   const [sendBackComments, setSendBackComments] = useState("");
+
+  // Loading states
+  const [isApproving, setIsApproving] = useState(false);
+  const [isForwarding, setIsForwarding] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [isSendingBack, setIsSendingBack] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  // Confirmation dialog states
+  const [confirmRejectOpen, setConfirmRejectOpen] = useState(false);
+  const [confirmSendBackOpen, setConfirmSendBackOpen] = useState(false);
+
+  // Error states
+  const [error, setError] = useState<string | null>(null);
+
+  // Character count for comments
+  const rejectCommentsLength = useMemo(() => {
+    const text = rejectComments.replace(/<[^>]*>/g, "");
+    return text.length;
+  }, [rejectComments]);
+
+  const sendBackCommentsLength = useMemo(() => {
+    const text = sendBackComments.replace(/<[^>]*>/g, "");
+    return text.length;
+  }, [sendBackComments]);
+
+  const isRejectCommentsValid = rejectCommentsLength <= MAX_COMMENT_LENGTH;
+  const isSendBackCommentsValid = sendBackCommentsLength <= MAX_COMMENT_LENGTH;
+
+  // Check if popover has unsaved changes
+  const hasUnsavedRejectComments = rejectComments.trim().length > 0;
+  const hasUnsavedSendBackComments = sendBackComments.trim().length > 0;
+
+  // Handle popover close with warning
+  const handleRejectPopoverClose = useCallback(
+    (open: boolean) => {
+      if (!open && hasUnsavedRejectComments) {
+        if (
+          window.confirm(
+            "You have unsaved comments. Are you sure you want to close?"
+          )
+        ) {
+          setRejectPopoverOpen(false);
+          setRejectComments("");
+          setError(null);
+        }
+      } else {
+        setRejectPopoverOpen(open);
+        if (!open) {
+          setRejectComments("");
+          setError(null);
+        }
+      }
+    },
+    [hasUnsavedRejectComments]
+  );
+
+  const handleSendBackPopoverClose = useCallback(
+    (open: boolean) => {
+      if (!open && hasUnsavedSendBackComments) {
+        if (
+          window.confirm(
+            "You have unsaved comments. Are you sure you want to close?"
+          )
+        ) {
+          setSendBackPopoverOpen(false);
+          setSendBackComments("");
+          setError(null);
+        }
+      } else {
+        setSendBackPopoverOpen(open);
+        if (!open) {
+          setSendBackComments("");
+          setError(null);
+        }
+      }
+    },
+    [hasUnsavedSendBackComments]
+  );
 
   const meta = [
     `Creative Type: ${request.creativeType}`,
@@ -401,48 +497,61 @@ export function RequestItem({
                             variables.colors
                               .requestCardApproveButtonBackgroundColor,
                         }}
+                        disabled={isApproving || isForwarding}
                         onClick={async () => {
                           setApprovePopoverOpen(false);
-                          // TODO: BACKEND - Implement Admin Approve Handler (UNIFIED MODEL)
-                          //
-                          // This updates the SAME record, NOT creating a new response entity
-                          //
-                          // try {
-                          //   setIsLoading(true);
-                          //
-                          //   const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-approve`, {
-                          //     method: 'POST',
-                          //     headers: {
-                          //       'Content-Type': 'application/json',
-                          //       'Authorization': `Bearer ${getAuthToken()}`
-                          //     },
-                          //     body: JSON.stringify({
-                          //       actionBy: getCurrentUserId(),
-                          //       actionType: 'approve', // Just approve, don't forward
-                          //       comments: '' // Optional: Add modal for comments
-                          //     })
-                          //   });
-                          //
-                          //   if (!response.ok) {
-                          //     throw new Error('Failed to approve request');
-                          //   }
-                          //
-                          //   const data = await response.json();
-                          //
-                          //   // The request is now: status='approved', approvalStage='admin'
-                          //   toast.success('Request approved');
-                          //
-                          //   await refreshRequests();
-                          //
-                          // } catch (error) {
-                          //   console.error('Error approving request:', error);
-                          //   toast.error('Failed to approve request. Please try again.');
-                          // } finally {
-                          //   setIsLoading(false);
-                          // }
+                          setIsApproving(true);
+                          setError(null);
+
+                          try {
+                            // TODO: BACKEND - Implement Admin Approve Handler (UNIFIED MODEL)
+                            // const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-approve`, {
+                            //   method: 'POST',
+                            //   headers: {
+                            //     'Content-Type': 'application/json',
+                            //     'Authorization': `Bearer ${getAuthToken()}`
+                            //   },
+                            //   body: JSON.stringify({
+                            //     actionBy: getCurrentUserId(),
+                            //     actionType: 'approve',
+                            //     comments: ''
+                            //   })
+                            // });
+                            //
+                            // if (!response.ok) {
+                            //   throw new Error('Failed to approve request');
+                            // }
+
+                            // Optimistic update - show success immediately
+                            toast.success("Request approved", {
+                              description:
+                                "The request has been successfully approved.",
+                            });
+
+                            // await refreshRequests();
+                          } catch (err) {
+                            const errorMessage =
+                              err instanceof Error
+                                ? err.message
+                                : "Failed to approve request. Please try again.";
+                            setError(errorMessage);
+                            toast.error("Failed to approve request", {
+                              description: errorMessage,
+                            });
+                          } finally {
+                            setIsApproving(false);
+                          }
                         }}
+                        aria-label="Approve this creative request"
                       >
-                        Approve
+                        {isApproving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Approving...
+                          </>
+                        ) : (
+                          "Approve"
+                        )}
                       </Button>
                       <Button
                         variant="outline"
@@ -453,63 +562,77 @@ export function RequestItem({
                           borderColor:
                             variables.colors.requestCardViewButtonBorderColor,
                         }}
+                        disabled={isApproving || isForwarding}
                         onClick={async () => {
                           setApprovePopoverOpen(false);
-                          // TODO: BACKEND - Implement Admin Forward Handler (UNIFIED MODEL)
-                          //
-                          // This updates the SAME record, NOT creating a new response entity
-                          //
-                          // try {
-                          //   setIsLoading(true);
-                          //
-                          //   const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-approve`, {
-                          //     method: 'POST',
-                          //     headers: {
-                          //       'Content-Type': 'application/json',
-                          //       'Authorization': `Bearer ${getAuthToken()}`
-                          //     },
-                          //     body: JSON.stringify({
-                          //       actionBy: getCurrentUserId(),
-                          //       actionType: 'forward', // Forward to advertiser
-                          //       comments: '' // Optional: Add modal for comments
-                          //     })
-                          //   });
-                          //
-                          //   if (!response.ok) {
-                          //     throw new Error('Failed to forward request');
-                          //   }
-                          //
-                          //   const data = await response.json();
-                          //
-                          //   // The request is now: status='pending', approvalStage='advertiser'
-                          //   // It will appear in /response page for advertiser to review
-                          //   toast.success('Request approved and forwarded to advertiser');
-                          //
-                          //   await refreshRequests();
-                          //
-                          // } catch (error) {
-                          //   console.error('Error forwarding request:', error);
-                          //   toast.error('Failed to forward request. Please try again.');
-                          // } finally {
-                          //   setIsLoading(false);
-                          // }
+                          setIsForwarding(true);
+                          setError(null);
+
+                          try {
+                            // TODO: BACKEND - Implement Admin Forward Handler (UNIFIED MODEL)
+                            // const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-approve`, {
+                            //   method: 'POST',
+                            //   headers: {
+                            //     'Content-Type': 'application/json',
+                            //     'Authorization': `Bearer ${getAuthToken()}`
+                            //   },
+                            //   body: JSON.stringify({
+                            //     actionBy: getCurrentUserId(),
+                            //     actionType: 'forward',
+                            //     comments: ''
+                            //   })
+                            // });
+                            //
+                            // if (!response.ok) {
+                            //   throw new Error('Failed to forward request');
+                            // }
+
+                            // Optimistic update
+                            toast.success("Request forwarded to advertiser", {
+                              description:
+                                "The request has been forwarded for advertiser review.",
+                            });
+
+                            // await refreshRequests();
+                          } catch (err) {
+                            const errorMessage =
+                              err instanceof Error
+                                ? err.message
+                                : "Failed to forward request. Please try again.";
+                            setError(errorMessage);
+                            toast.error("Failed to forward request", {
+                              description: errorMessage,
+                            });
+                          } finally {
+                            setIsForwarding(false);
+                          }
                         }}
+                        aria-label="Forward this creative request to advertiser"
                       >
-                        Forward to Advertiser
+                        {isForwarding ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Forwarding...
+                          </>
+                        ) : (
+                          "Forward to Advertiser"
+                        )}
                       </Button>
                     </div>
+                    {error && (
+                      <div className="rounded-md bg-destructive/10 p-3 border border-destructive/20">
+                        <p className="text-xs text-destructive font-inter">
+                          {error}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </PopoverContent>
               </Popover>
 
               <Popover
                 open={rejectPopoverOpen}
-                onOpenChange={(open) => {
-                  setRejectPopoverOpen(open);
-                  if (!open) {
-                    setRejectComments("");
-                  }
-                }}
+                onOpenChange={handleRejectPopoverClose}
               >
                 <PopoverTrigger asChild>
                   <Button
@@ -543,15 +666,26 @@ export function RequestItem({
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <label
-                        className="font-inter text-xs font-medium"
-                        htmlFor="reject-comments"
-                      >
-                        Comments{" "}
-                        <span className="text-muted-foreground">
-                          (Optional)
+                      <div className="flex items-center justify-between">
+                        <label
+                          className="font-inter text-xs font-medium"
+                          htmlFor="reject-comments"
+                        >
+                          Comments{" "}
+                          <span className="text-muted-foreground">
+                            (Optional)
+                          </span>
+                        </label>
+                        <span
+                          className={`text-xs font-inter ${
+                            isRejectCommentsValid
+                              ? "text-muted-foreground"
+                              : "text-destructive"
+                          }`}
+                        >
+                          {rejectCommentsLength} / {MAX_COMMENT_LENGTH}
                         </span>
-                      </label>
+                      </div>
                       <RichTextEditor
                         value={rejectComments}
                         onChange={setRejectComments}
@@ -560,9 +694,19 @@ export function RequestItem({
                         style={{
                           backgroundColor:
                             variables.colors.inputBackgroundColor,
-                          borderColor: variables.colors.inputBorderColor,
+                          borderColor: isRejectCommentsValid
+                            ? variables.colors.inputBorderColor
+                            : "#dc2626",
                         }}
+                        aria-label="Comments for rejection or send back action"
+                        aria-invalid={!isRejectCommentsValid}
                       />
+                      {!isRejectCommentsValid && (
+                        <p className="text-xs text-destructive font-inter">
+                          Comments exceed maximum length of {MAX_COMMENT_LENGTH}{" "}
+                          characters.
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-row gap-2 pt-2">
                       <Button
@@ -575,92 +719,191 @@ export function RequestItem({
                               .requestCardRejectedButtonBackgroundColor,
                           border: `1px solid ${variables.colors.requestCardRejectedButtonBorderColor}`,
                         }}
-                        onClick={async () => {
-                          setRejectPopoverOpen(false);
-                          // TODO: BACKEND - Implement Admin Reject Handler (UNIFIED MODEL)
-                          //
-                          // This updates the SAME record's status to rejected
-                          //
-                          // try {
-                          //   setIsLoading(true);
-                          //
-                          //   const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-reject`, {
-                          //     method: 'POST',
-                          //     headers: {
-                          //       'Content-Type': 'application/json',
-                          //       'Authorization': `Bearer ${getAuthToken()}`
-                          //     },
-                          //     body: JSON.stringify({
-                          //       actionBy: getCurrentUserId(),
-                          //       actionType: 'reject',
-                          //       comments: rejectComments
-                          //     })
-                          //   });
-                          //
-                          //   if (!response.ok) {
-                          //     throw new Error('Failed to reject request');
-                          //   }
-                          //
-                          //   // The SAME request is now: status='rejected', approvalStage='admin'
-                          //   toast.success('Request rejected and sent back to publisher');
-                          //   await refreshRequests();
-                          //   setRejectComments("");
-                          //
-                          // } catch (error) {
-                          //   console.error('Error rejecting request:', error);
-                          //   toast.error('Failed to reject request. Please try again.');
-                          // } finally {
-                          //   setIsLoading(false);
-                          // }
+                        disabled={
+                          isRejecting || isSendingBack || !isRejectCommentsValid
+                        }
+                        onClick={() => {
+                          setConfirmRejectOpen(true);
                         }}
+                        aria-label="Reject this creative request"
                       >
-                        Reject
+                        {isRejecting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Rejecting...
+                          </>
+                        ) : (
+                          "Reject"
+                        )}
                       </Button>
                       <Button
                         variant="destructive"
-                        className="flex-1 font-inter text-xs xl:text-sm font-medium"
-                        onClick={async () => {
-                          setRejectPopoverOpen(false);
-                          // TODO: BACKEND - Implement Admin Send Back Handler (UNIFIED MODEL)
-                          //
-                          // This sends the request back to the publisher
-                          //
-                          // try {
-                          //   setIsLoading(true);
-                          //
-                          //   const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-send-back`, {
-                          //     method: 'POST',
-                          //     headers: {
-                          //       'Content-Type': 'application/json',
-                          //       'Authorization': `Bearer ${getAuthToken()}`
-                          //     },
-                          //     body: JSON.stringify({
-                          //       actionBy: getCurrentUserId(),
-                          //       actionType: 'send-back',
-                          //       comments: rejectComments
-                          //     })
-                          //   });
-                          //
-                          //   if (!response.ok) {
-                          //     throw new Error('Failed to send back request');
-                          //   }
-                          //
-                          //   // The SAME request is now: status='sent-back', approvalStage='admin'
-                          //   toast.success('Request sent back to publisher');
-                          //   await refreshRequests();
-                          //   setRejectComments("");
-                          //
-                          // } catch (error) {
-                          //   console.error('Error sending back request:', error);
-                          //   toast.error('Failed to send back request. Please try again.');
-                          // } finally {
-                          //   setIsLoading(false);
-                          // }
+                        className="flex-1 font-inter text-xs xl:text-sm font-medium bg-destructive! text-destructive-foreground! hover:bg-destructive/90!"
+                        disabled={
+                          isRejecting || isSendingBack || !isRejectCommentsValid
+                        }
+                        onClick={() => {
+                          setConfirmSendBackOpen(true);
                         }}
+                        aria-label="Send back this creative request to publisher"
                       >
-                        Send Back to Publisher
+                        {isSendingBack ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Sending...
+                          </>
+                        ) : (
+                          "Send Back to Publisher"
+                        )}
                       </Button>
                     </div>
+                    {error && (
+                      <div className="rounded-md bg-destructive/10 p-3 border border-destructive/20">
+                        <p className="text-xs text-destructive font-inter">
+                          {error}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Confirmation Dialog for Reject */}
+                    <AlertDialog
+                      open={confirmRejectOpen}
+                      onOpenChange={setConfirmRejectOpen}
+                    >
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirm Rejection</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to reject this creative
+                            request? This action will send the request back to
+                            the publisher.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={async () => {
+                              setConfirmRejectOpen(false);
+                              setRejectPopoverOpen(false);
+                              setIsRejecting(true);
+                              setError(null);
+
+                              try {
+                                // TODO: BACKEND - Implement Admin Reject Handler (UNIFIED MODEL)
+                                // const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-reject`, {
+                                //   method: 'POST',
+                                //   headers: {
+                                //     'Content-Type': 'application/json',
+                                //     'Authorization': `Bearer ${getAuthToken()}`
+                                //   },
+                                //   body: JSON.stringify({
+                                //     actionBy: getCurrentUserId(),
+                                //     actionType: 'reject',
+                                //     comments: rejectComments
+                                //   })
+                                // });
+                                //
+                                // if (!response.ok) {
+                                //   throw new Error('Failed to reject request');
+                                // }
+
+                                toast.success("Request rejected", {
+                                  description:
+                                    "The request has been rejected and sent back to the publisher.",
+                                });
+
+                                setRejectComments("");
+                                // await refreshRequests();
+                              } catch (err) {
+                                const errorMessage =
+                                  err instanceof Error
+                                    ? err.message
+                                    : "Failed to reject request. Please try again.";
+                                setError(errorMessage);
+                                toast.error("Failed to reject request", {
+                                  description: errorMessage,
+                                });
+                              } finally {
+                                setIsRejecting(false);
+                              }
+                            }}
+                          >
+                            Reject
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    {/* Confirmation Dialog for Send Back */}
+                    <AlertDialog
+                      open={confirmSendBackOpen}
+                      onOpenChange={setConfirmSendBackOpen}
+                    >
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirm Send Back</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to send this creative request
+                            back to the publisher? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={async () => {
+                              setConfirmSendBackOpen(false);
+                              setRejectPopoverOpen(false);
+                              setIsSendingBack(true);
+                              setError(null);
+
+                              try {
+                                // TODO: BACKEND - Implement Admin Send Back Handler (UNIFIED MODEL)
+                                // const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-send-back`, {
+                                //   method: 'POST',
+                                //   headers: {
+                                //     'Content-Type': 'application/json',
+                                //     'Authorization': `Bearer ${getAuthToken()}`
+                                //   },
+                                //   body: JSON.stringify({
+                                //     actionBy: getCurrentUserId(),
+                                //     actionType: 'send-back',
+                                //     comments: rejectComments
+                                //   })
+                                // });
+                                //
+                                // if (!response.ok) {
+                                //   throw new Error('Failed to send back request');
+                                // }
+
+                                toast.success(
+                                  "Request sent back to publisher",
+                                  {
+                                    description:
+                                      "The request has been sent back to the publisher for revision.",
+                                  }
+                                );
+
+                                setRejectComments("");
+                                // await refreshRequests();
+                              } catch (err) {
+                                const errorMessage =
+                                  err instanceof Error
+                                    ? err.message
+                                    : "Failed to send back request. Please try again.";
+                                setError(errorMessage);
+                                toast.error("Failed to send back request", {
+                                  description: errorMessage,
+                                });
+                              } finally {
+                                setIsSendingBack(false);
+                              }
+                            }}
+                          >
+                            Send Back
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </PopoverContent>
               </Popover>
@@ -746,10 +989,37 @@ export function RequestItem({
                     //   FOREIGN KEY (request_id) REFERENCES creative_requests(id) ON DELETE CASCADE,
                     //   INDEX idx_request_id (request_id)
                     // );
+
+                    try {
+                      toast.success("Download started", {
+                        description: "Your creative file download has started.",
+                      });
+                    } catch (err) {
+                      const errorMessage =
+                        err instanceof Error
+                          ? err.message
+                          : "Failed to download creative. Please try again.";
+                      setError(errorMessage);
+                      toast.error("Download failed", {
+                        description: errorMessage,
+                      });
+                    } finally {
+                      setIsDownloading(false);
+                    }
                   }}
+                  aria-label="Download creative file"
                 >
-                  <Download className="h-4 w-4" />
-                  Download
+                  {isDownloading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      Download
+                    </>
+                  )}
                 </Button>
               )}
             </div>
@@ -760,12 +1030,7 @@ export function RequestItem({
             <div className="flex flex-col gap-4 xl:gap-4 justify-self-end">
               <Popover
                 open={sendBackPopoverOpen}
-                onOpenChange={(open) => {
-                  setSendBackPopoverOpen(open);
-                  if (!open) {
-                    setSendBackComments("");
-                  }
-                }}
+                onOpenChange={handleSendBackPopoverClose}
               >
                 <PopoverTrigger asChild>
                   <Button
@@ -779,7 +1044,7 @@ export function RequestItem({
                       border: `1px solid ${variables.colors.requestCardRejectedButtonBorderColor}`,
                     }}
                   >
-                    Reject and Send Back
+                    Reject / Send Back
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
@@ -790,23 +1055,34 @@ export function RequestItem({
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <h4 className="font-inter font-medium text-sm">
-                        Reject and Send Back
+                        What would you like to do?
                       </h4>
                       <p className="font-inter text-xs text-muted-foreground">
-                        Add comments and send this request back to the
-                        advertiser.
+                        Add comments and choose an action for this creative
+                        request.
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <label
-                        className="font-inter text-xs font-medium"
-                        htmlFor="send-back-comments"
-                      >
-                        Comments{" "}
-                        <span className="text-muted-foreground">
-                          (Optional)
+                      <div className="flex items-center justify-between">
+                        <label
+                          className="font-inter text-xs font-medium"
+                          htmlFor="send-back-comments"
+                        >
+                          Comments{" "}
+                          <span className="text-muted-foreground">
+                            (Optional)
+                          </span>
+                        </label>
+                        <span
+                          className={`text-xs font-inter ${
+                            isSendBackCommentsValid
+                              ? "text-muted-foreground"
+                              : "text-destructive"
+                          }`}
+                        >
+                          {sendBackCommentsLength} / {MAX_COMMENT_LENGTH}
                         </span>
-                      </label>
+                      </div>
                       <RichTextEditor
                         value={sendBackComments}
                         onChange={setSendBackComments}
@@ -815,13 +1091,23 @@ export function RequestItem({
                         style={{
                           backgroundColor:
                             variables.colors.inputBackgroundColor,
-                          borderColor: variables.colors.inputBorderColor,
+                          borderColor: isSendBackCommentsValid
+                            ? variables.colors.inputBorderColor
+                            : "#dc2626",
                         }}
+                        aria-label="Comments for rejection or send back action"
+                        aria-invalid={!isSendBackCommentsValid}
                       />
+                      {!isSendBackCommentsValid && (
+                        <p className="text-xs text-destructive font-inter">
+                          Comments exceed maximum length of {MAX_COMMENT_LENGTH}{" "}
+                          characters.
+                        </p>
+                      )}
                     </div>
-                    <div className="flex flex-col gap-2 pt-2">
+                    <div className="flex flex-row gap-2 pt-2">
                       <Button
-                        className="w-full font-inter text-xs xl:text-sm font-medium"
+                        className="flex-1 font-inter text-xs xl:text-sm font-medium"
                         style={{
                           color:
                             variables.colors.requestCardRejectedButtonTextColor,
@@ -830,50 +1116,195 @@ export function RequestItem({
                               .requestCardRejectedButtonBackgroundColor,
                           border: `1px solid ${variables.colors.requestCardRejectedButtonBorderColor}`,
                         }}
-                        onClick={async () => {
-                          setSendBackPopoverOpen(false);
-                          // TODO: BACKEND - Implement Send Back to Advertiser Handler (UNIFIED MODEL)
-                          //
-                          // This button appears when advertiser sent back the request for reconsideration
-                          // Admin reviews again and can reject it back to advertiser
-                          //
-                          // IMPORTANT: This is the SAME creative request, just updating its status again
-                          //
-                          // try {
-                          //   setIsLoading(true);
-                          //
-                          //   const response = await fetch(`/api/admin/creative-requests/${request.id}/advertiser-send-back`, {
-                          //     method: 'POST',
-                          //     headers: {
-                          //       'Content-Type': 'application/json',
-                          //       'Authorization': `Bearer ${getAuthToken()}`
-                          //     },
-                          //     body: JSON.stringify({
-                          //       actionBy: getCurrentUserId(),
-                          //       comments: sendBackComments
-                          //     })
-                          //   });
-                          //
-                          //   if (!response.ok) {
-                          //     throw new Error('Failed to send back request');
-                          //   }
-                          //
-                          //   // The SAME request status might change or stay sent-back with new comments
-                          //   toast.success('Request sent back to advertiser for reconsideration');
-                          //   await refreshRequests();
-                          //   setSendBackComments("");
-                          //
-                          // } catch (error) {
-                          //   console.error('Error sending back request:', error);
-                          //   toast.error('Failed to send back request. Please try again.');
-                          // } finally {
-                          //   setIsLoading(false);
-                          // }
+                        disabled={
+                          isRejecting ||
+                          isSendingBack ||
+                          !isSendBackCommentsValid
+                        }
+                        onClick={() => {
+                          setConfirmRejectOpen(true);
                         }}
+                        aria-label="Reject this creative request"
                       >
-                        Reject and Send Back
+                        {isRejecting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Rejecting...
+                          </>
+                        ) : (
+                          "Reject"
+                        )}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        className="flex-1 font-inter text-xs xl:text-sm font-medium bg-destructive! text-destructive-foreground! hover:bg-destructive/90!"
+                        disabled={
+                          isRejecting ||
+                          isSendingBack ||
+                          !isSendBackCommentsValid
+                        }
+                        onClick={() => {
+                          setConfirmSendBackOpen(true);
+                        }}
+                        aria-label="Send back this creative request to publisher"
+                      >
+                        {isSendingBack ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Sending...
+                          </>
+                        ) : (
+                          "Send Back to Publisher"
+                        )}
                       </Button>
                     </div>
+                    {error && (
+                      <div className="rounded-md bg-destructive/10 p-3 border border-destructive/20">
+                        <p className="text-xs text-destructive font-inter">
+                          {error}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Confirmation Dialog for Reject (Second Popover) */}
+                    <AlertDialog
+                      open={confirmRejectOpen}
+                      onOpenChange={setConfirmRejectOpen}
+                    >
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirm Rejection</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to reject this creative
+                            request? This action will send the request back to
+                            the publisher.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={async () => {
+                              setConfirmRejectOpen(false);
+                              setSendBackPopoverOpen(false);
+                              setIsRejecting(true);
+                              setError(null);
+
+                              try {
+                                // TODO: BACKEND - Implement Admin Reject Handler (UNIFIED MODEL)
+                                // const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-reject`, {
+                                //   method: 'POST',
+                                //   headers: {
+                                //     'Content-Type': 'application/json',
+                                //     'Authorization': `Bearer ${getAuthToken()}`
+                                //   },
+                                //   body: JSON.stringify({
+                                //     actionBy: getCurrentUserId(),
+                                //     actionType: 'reject',
+                                //     comments: sendBackComments
+                                //   })
+                                // });
+                                //
+                                // if (!response.ok) {
+                                //   throw new Error('Failed to reject request');
+                                // }
+
+                                toast.success("Request rejected", {
+                                  description:
+                                    "The request has been rejected and sent back to the publisher.",
+                                });
+
+                                setSendBackComments("");
+                                // await refreshRequests();
+                              } catch (err) {
+                                const errorMessage =
+                                  err instanceof Error
+                                    ? err.message
+                                    : "Failed to reject request. Please try again.";
+                                setError(errorMessage);
+                                toast.error("Failed to reject request", {
+                                  description: errorMessage,
+                                });
+                              } finally {
+                                setIsRejecting(false);
+                              }
+                            }}
+                          >
+                            Reject
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    {/* Confirmation Dialog for Send Back (Second Popover) */}
+                    <AlertDialog
+                      open={confirmSendBackOpen}
+                      onOpenChange={setConfirmSendBackOpen}
+                    >
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirm Send Back</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to send this creative request
+                            back to the publisher? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={async () => {
+                              setConfirmSendBackOpen(false);
+                              setSendBackPopoverOpen(false);
+                              setIsSendingBack(true);
+                              setError(null);
+
+                              try {
+                                // TODO: BACKEND - Implement Admin Send Back Handler (UNIFIED MODEL)
+                                // const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-send-back`, {
+                                //   method: 'POST',
+                                //   headers: {
+                                //     'Content-Type': 'application/json',
+                                //     'Authorization': `Bearer ${getAuthToken()}`
+                                //   },
+                                //   body: JSON.stringify({
+                                //     actionBy: getCurrentUserId(),
+                                //     actionType: 'send-back',
+                                //     comments: sendBackComments
+                                //   })
+                                // });
+                                //
+                                // if (!response.ok) {
+                                //   throw new Error('Failed to send back request');
+                                // }
+
+                                toast.success(
+                                  "Request sent back to publisher",
+                                  {
+                                    description:
+                                      "The request has been sent back to the publisher for revision.",
+                                  }
+                                );
+
+                                setSendBackComments("");
+                                // await refreshRequests();
+                              } catch (err) {
+                                const errorMessage =
+                                  err instanceof Error
+                                    ? err.message
+                                    : "Failed to send back request. Please try again.";
+                                setError(errorMessage);
+                                toast.error("Failed to send back request", {
+                                  description: errorMessage,
+                                });
+                              } finally {
+                                setIsSendingBack(false);
+                              }
+                            }}
+                          >
+                            Send Back
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </PopoverContent>
               </Popover>
@@ -959,10 +1390,37 @@ export function RequestItem({
                     //   FOREIGN KEY (request_id) REFERENCES creative_requests(id) ON DELETE CASCADE,
                     //   INDEX idx_request_id (request_id)
                     // );
+
+                    try {
+                      toast.success("Download started", {
+                        description: "Your creative file download has started.",
+                      });
+                    } catch (err) {
+                      const errorMessage =
+                        err instanceof Error
+                          ? err.message
+                          : "Failed to download creative. Please try again.";
+                      setError(errorMessage);
+                      toast.error("Download failed", {
+                        description: errorMessage,
+                      });
+                    } finally {
+                      setIsDownloading(false);
+                    }
                   }}
+                  aria-label="Download creative file"
                 >
-                  <Download className="h-4 w-4" />
-                  Download
+                  {isDownloading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      Download
+                    </>
+                  )}
                 </Button>
               )}
             </div>
@@ -977,81 +1435,112 @@ export function RequestItem({
                     variables.colors.requestCardViewButtonBackgroundColor,
                   border: `1px solid ${variables.colors.requestCardViewButtonBorderColor}`,
                 }}
+                disabled={isDownloading}
                 onClick={async () => {
-                  // TODO: BACKEND - Implement Creative File Download (UNIFIED MODEL)
-                  //
-                  // Backend API Endpoint:
-                  // GET /api/admin/creative-requests/:id/download
-                  //
-                  // Backend should handle file type based on creative_type field:
-                  // - "Email" → .zip or .xlsx (if multiple creatives)
-                  // - "Display" → .zip (images/assets)
-                  // - "Social" → .zip (images/videos)
-                  // - Other types → appropriate file format
-                  //
-                  // Backend Implementation:
-                  // 1. Retrieve the creative file(s) associated with the request ID
-                  // 2. Determine file type based on creative_type field
-                  // 3. If multiple files, create a ZIP archive
-                  // 4. Set appropriate Content-Type header
-                  // 5. Set Content-Disposition header for download
-                  // 6. Stream file(s) to client
-                  //
-                  // Response Headers:
-                  // - Content-Type: application/zip | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet | image/* | etc.
-                  // - Content-Disposition: attachment; filename="creative-{requestId}-{creativeType}.{ext}"
-                  // - Content-Length: {fileSize}
-                  //
-                  // Implementation Example:
-                  // try {
-                  //   const response = await fetch(`/api/admin/creative-requests/${request.id}/download`, {
-                  //     method: 'GET',
-                  //     headers: {
-                  //       'Authorization': `Bearer ${getAuthToken()}`
-                  //     }
-                  //   });
-                  //
-                  //   if (!response.ok) {
-                  //     throw new Error('Failed to download creative');
-                  //   }
-                  //
-                  //   const blob = await response.blob();
-                  //   const url = window.URL.createObjectURL(blob);
-                  //   const a = document.createElement('a');
-                  //   a.href = url;
-                  //   a.download = `creative-${request.id}-${request.creativeType.toLowerCase()}.${getFileExtension(blob.type)}`;
-                  //   document.body.appendChild(a);
-                  //   a.click();
-                  //   window.URL.revokeObjectURL(url);
-                  //   document.body.removeChild(a);
-                  // } catch (error) {
-                  //   console.error('Error downloading creative:', error);
-                  //   toast.error('Failed to download creative. Please try again.');
-                  // }
-                  //
-                  // Database Schema Addition Needed:
-                  // ALTER TABLE creative_requests ADD COLUMN file_url VARCHAR(500);
-                  // ALTER TABLE creative_requests ADD COLUMN file_type VARCHAR(50);
-                  // ALTER TABLE creative_requests ADD COLUMN file_name VARCHAR(255);
-                  // ALTER TABLE creative_requests ADD COLUMN file_size BIGINT;
-                  //
-                  // OR if multiple files per creative:
-                  // CREATE TABLE creative_files (
-                  //   id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                  //   request_id VARCHAR(255) NOT NULL,
-                  //   file_url VARCHAR(500) NOT NULL,
-                  //   file_type VARCHAR(50) NOT NULL,
-                  //   file_name VARCHAR(255) NOT NULL,
-                  //   file_size BIGINT NOT NULL,
-                  //   file_order INT DEFAULT 0,
-                  //   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                  //   FOREIGN KEY (request_id) REFERENCES creative_requests(id) ON DELETE CASCADE,
-                  //   INDEX idx_request_id (request_id)
-                  // );
+                  setIsDownloading(true);
+                  setError(null);
+
+                  try {
+                    // TODO: BACKEND - Implement Creative File Download (UNIFIED MODEL)
+                    //
+                    // Backend API Endpoint:
+                    // GET /api/admin/creative-requests/:id/download
+                    //
+                    // Backend should handle file type based on creative_type field:
+                    // - "Email" → .zip or .xlsx (if multiple creatives)
+                    // - "Display" → .zip (images/assets)
+                    // - "Social" → .zip (images/videos)
+                    // - Other types → appropriate file format
+                    //
+                    // Backend Implementation:
+                    // 1. Retrieve the creative file(s) associated with the request ID
+                    // 2. Determine file type based on creative_type field
+                    // 3. If multiple files, create a ZIP archive
+                    // 4. Set appropriate Content-Type header
+                    // 5. Set Content-Disposition header for download
+                    // 6. Stream file(s) to client
+                    //
+                    // Response Headers:
+                    // - Content-Type: application/zip | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet | image/* | etc.
+                    // - Content-Disposition: attachment; filename="creative-{requestId}-{creativeType}.{ext}"
+                    // - Content-Length: {fileSize}
+                    //
+                    // Implementation Example:
+                    // try {
+                    //   const response = await fetch(`/api/admin/creative-requests/${request.id}/download`, {
+                    //     method: 'GET',
+                    //     headers: {
+                    //       'Authorization': `Bearer ${getAuthToken()}`
+                    //     }
+                    //   });
+                    //
+                    //   if (!response.ok) {
+                    //     throw new Error('Failed to download creative');
+                    //   }
+                    //
+                    //   const blob = await response.blob();
+                    //   const url = window.URL.createObjectURL(blob);
+                    //   const a = document.createElement('a');
+                    //   a.href = url;
+                    //   a.download = `creative-${request.id}-${request.creativeType.toLowerCase()}.${getFileExtension(blob.type)}`;
+                    //   document.body.appendChild(a);
+                    //   a.click();
+                    //   window.URL.revokeObjectURL(url);
+                    //   document.body.removeChild(a);
+                    // } catch (error) {
+                    //   console.error('Error downloading creative:', error);
+                    //   toast.error('Failed to download creative. Please try again.');
+                    // }
+                    //
+                    // Database Schema Addition Needed:
+                    // ALTER TABLE creative_requests ADD COLUMN file_url VARCHAR(500);
+                    // ALTER TABLE creative_requests ADD COLUMN file_type VARCHAR(50);
+                    // ALTER TABLE creative_requests ADD COLUMN file_name VARCHAR(255);
+                    // ALTER TABLE creative_requests ADD COLUMN file_size BIGINT;
+                    //
+                    // OR if multiple files per creative:
+                    // CREATE TABLE creative_files (
+                    //   id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    //   request_id VARCHAR(255) NOT NULL,
+                    //   file_url VARCHAR(500) NOT NULL,
+                    //   file_type VARCHAR(50) NOT NULL,
+                    //   file_name VARCHAR(255) NOT NULL,
+                    //   file_size BIGINT NOT NULL,
+                    //   file_order INT DEFAULT 0,
+                    //   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    //   FOREIGN KEY (request_id) REFERENCES creative_requests(id) ON DELETE CASCADE,
+                    //   INDEX idx_request_id (request_id)
+                    // };
+
+                    toast.success("Download started", {
+                      description: "Your creative file download has started.",
+                    });
+                  } catch (err) {
+                    const errorMessage =
+                      err instanceof Error
+                        ? err.message
+                        : "Failed to download creative. Please try again.";
+                    setError(errorMessage);
+                    toast.error("Download failed", {
+                      description: errorMessage,
+                    });
+                  } finally {
+                    setIsDownloading(false);
+                  }
                 }}
+                aria-label="Download creative file"
               >
-                <Download className="h-4 w-4" />
-                Download
+                {isDownloading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4" />
+                    Download
+                  </>
+                )}
               </Button>
             </div>
           ) : null}

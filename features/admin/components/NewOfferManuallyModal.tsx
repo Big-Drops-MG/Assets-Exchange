@@ -1,7 +1,8 @@
 "use client";
 
-import { File, Upload, X } from "lucide-react";
+import { File, Loader2, Upload, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { getVariables } from "@/components/_variables";
 import { Button } from "@/components/ui/button";
@@ -104,6 +105,14 @@ export function NewOfferManuallyModal({
     brandGuidelinesNotes: "",
   });
 
+  const [initialFormData, setInitialFormData] =
+    useState<NewOfferFormData | null>(null);
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!initialFormData) return false;
+    return JSON.stringify(formData) !== JSON.stringify(initialFormData);
+  }, [formData, initialFormData]);
+
   const [validationErrors, setValidationErrors] = useState<
     Partial<Record<keyof NewOfferFormData, string>>
   >({});
@@ -147,19 +156,21 @@ export function NewOfferManuallyModal({
     if (open) {
       reset();
       generateOfferId().then((newOfferId) => {
-        setFormData({
+        const initialData: NewOfferFormData = {
           offerId: newOfferId,
           offerName: "",
           advertiserId: "",
           advertiserName: "",
-          status: "Active",
-          visibility: "Public",
-          brandGuidelinesType: "url",
+          status: "Active" as const,
+          visibility: "Public" as const,
+          brandGuidelinesType: "url" as const,
           brandGuidelinesUrl: "",
           brandGuidelinesFile: null,
           brandGuidelinesText: "",
           brandGuidelinesNotes: "",
-        });
+        };
+        setFormData(initialData);
+        setInitialFormData(initialData);
       });
       setValidationErrors({});
       setAdvertiserSearchQuery("");
@@ -192,24 +203,54 @@ export function NewOfferManuallyModal({
     e.preventDefault();
 
     if (!validateForm()) {
+      toast.error("Validation failed", {
+        description: "Please fix the errors in the form before submitting.",
+      });
       return;
     }
 
-    const createdOffer = await submitOffer(formData);
+    try {
+      const createdOffer = await submitOffer(formData);
 
-    if (createdOffer) {
-      onSuccess?.(createdOffer.id);
-      onOpenChange(false);
+      if (createdOffer) {
+        toast.success("Offer created successfully", {
+          description: `Offer ${createdOffer.id} has been created.`,
+        });
+        setInitialFormData(null);
+        onSuccess?.(createdOffer.id);
+        onOpenChange(false);
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Failed to create offer. Please try again.";
+      toast.error("Failed to create offer", {
+        description: errorMessage,
+      });
     }
   };
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
-      if (!isSubmitting && !open) {
+      if (isSubmitting) {
+        return;
+      }
+
+      if (!open && hasUnsavedChanges) {
+        if (
+          window.confirm(
+            "You have unsaved changes. Are you sure you want to close?"
+          )
+        ) {
+          setInitialFormData(null);
+          onOpenChange(false);
+        }
+      } else if (!open) {
         onOpenChange(false);
       }
     },
-    [isSubmitting, onOpenChange]
+    [isSubmitting, hasUnsavedChanges, onOpenChange]
   );
 
   const handleClose = useCallback(() => {
@@ -1002,7 +1043,14 @@ export function NewOfferManuallyModal({
                 height: "3rem",
               }}
             >
-              {isSubmitting ? "Creating..." : "Create Offer"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Creating...
+                </>
+              ) : (
+                "Create Offer"
+              )}
             </Button>
           </DialogFooter>
         </form>
