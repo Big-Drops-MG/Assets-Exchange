@@ -3,6 +3,7 @@
 import { AlertTriangle } from "lucide-react";
 import { useState, useCallback } from "react";
 
+import { getVariables } from "@/components/_variables/variables";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,7 +14,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { getVariables } from "@/components/_variables/variables";
 
 interface ConfirmDialogOptions {
   title?: string;
@@ -174,4 +174,3 @@ export function useConfirmDialog() {
     []
   );
 }
-
