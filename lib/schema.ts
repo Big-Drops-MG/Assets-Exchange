@@ -423,3 +423,28 @@ export const systemStates = pgTable("system_states", {
   value: jsonb("value"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+export const systemSettings = pgTable("system_settings", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  key: text("key").unique().notNull(), 
+  value: text("value").notNull(), 
+  description: text("description"),
+  updatedBy: text("updated_by"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const auditLogs = pgTable("audit_logs", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  userId: text("user_id").notNull(), 
+  action: text("action").notNull(), 
+  entityType: text("entity_type").notNull(), 
+  entityId: text("entity_id"), 
+  details: jsonb("details"), 
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("idx_audit_user").on(table.userId),
+  actionIdx: index("idx_audit_action").on(table.action),
+  createdAtIdx: index("idx_audit_created_at").on(table.createdAt),
+}));

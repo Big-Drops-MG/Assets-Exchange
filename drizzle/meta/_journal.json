@@ -36,6 +36,13 @@
       "when": 1768305943203,
       "tag": "0004_overrated_exiles",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1768538249952,
+      "tag": "0005_same_stranger",
+      "breakpoints": true
     }
   ]
 }
