@@ -99,7 +99,7 @@ export default function OpsPage() {
         if (!data?.trends) return [];
         return data.trends.map(t => ({
             ...t,
-            time: new Date(t.hour).getHours() + ":00",
+            time: new Date(t.hour).getHours().toString().padStart(2, "0") + ":00",
             total: Number(t.success) + Number(t.failed)
         }));
     }, [data]);
