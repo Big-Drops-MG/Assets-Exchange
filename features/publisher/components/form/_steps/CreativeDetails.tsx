@@ -258,8 +258,11 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
 
       const mapped: UploadedFileMeta[] = (data.extractedFiles || []).map(
         (f: {
+          fileId: string;
           fileName: string;
           fileUrl: string;
+          fileSize: number;
+          fileType?: string;
           previewUrl?: string;
           assetCount?: number;
           hasAssets?: boolean;

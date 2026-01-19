@@ -43,6 +43,13 @@
       "when": 1768538249952,
       "tag": "0005_same_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1768852485077,
+      "tag": "0006_lovely_pandemic",
+      "breakpoints": true
     }
   ]
 }

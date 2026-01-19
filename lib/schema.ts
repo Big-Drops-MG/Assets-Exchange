@@ -508,3 +508,33 @@ export const auditLogs = pgTable(
     createdAtIdx: index("idx_audit_created_at").on(table.createdAt),
   })
 );
+
+export const creativeMetadata = pgTable(
+  "creative_metadata",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    creativeId: text("creative_id").notNull().unique(), // File URL from blob storage
+    fromLines: text("from_lines"),
+    subjectLines: text("subject_lines"),
+    proofreadingData: jsonb("proofreading_data"),
+    htmlContent: text("html_content"),
+    additionalNotes: text("additional_notes"),
+    metadata: jsonb("metadata").$type<{
+      lastSaved?: string;
+      lastGenerated?: string;
+      lastProofread?: string;
+      creativeType?: string;
+      fileName?: string;
+    }>(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    creativeIdIdx: index("idx_creative_metadata_creative_id").on(
+      table.creativeId
+    ),
+    updatedAtIdx: index("idx_creative_metadata_updated_at").on(table.updatedAt),
+  })
+);
