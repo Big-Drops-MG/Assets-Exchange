@@ -66,6 +66,7 @@ const priorityLevels = [
 const CreativeDetails: React.FC<CreativeDetailsProps> = ({
     formData,
     onDataChange,
+    validation,
 }) => {
     const variables = getVariables();
     const [offerSearchTerm, setOfferSearchTerm] = useState("");
@@ -117,14 +118,17 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
     const [uploadedZipFileName, setUploadedZipFileName] = useState<string>("");
 
     useEffect(() => {
-        setHasUploadedFiles(uploadedFiles.length > 0);
-        setHasFromSubjectLines(
-            !!(formData.fromLines && formData.subjectLines)
-        );
-    }, [uploadedFiles, formData.fromLines, formData.subjectLines, setHasUploadedFiles, setHasFromSubjectLines]);
+        const hasFiles = uploadedFiles.length > 0;
+        const hasLines = !!(formData.fromLines && formData.subjectLines);
+        setHasUploadedFiles(hasFiles);
+        setHasFromSubjectLines(hasLines);
+        validation.updateFileUploadState(hasFiles);
+        validation.updateFromSubjectLinesState(hasLines);
+    }, [uploadedFiles, formData.fromLines, formData.subjectLines, validation]);
 
     const handleSelectChange = (fieldName: string, value: string) => {
         onDataChange({ [fieldName]: value });
+        validation.handleFieldChange(fieldName as keyof typeof formData, value);
         if (fieldName === "offerId") {
             setOfferSearchTerm("");
         }
@@ -272,6 +276,8 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
 
     const handleFromSubjectLinesSave = (fromLines: string, subjectLines: string) => {
         onDataChange({ fromLines, subjectLines });
+        validation.handleFieldChange('fromLines', fromLines);
+        validation.handleFieldChange('subjectLines', subjectLines);
         setHasFromSubjectLines(true);
         setIsFromSubjectLinesDialogOpen(false);
     };
@@ -279,12 +285,16 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
     const handleDeleteFromSubjectLines = () => {
         onDataChange({ fromLines: "", subjectLines: "" });
         setHasFromSubjectLines(false);
+        validation.updateFromSubjectLinesState(false);
+        validation.handleFieldChange('fromLines', '');
+        validation.handleFieldChange('subjectLines', '');
     };
 
     const handleDeleteUploadedFiles = () => {
         setUploadedFiles([]);
         setHasUploadedFiles(false);
         setUploadedZipFileName("");
+        validation.updateFileUploadState(false);
     };
 
     const handleViewUploadedFiles = () => {
@@ -369,10 +379,19 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
                         onOpenChange={(open) => {
                             if (open) {
                                 setOfferSearchTerm("");
+                            } else {
+                                validation.handleFieldBlur('offerId');
                             }
                         }}
                     >
-                        <SelectTrigger className="w-full h-12! font-inter publisher-form-input">
+                        <SelectTrigger 
+                            className="w-full h-12! font-inter publisher-form-input"
+                            style={{
+                                borderColor: validation.hasFieldError('offerId') && validation.isFieldTouched('offerId')
+                                    ? variables.colors.inputErrorColor
+                                    : variables.colors.inputBorderColor
+                            }}
+                        >
                             <SelectValue placeholder="Select an offer" />
                         </SelectTrigger>
                         <SelectContent>
@@ -404,6 +423,11 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
                             )}
                         </SelectContent>
                     </Select>
+                    {validation.hasFieldError('offerId') && validation.isFieldTouched('offerId') && (
+                        <p className="text-xs font-inter" style={{ color: variables.colors.inputErrorColor }}>
+                            {validation.getFieldErrorMessage('offerId')}
+                        </p>
+                    )}
                 </div>
 
                 <div className="space-y-2">
@@ -415,8 +439,20 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
                         onValueChange={(value) =>
                             handleSelectChange("creativeType", value)
                         }
+                        onOpenChange={(open) => {
+                            if (!open) {
+                                validation.handleFieldBlur('creativeType');
+                            }
+                        }}
                     >
-                        <SelectTrigger className="w-full h-12! font-inter publisher-form-input">
+                        <SelectTrigger 
+                            className="w-full h-12! font-inter publisher-form-input"
+                            style={{
+                                borderColor: validation.hasFieldError('creativeType') && validation.isFieldTouched('creativeType')
+                                    ? variables.colors.inputErrorColor
+                                    : variables.colors.inputBorderColor
+                            }}
+                        >
                             <SelectValue placeholder="Select creative type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -427,6 +463,16 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
                             ))}
                         </SelectContent>
                     </Select>
+                    {validation.hasFieldError('creativeType') && validation.isFieldTouched('creativeType') && (
+                        <p className="text-xs font-inter" style={{ color: variables.colors.inputErrorColor }}>
+                            {validation.getFieldErrorMessage('creativeType')}
+                        </p>
+                    )}
+                    {!hasUploadedFiles && validation.hasFieldError('creativeType') && (
+                        <p className="text-xs font-inter" style={{ color: variables.colors.inputErrorColor }}>
+                            Please upload at least one creative file
+                        </p>
+                    )}
                 </div>
             </div>
 
@@ -571,6 +617,24 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
                                     From & Subject Lines
                                 </span>
                             </Button>
+                        )}
+                    </div>
+                )}
+                {formData.creativeType === "email" && !hasFromSubjectLines && !hasUploadedFiles && (
+                    <div className="space-y-2 mt-2">
+                        {(validation.hasFieldError('fromLines') || validation.hasFieldError('subjectLines')) && (
+                            <div className="space-y-1">
+                                {validation.hasFieldError('fromLines') && (
+                                    <p className="text-xs font-inter" style={{ color: variables.colors.inputErrorColor }}>
+                                        {validation.getFieldErrorMessage('fromLines')}
+                                    </p>
+                                )}
+                                {validation.hasFieldError('subjectLines') && (
+                                    <p className="text-xs font-inter" style={{ color: variables.colors.inputErrorColor }}>
+                                        {validation.getFieldErrorMessage('subjectLines')}
+                                    </p>
+                                )}
+                            </div>
                         )}
                     </div>
                 )}

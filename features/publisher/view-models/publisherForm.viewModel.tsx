@@ -4,11 +4,13 @@ import ContactDetails from "../components/form/_steps/ContactDetails";
 import CreativeDetails from "../components/form/_steps/CreativeDetails";
 import PersonalDetails from "../components/form/_steps/PersonalDetails";
 import { type PublisherFormData } from "../hooks/usePublisherForm";
+import type { useFormValidation } from "../hooks/useFormValidation";
 
 interface RenderStepProps {
     step: number;
     formData: PublisherFormData;
     onDataChange: (data: Partial<PublisherFormData>) => void;
+    validation: ReturnType<typeof useFormValidation>;
 }
 
 export const getStepLabel = (step: number): string => {
@@ -24,14 +26,14 @@ export const getStepLabel = (step: number): string => {
     }
 };
 
-export const renderStep = ({ step, formData, onDataChange }: RenderStepProps): ReactNode => {
+export const renderStep = ({ step, formData, onDataChange, validation }: RenderStepProps): ReactNode => {
     switch (step) {
         case 1:
-            return <PersonalDetails formData={formData} onDataChange={onDataChange} />;
+            return <PersonalDetails formData={formData} onDataChange={onDataChange} validation={validation} />;
         case 2:
-            return <ContactDetails formData={formData} onDataChange={onDataChange} />;
+            return <ContactDetails formData={formData} onDataChange={onDataChange} validation={validation} />;
         case 3:
-            return <CreativeDetails formData={formData} onDataChange={onDataChange} />;
+            return <CreativeDetails formData={formData} onDataChange={onDataChange} validation={validation} />;
         default:
             return <div>Invalid step</div>;
     }

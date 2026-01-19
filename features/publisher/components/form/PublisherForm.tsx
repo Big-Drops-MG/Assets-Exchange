@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { usePublisherForm } from "@/features/publisher/hooks/usePublisherForm";
+import { useFormValidation } from "@/features/publisher/hooks/useFormValidation";
 import {
   renderStep,
   getStepLabel,
@@ -21,6 +22,7 @@ import {
 export default function PublisherForm() {
   const variables = getVariables();
   const { currentStep, formData, onDataChange, nextStep, previousStep, isSubmitting, handleSubmit } = usePublisherForm();
+  const validation = useFormValidation(formData);
   const inputRingColor = variables.colors.inputRingColor;
 
   return (
@@ -83,7 +85,7 @@ export default function PublisherForm() {
             <Separator />
           </CardHeader>
           <CardContent>
-            {renderStep({ step: currentStep, formData, onDataChange })}
+            {renderStep({ step: currentStep, formData, onDataChange, validation })}
           </CardContent>
           <CardFooter className="flex flex-col justify-between gap-4 w-full">
             {currentStep > 1 && (
@@ -102,7 +104,42 @@ export default function PublisherForm() {
             )}
             <Button
               className="w-full h-14 font-inter font-medium"
-              onClick={currentStep === 3 ? handleSubmit : nextStep}
+              onClick={async () => {
+                if (currentStep === 3) {
+                  const result = validation.validateCompleteFormData(
+                    formData,
+                    validation.hasUploadedFiles,
+                    validation.hasFromSubjectLines
+                  );
+                  if (result.valid) {
+                    await handleSubmit();
+                  } else {
+                    const creativeResult = validation.validateCreativeDetailsStep(
+                      formData,
+                      validation.hasUploadedFiles,
+                      validation.hasFromSubjectLines
+                    );
+                  }
+                } else {
+                  let isValid = false;
+                  if (currentStep === 1) {
+                    const result = validation.validatePersonalDetailsStep(formData);
+                    isValid = result.valid;
+                    if (!isValid) {
+                      return;
+                    }
+                  } else if (currentStep === 2) {
+                    const result = validation.validateContactDetailsStep(formData);
+                    isValid = result.valid;
+                    if (!isValid) {
+                      return;
+                    }
+                  }
+                  if (isValid) {
+                    nextStep();
+                  }
+                }
+              }}
               disabled={isSubmitting}
               style={{
                 backgroundColor: variables.colors.buttonDefaultBackgroundColor,

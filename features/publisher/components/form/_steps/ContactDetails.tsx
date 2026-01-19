@@ -11,7 +11,7 @@ import { type ContactDetailsProps } from "@/features/publisher/types/form.types"
 
 const TELEGRAM_BOT_URL = process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL || "https://t.me/your_bot_username";
 
-const ContactDetails: React.FC<ContactDetailsProps> = ({ formData, onDataChange }) => {
+const ContactDetails: React.FC<ContactDetailsProps> = ({ formData, onDataChange, validation }) => {
     const variables = getVariables();
     const [isTelegramFocused, setIsTelegramFocused] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
@@ -121,9 +121,23 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({ formData, onDataChange 
                         type="email"
                         placeholder="Enter your email"
                         value={formData.email}
-                        onChange={handleChange}
+                        onChange={(e) => {
+                            handleChange(e);
+                            validation.handleFieldChange('email', e.target.value);
+                        }}
+                        onBlur={() => validation.handleFieldBlur('email')}
                         className="w-full h-12 font-inter publisher-form-input"
+                        style={{
+                            borderColor: validation.hasFieldError('email') && validation.isFieldTouched('email')
+                                ? variables.colors.inputErrorColor
+                                : variables.colors.inputBorderColor
+                        }}
                     />
+                    {validation.hasFieldError('email') && validation.isFieldTouched('email') && (
+                        <p className="text-xs font-inter" style={{ color: variables.colors.inputErrorColor }}>
+                            {validation.getFieldErrorMessage('email')}
+                        </p>
+                    )}
                 </div>
 
                 <div className="space-y-2">
@@ -137,12 +151,28 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({ formData, onDataChange 
                             type="text"
                             placeholder="Enter your Telegram ID"
                             value={formData.telegramId}
-                            onChange={handleChange}
+                            onChange={(e) => {
+                                handleChange(e);
+                                validation.handleFieldChange('telegramId', e.target.value);
+                            }}
                             onFocus={handleFocus}
-                            onBlur={handleBlur}
+                            onBlur={(e) => {
+                                handleBlur(e);
+                                validation.handleFieldBlur('telegramId');
+                            }}
                             onKeyDown={handleKeyDown}
                             className="w-full h-12 font-inter publisher-form-input pr-20"
+                            style={{
+                                borderColor: validation.hasFieldError('telegramId') && validation.isFieldTouched('telegramId')
+                                    ? variables.colors.inputErrorColor
+                                    : variables.colors.inputBorderColor
+                            }}
                         />
+                        {validation.hasFieldError('telegramId') && validation.isFieldTouched('telegramId') && (
+                            <p className="text-xs font-inter mt-1" style={{ color: variables.colors.inputErrorColor }}>
+                                {validation.getFieldErrorMessage('telegramId')}
+                            </p>
+                        )}
                         <Button
                             variant="outline"
                             size="sm"
