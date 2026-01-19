@@ -147,7 +147,7 @@ export async function GET(req: Request) {
             console.warn("Cron endpoint accessed without authorization", {
                 hasHeader: !!vercelCronHeader,
                 headerValue: vercelCronHeader,
-                userAgent: userAgent,
+                userAgent,
                 hasAuthHeader: !!authHeader,
                 hasCronSecret: !!cronSecret,
                 isProduction: process.env.NODE_ENV === "production",
