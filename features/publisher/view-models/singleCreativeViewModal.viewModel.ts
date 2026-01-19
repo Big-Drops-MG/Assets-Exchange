@@ -1,9 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
+
 import { API_ENDPOINTS } from "@/constants/apiEndpoints";
-import { proofreadCreative } from "@/lib/proofreadCreativeClient";
-import { saveHtml, renameCreative, saveCreativeMetadata, getCreativeMetadata } from "@/lib/creativeClient";
+import {
+  saveHtml,
+  renameCreative,
+  saveCreativeMetadata,
+  getCreativeMetadata,
+} from "@/lib/creativeClient";
 import { generateEmailContent } from "@/lib/generationClient";
-import { ProofreadCreativeResponse } from "@/lib/proofreadCreativeClient";
+import { proofreadCreative } from "@/lib/proofreadCreativeClient";
+import { type ProofreadCreativeResponse } from "@/lib/proofreadCreativeClient";
 
 export interface Creative {
   id: string;
@@ -31,8 +37,8 @@ export const useSingleCreativeViewModal = ({
   creative,
   onClose,
   onFileNameChange,
-  showAdditionalNotes = false,
-  creativeType = "email",
+  showAdditionalNotes: _showAdditionalNotes = false,
+  creativeType: _creativeType = "email",
 }: UseSingleCreativeViewModalProps) => {
   const [editableFileName, setEditableFileName] = useState(creative.name);
   const [editableNameOnly, setEditableNameOnly] = useState(() => {
@@ -45,10 +51,12 @@ export const useSingleCreativeViewModal = ({
   const [fromLines, setFromLines] = useState("");
   const [subjectLines, setSubjectLines] = useState("");
   const [isHtmlEditorFullscreen, setIsHtmlEditorFullscreen] = useState(false);
-  const [isImagePreviewFullscreen, setIsImagePreviewFullscreen] = useState(false);
+  const [isImagePreviewFullscreen, setIsImagePreviewFullscreen] =
+    useState(false);
   const [isHtmlPreviewFullscreen, setIsHtmlPreviewFullscreen] = useState(false);
   const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(false);
-  const [proofreadingData, setProofreadingData] = useState<ProofreadCreativeResponse | null>(null);
+  const [proofreadingData, setProofreadingData] =
+    useState<ProofreadCreativeResponse | null>(null);
   const [htmlContent, setHtmlContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
@@ -56,11 +64,38 @@ export const useSingleCreativeViewModal = ({
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  const loadExistingCreativeData = useCallback(async () => {
+    try {
+      const data = await getCreativeMetadata(creative.id);
+      if (data.success && data.metadata) {
+        setFromLines(data.metadata.fromLines || "");
+        setSubjectLines(data.metadata.subjectLines || "");
+        if (
+          data.metadata.proofreadingData &&
+          typeof data.metadata.proofreadingData === "object" &&
+          Object.keys(data.metadata.proofreadingData).length > 0
+        ) {
+          setProofreadingData(
+            data.metadata.proofreadingData as ProofreadCreativeResponse
+          );
+        }
+        if (data.metadata.htmlContent) {
+          setHtmlContent(data.metadata.htmlContent);
+        }
+        if (data.metadata.additionalNotes) {
+          setAdditionalNotes(data.metadata.additionalNotes);
+        }
+      }
+    } catch (_error) {
+      console.error("No existing data found for creative:", creative.id);
+    }
+  }, [creative.id]);
+
   useEffect(() => {
     if (isOpen && creative.id) {
       loadExistingCreativeData();
     }
-  }, [isOpen, creative.id]);
+  }, [isOpen, creative.id, loadExistingCreativeData]);
 
   useEffect(() => {
     if (isOpen) {
@@ -74,31 +109,12 @@ export const useSingleCreativeViewModal = ({
     }
   }, [isOpen, creative.name]);
 
-  const loadExistingCreativeData = async () => {
-    try {
-      const data = await getCreativeMetadata(creative.id);
-      if (data.success && data.metadata) {
-        setFromLines(data.metadata.fromLines || "");
-        setSubjectLines(data.metadata.subjectLines || "");
-        if (data.metadata.proofreadingData) {
-          setProofreadingData(data.metadata.proofreadingData);
-        }
-        if (data.metadata.htmlContent) {
-          setHtmlContent(data.metadata.htmlContent);
-        }
-        if (data.metadata.additionalNotes) {
-          setAdditionalNotes(data.metadata.additionalNotes);
-        }
-      }
-    } catch (error) {
-      console.log("No existing data found for creative:", creative.id);
-    }
-  };
-
   const fetchHtmlContent = useCallback(async () => {
     try {
-      if ((creative as { embeddedHtml?: string }).embeddedHtml && 
-          (creative as { embeddedHtml?: string }).embeddedHtml!.length > 0) {
+      if (
+        (creative as { embeddedHtml?: string }).embeddedHtml &&
+        (creative as { embeddedHtml?: string }).embeddedHtml!.length > 0
+      ) {
         setHtmlContent((creative as { embeddedHtml?: string }).embeddedHtml!);
         return;
       }
@@ -112,7 +128,8 @@ export const useSingleCreativeViewModal = ({
       const apiResponse = await fetch(apiUrl, {
         method: "GET",
         headers: {
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
       });
 
@@ -125,7 +142,8 @@ export const useSingleCreativeViewModal = ({
       const directResponse = await fetch(creative.url, {
         method: "GET",
         headers: {
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
         mode: "cors",
       });
@@ -140,7 +158,7 @@ export const useSingleCreativeViewModal = ({
       console.error("Error fetching HTML:", error);
       await tryAlternativeHtmlLoading();
     }
-  }, [creative.url, creative.id, creative.uploadId]);
+  }, [creative]);
 
   const tryAlternativeHtmlLoading = async () => {
     const fallbackContent = `<!-- HTML Content Loading Failed -->
@@ -180,7 +198,8 @@ export const useSingleCreativeViewModal = ({
     if (
       isOpen &&
       creative.type &&
-      (creative.type.includes("html") || creative.name.toLowerCase().includes(".html"))
+      (creative.type.includes("html") ||
+        creative.name.toLowerCase().includes(".html"))
     ) {
       fetchHtmlContent();
     }
@@ -205,19 +224,32 @@ export const useSingleCreativeViewModal = ({
       onClose();
     } catch (error) {
       console.error("Failed to save creative data:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to save creative data";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to save creative data";
       alert(`Error: ${errorMessage}`);
     } finally {
       setIsSaving(false);
     }
-  }, [creative.id, fromLines, subjectLines, proofreadingData, htmlContent, additionalNotes, creative.type, creative.name, onClose]);
+  }, [
+    creative.id,
+    fromLines,
+    subjectLines,
+    proofreadingData,
+    htmlContent,
+    additionalNotes,
+    creative.type,
+    creative.name,
+    onClose,
+  ]);
 
   const handleFileNameSave = async () => {
     if (!editableNameOnly.trim()) {
       return;
     }
 
-    const originalExtension = creative.name.substring(creative.name.lastIndexOf("."));
+    const originalExtension = creative.name.substring(
+      creative.name.lastIndexOf(".")
+    );
     const newFileName = editableNameOnly.trim() + originalExtension;
 
     if (creative.name === newFileName) {
@@ -331,7 +363,8 @@ export const useSingleCreativeViewModal = ({
       }
     } catch (error) {
       console.error("Content generation failed:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to generate content";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to generate content";
       alert(`Error: ${errorMessage}`);
     } finally {
       setIsGeneratingContent(false);
@@ -341,7 +374,10 @@ export const useSingleCreativeViewModal = ({
   const handleRegenerateAnalysis = async () => {
     try {
       setIsAnalyzing(true);
-      const isHtml = creative.html || creative.type === "html" || /\.html?$/i.test(creative.name);
+      const isHtml =
+        creative.html ||
+        creative.type === "html" ||
+        /\.html?$/i.test(creative.name);
       const isImg = creative.type === "image" || /^image\//.test(creative.type);
 
       if (isHtml) {
@@ -437,7 +473,8 @@ export const useSingleCreativeViewModal = ({
       setPreviewKey((prev) => prev + 1);
     } catch (error) {
       console.error("Failed to save HTML:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to save HTML";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to save HTML";
       alert(`Error: ${errorMessage}`);
     } finally {
       setIsSaving(false);
@@ -496,9 +533,12 @@ export const useSingleCreativeViewModal = ({
     handleGenerateContent,
     handleRegenerateAnalysis,
     handleSaveHtml,
-    toggleHtmlEditorFullscreen: () => setIsHtmlEditorFullscreen(!isHtmlEditorFullscreen),
-    toggleImagePreviewFullscreen: () => setIsImagePreviewFullscreen(!isImagePreviewFullscreen),
-    toggleHtmlPreviewFullscreen: () => setIsHtmlPreviewFullscreen(!isHtmlPreviewFullscreen),
+    toggleHtmlEditorFullscreen: () =>
+      setIsHtmlEditorFullscreen(!isHtmlEditorFullscreen),
+    toggleImagePreviewFullscreen: () =>
+      setIsImagePreviewFullscreen(!isImagePreviewFullscreen),
+    toggleHtmlPreviewFullscreen: () =>
+      setIsHtmlPreviewFullscreen(!isHtmlPreviewFullscreen),
     togglePreviewCollapse: () => setIsPreviewCollapsed(!isPreviewCollapsed),
   };
 };

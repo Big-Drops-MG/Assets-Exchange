@@ -1,5 +1,14 @@
 import { createId } from "@paralleldrive/cuid2";
-import { pgTable, text, timestamp, boolean, integer, pgEnum, index, jsonb } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  integer,
+  pgEnum,
+  index,
+  jsonb,
+} from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id")
@@ -88,10 +97,7 @@ export const priorityEnum = pgEnum("priority", [
   "Medium Priority",
 ]);
 
-export const offerStatusEnum = pgEnum("offer_status", [
-  "Active",
-  "Inactive",
-]);
+export const offerStatusEnum = pgEnum("offer_status", ["Active", "Inactive"]);
 
 export const offerVisibilityEnum = pgEnum("offer_visibility", [
   "Public",
@@ -107,7 +113,9 @@ export const offerCreatedMethodEnum = pgEnum("offer_created_method", [
 export const creativeRequests = pgTable(
   "creative_requests",
   {
-    id: text("id").primaryKey().$defaultFn(() => createId()),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
     offerId: text("offer_id").notNull(),
     offerName: text("offer_name").notNull(),
     creativeType: text("creative_type").notNull(),
@@ -116,13 +124,17 @@ export const creativeRequests = pgTable(
     subjectLinesCount: integer("subject_lines_count").notNull(),
     publisherId: text("publisher_id").notNull(),
     publisherName: text("publisher_name"),
+    email: text("email"),
+    telegramId: text("telegram_id"),
     advertiserId: text("advertiser_id").notNull(),
     advertiserName: text("advertiser_name").notNull(),
     affiliateId: text("affiliate_id").notNull(),
     clientId: text("client_id").notNull(),
     clientName: text("client_name").notNull(),
     status: requestStatusEnum("status").notNull().default("new"),
-    approvalStage: approvalStageEnum("approval_stage").notNull().default("admin"),
+    approvalStage: approvalStageEnum("approval_stage")
+      .notNull()
+      .default("admin"),
     priority: priorityEnum("priority").notNull(),
     adminStatus: adminStatusEnum("admin_status").default("pending"),
     adminApprovedBy: text("admin_approved_by"),
@@ -136,9 +148,14 @@ export const creativeRequests = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    statusStageIdx: index("idx_status_stage").on(table.status, table.approvalStage),
+    statusStageIdx: index("idx_status_stage").on(
+      table.status,
+      table.approvalStage
+    ),
     adminStatusIdx: index("idx_admin_status").on(table.adminStatus),
-    advertiserStatusIdx: index("idx_advertiser_status").on(table.advertiserStatus),
+    advertiserStatusIdx: index("idx_advertiser_status").on(
+      table.advertiserStatus
+    ),
     submittedAtIdx: index("idx_submitted_at").on(table.submittedAt),
     offerIdIdx: index("idx_offer_id").on(table.offerId),
     advertiserIdIdx: index("idx_advertiser_id").on(table.advertiserId),
@@ -148,7 +165,9 @@ export const creativeRequests = pgTable(
 export const creativeRequestHistory = pgTable(
   "creative_request_history",
   {
-    id: text("id").primaryKey().$defaultFn(() => createId()),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
     requestId: text("request_id")
       .notNull()
       .references(() => creativeRequests.id, { onDelete: "cascade" }),
@@ -169,7 +188,9 @@ export const creativeRequestHistory = pgTable(
 );
 
 export const tenants = pgTable("tenants", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   logoUrl: text("logo_url"),
@@ -180,7 +201,9 @@ export const tenants = pgTable("tenants", {
 });
 
 export const annotations = pgTable("annotations", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
   creativeRequestId: text("creative_request_id")
     .notNull()
     .references(() => creativeRequests.id, { onDelete: "cascade" }),
@@ -196,11 +219,15 @@ export const annotations = pgTable("annotations", {
 export const offers = pgTable(
   "offers",
   {
-    id: text("id").primaryKey().$defaultFn(() => createId()),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
     offerName: text("offer_name").notNull(),
     advertiserId: text("advertiser_id").notNull(),
     advertiserName: text("advertiser_name").notNull(),
-    createdMethod: offerCreatedMethodEnum("created_method").notNull().default("Manually"),
+    createdMethod: offerCreatedMethodEnum("created_method")
+      .notNull()
+      .default("Manually"),
     status: offerStatusEnum("status").notNull().default("Active"),
     visibility: offerVisibilityEnum("visibility").notNull().default("Public"),
     brandGuidelines: jsonb("brand_guidelines").$type<{
@@ -227,14 +254,18 @@ export const offers = pgTable(
     createdMethodIdx: index("idx_offer_created_method").on(table.createdMethod),
     advertiserIdIdx: index("idx_offer_advertiser_id").on(table.advertiserId),
     createdAtIdx: index("idx_offer_created_at").on(table.createdAt),
-    everflowOfferIdIdx: index("idx_everflow_offer_id").on(table.everflowOfferId),
+    everflowOfferIdIdx: index("idx_everflow_offer_id").on(
+      table.everflowOfferId
+    ),
   })
 );
 
 export const syncHistory = pgTable(
   "sync_history",
   {
-    id: text("id").primaryKey().$defaultFn(() => createId()),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
     syncType: text("sync_type").notNull(),
     status: text("status").notNull(),
     startedBy: text("started_by").notNull(),
@@ -318,12 +349,16 @@ export const backgroundJobEvents = pgTable(
   },
   (table) => ({
     jobIdIdx: index("idx_background_job_events_job_id").on(table.jobId),
-    createdAtIdx: index("idx_background_job_events_created_at").on(table.createdAt),
+    createdAtIdx: index("idx_background_job_events_created_at").on(
+      table.createdAt
+    ),
   })
 );
 
 export const requestStatusHistory = pgTable("request_status_history", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
   requestId: text("request_id").notNull(),
   fromStatus: text("from_status").notNull(),
   toStatus: text("to_status").notNull(),
@@ -333,38 +368,48 @@ export const requestStatusHistory = pgTable("request_status_history", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const advertisers = pgTable("advertisers", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
-  name: text("name").notNull(),
-  contactEmail: text("contact_email"),
-  status: text("status").notNull().default("active"),
-  everflowAdvertiserId: text("everflow_advertiser_id"),
-  everflowData: jsonb("everflow_data"),
-  brandGuidelines: jsonb("brand_guidelines").$type<{
-    type: "url" | "file" | "text" | null;
-    url?: string;
-    fileUrl?: string;
-    fileName?: string;
-    fileSize?: number;
-    mimeType?: string;
-    text?: string;
-    notes?: string;
-  }>(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => ({
-  everflowAdvertiserIdIdx: index("idx_everflow_advertiser_id").on(table.everflowAdvertiserId),
-}));
+export const advertisers = pgTable(
+  "advertisers",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    name: text("name").notNull(),
+    contactEmail: text("contact_email"),
+    status: text("status").notNull().default("active"),
+    everflowAdvertiserId: text("everflow_advertiser_id"),
+    everflowData: jsonb("everflow_data"),
+    brandGuidelines: jsonb("brand_guidelines").$type<{
+      type: "url" | "file" | "text" | null;
+      url?: string;
+      fileUrl?: string;
+      fileName?: string;
+      fileSize?: number;
+      mimeType?: string;
+      text?: string;
+      notes?: string;
+    }>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    everflowAdvertiserIdIdx: index("idx_everflow_advertiser_id").on(
+      table.everflowAdvertiserId
+    ),
+  })
+);
 
 export const publishers = pgTable("publishers", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
   name: text("name").notNull(),
   contactEmail: text("contact_email"),
+  telegramId: text("telegram_id"),
   status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
-
 
 export const fileUploadStatusEnum = pgEnum("file_status", [
   "pending_scan",
@@ -376,7 +421,9 @@ export const fileUploadStatusEnum = pgEnum("file_status", [
 export const fileUploads = pgTable(
   "file_uploads",
   {
-    id: text("id").primaryKey().$defaultFn(() => createId()),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
     originalName: text("original_name").notNull(),
     storedName: text("stored_name").notNull(),
     mimeType: text("mime_type").notNull(),
@@ -384,7 +431,9 @@ export const fileUploads = pgTable(
     url: text("url").notNull(),
     storageKey: text("storage_key").notNull(),
     storageProvider: text("storage_provider").notNull(),
-    uploadedBy: text("uploaded_by").notNull().references(() => user.id),
+    uploadedBy: text("uploaded_by")
+      .notNull()
+      .references(() => user.id),
     entityType: text("entity_type"),
     entityId: text("entity_id"),
     status: fileUploadStatusEnum("status").notNull().default("pending_scan"),
@@ -396,7 +445,10 @@ export const fileUploads = pgTable(
   },
   (table) => ({
     uploadedByIdx: index("idx_file_uploads_uploaded_by").on(table.uploadedBy),
-    entityIdx: index("idx_file_uploads_entity").on(table.entityType, table.entityId),
+    entityIdx: index("idx_file_uploads_entity").on(
+      table.entityType,
+      table.entityId
+    ),
     statusIdx: index("idx_file_uploads_status").on(table.status),
     createdAtIdx: index("idx_file_uploads_created_at").on(table.createdAt),
     deletedAtIdx: index("idx_file_uploads_deleted_at").on(table.deletedAt),
@@ -425,26 +477,34 @@ export const systemStates = pgTable("system_states", {
 });
 
 export const systemSettings = pgTable("system_settings", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
-  key: text("key").unique().notNull(), 
-  value: text("value").notNull(), 
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  key: text("key").unique().notNull(),
+  value: text("value").notNull(),
   description: text("description"),
   updatedBy: text("updated_by"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const auditLogs = pgTable("audit_logs", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
-  userId: text("user_id").notNull(), 
-  action: text("action").notNull(), 
-  entityType: text("entity_type").notNull(), 
-  entityId: text("entity_id"), 
-  details: jsonb("details"), 
-  ipAddress: text("ip_address"),
-  userAgent: text("user_agent"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => ({
-  userIdIdx: index("idx_audit_user").on(table.userId),
-  actionIdx: index("idx_audit_action").on(table.action),
-  createdAtIdx: index("idx_audit_created_at").on(table.createdAt),
-}));
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    userId: text("user_id").notNull(),
+    action: text("action").notNull(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id"),
+    details: jsonb("details"),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userIdIdx: index("idx_audit_user").on(table.userId),
+    actionIdx: index("idx_audit_action").on(table.action),
+    createdAtIdx: index("idx_audit_created_at").on(table.createdAt),
+  })
+);
