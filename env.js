@@ -21,6 +21,7 @@ export const env = createEnv({
     CRON_SECRET: z.string().min(1).optional(),
     ALERT_WEBHOOK_URL: z.string().url().optional(),
     BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+    PYTHON_SERVICE_URL: z.string().url().optional(),
   },
   client: {
     NEXT_PUBLIC_BETTER_AUTH_URL: z.string().url().optional(),
@@ -46,6 +47,7 @@ export const env = createEnv({
     CRON_SECRET: process.env.CRON_SECRET,
     ALERT_WEBHOOK_URL: process.env.ALERT_WEBHOOK_URL,
     BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
+    PYTHON_SERVICE_URL: process.env.PYTHON_SERVICE_URL,
     NEXT_PUBLIC_BETTER_AUTH_URL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_BLOB_URL: process.env.NEXT_PUBLIC_BLOB_URL,
