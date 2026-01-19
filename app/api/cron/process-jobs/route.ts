@@ -131,6 +131,7 @@ const MAX_EXECUTION_TIME_MS = 240000;
 export async function GET(req: Request) {
     const vercelCronHeader = req.headers.get("x-vercel-cron");
     const authHeader = req.headers.get("Authorization");
+    const userAgent = req.headers.get("user-agent") || "";
     const cronSecret = process.env.CRON_SECRET;
 
     const session = await auth.api.getSession({
@@ -139,22 +140,19 @@ export async function GET(req: Request) {
     const isAdmin = session?.user?.role === "admin";
 
     if (!isAdmin) {
-        const isVercelCron = vercelCronHeader === "1";
+        const isVercelCron = vercelCronHeader === "1" || userAgent.includes("vercel-cron");
         const isAuthorizedSecret = cronSecret && authHeader === `Bearer ${cronSecret}`;
         
-        if (process.env.NODE_ENV === "production") {
-            if (!isVercelCron) {
-                console.warn("Cron endpoint accessed without Vercel cron header", {
-                    hasHeader: !!vercelCronHeader,
-                    headerValue: vercelCronHeader,
-                    userAgent: req.headers.get("user-agent"),
-                });
-                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-            }
-        } else {
-            if (!isVercelCron && !isAuthorizedSecret) {
-                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-            }
+        if (!isVercelCron && !isAuthorizedSecret) {
+            console.warn("Cron endpoint accessed without authorization", {
+                hasHeader: !!vercelCronHeader,
+                headerValue: vercelCronHeader,
+                userAgent: userAgent,
+                hasAuthHeader: !!authHeader,
+                hasCronSecret: !!cronSecret,
+                isProduction: process.env.NODE_ENV === "production",
+            });
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
     }
 
