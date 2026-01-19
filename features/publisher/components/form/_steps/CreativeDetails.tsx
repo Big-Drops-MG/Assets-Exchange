@@ -27,6 +27,8 @@ import { type CreativeDetailsProps } from "@/features/publisher/types/form.types
 
 import FileUploadModal from "../_modals/FileUploadModal";
 import FromSubjectLinesModal from "../_modals/FromSubjectLinesModal";
+import SingleCreativeViewModal from "../_modals/SingleCreativeViewModal";
+import type { Creative } from "@/features/publisher/view-models/singleCreativeViewModal.viewModel";
 
 type UploadedFileMeta = {
     id: string;
@@ -721,74 +723,34 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
             />
 
             {selectedCreative && (
-                <Dialog
-                    open={isSingleCreativeDialogOpen}
-                    onOpenChange={setIsSingleCreativeDialogOpen}
-                >
-                    <DialogContent className="max-w-4xl">
-                        <DialogHeader>
-                            <DialogTitle>{selectedCreative.name}</DialogTitle>
-                        </DialogHeader>
-                        <DialogBody>
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-4">
-                                    {selectedCreative.previewUrl ? (
-                                        <img
-                                            src={selectedCreative.previewUrl}
-                                            alt={selectedCreative.name}
-                                            className="max-w-xs rounded border"
-                                        />
-                                    ) : (
-                                        <div className="w-32 h-32 flex items-center justify-center bg-gray-100 rounded border">
-                                            <span className="text-sm text-gray-600">
-                                                {selectedCreative.html ? "HTML" : "FILE"}
-                                            </span>
-                                        </div>
-                                    )}
-                                    <div className="flex-1">
-                                        <p className="text-sm text-gray-600">
-                                            Type: {selectedCreative.type}
-                                        </p>
-                                        <p className="text-sm text-gray-600">
-                                            Size: {formatFileSize(selectedCreative.size)}
-                                        </p>
-                                        {selectedCreative.assetCount && (
-                                            <p className="text-sm text-gray-600">
-                                                Assets: {selectedCreative.assetCount}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button
-                                        variant="outline"
-                                        asChild
-                                        className="flex-1"
-                                    >
-                                        <a
-                                            href={selectedCreative.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                        >
-                                            Open File
-                                        </a>
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => {
-                                            removeFile(selectedCreative.id);
-                                            setIsSingleCreativeDialogOpen(false);
-                                            setSelectedCreative(null);
-                                        }}
-                                        className="flex-1"
-                                    >
-                                        Remove
-                                    </Button>
-                                </div>
-                            </div>
-                        </DialogBody>
-                    </DialogContent>
-                </Dialog>
+                <SingleCreativeViewModal
+                    isOpen={isSingleCreativeDialogOpen}
+                    onClose={() => {
+                        setIsSingleCreativeDialogOpen(false);
+                        setSelectedCreative(null);
+                    }}
+                    creative={{
+                        id: selectedCreative.id,
+                        name: selectedCreative.name,
+                        url: selectedCreative.url,
+                        size: selectedCreative.size,
+                        type: selectedCreative.type,
+                        previewUrl: selectedCreative.previewUrl,
+                        html: selectedCreative.html,
+                    }}
+                    onFileNameChange={(fileId, newFileName) => {
+                        setUploadedFiles((prev) =>
+                            prev.map((file) =>
+                                file.id === fileId ? { ...file, name: newFileName } : file
+                            )
+                        );
+                        if (selectedCreative.id === fileId) {
+                            setSelectedCreative({ ...selectedCreative, name: newFileName });
+                        }
+                    }}
+                    showAdditionalNotes={false}
+                    creativeType={formData.creativeType}
+                />
             )}
 
             {selectedCreatives.length > 0 && (

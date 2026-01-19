@@ -16,6 +16,8 @@ export interface ValidationState {
 }
 
 export const useFormValidation = (initialFormData: PublisherFormData) => {
+  const keepValidation = false;
+  
   const [validationState, setValidationState] = useState<ValidationState>({
     errors: {},
     touched: {},
@@ -49,15 +51,21 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
   // Validate a single field
   const validateSingleField = useCallback(
     (fieldName: keyof PublisherFormData, value: string) => {
+      if (!keepValidation) {
+        return '';
+      }
       const result = validateField(fieldName, value);
       return result.error || '';
     },
-    []
+    [keepValidation]
   );
 
   // Validate field on change
   const handleFieldChange = useCallback(
     (fieldName: keyof PublisherFormData, value: string) => {
+      if (!keepValidation) {
+        return;
+      }
       const result = validateField(fieldName, value);
       const error = result.error || '';
 
@@ -69,12 +77,19 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
         },
       }));
     },
-    []
+    [keepValidation]
   );
 
   // Validate personal details step
   const validatePersonalDetailsStep = useCallback(
     (formData: Partial<PublisherFormData>): ValidationResult => {
+      if (!keepValidation) {
+        return {
+          valid: true,
+          errors: {},
+        };
+      }
+
       const result = validatePersonalDetails({
         affiliateId: formData.affiliateId || '',
         companyName: formData.companyName || '',
@@ -102,12 +117,19 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
 
       return result;
     },
-    []
+    [keepValidation]
   );
 
   // Validate contact details step
   const validateContactDetailsStep = useCallback(
     (formData: Partial<PublisherFormData>): ValidationResult => {
+      if (!keepValidation) {
+        return {
+          valid: true,
+          errors: {},
+        };
+      }
+
       const result = validateContactDetails({
         email: formData.email || '',
         telegramId: formData.telegramId || '',
@@ -131,7 +153,7 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
 
       return result;
     },
-    []
+    [keepValidation]
   );
 
   // Validate creative details step
@@ -141,6 +163,13 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
       hasFiles: boolean,
       hasLines: boolean
     ): ValidationResult => {
+      if (!keepValidation) {
+        return {
+          valid: true,
+          errors: {},
+        };
+      }
+
       const errors: Record<string, string> = {};
 
       const result = validateCreativeDetails({
@@ -190,7 +219,7 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
         errors,
       };
     },
-    []
+    [keepValidation]
   );
 
   // Validate complete form
@@ -200,6 +229,13 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
       hasFiles: boolean,
       hasLines: boolean
     ): ValidationResult => {
+      if (!keepValidation) {
+        return {
+          valid: true,
+          errors: {},
+        };
+      }
+
       const result = validateForm(formData);
 
       // Additional checks for files and lines
@@ -247,7 +283,7 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
         errors,
       };
     },
-    []
+    [keepValidation]
   );
 
   // Clear all errors
@@ -273,17 +309,23 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
   // Check if a specific field has an error
   const hasFieldError = useCallback(
     (fieldName: string): boolean => {
+      if (!keepValidation) {
+        return false;
+      }
       return !!validationState.errors[fieldName];
     },
-    [validationState.errors]
+    [validationState.errors, keepValidation]
   );
 
   // Get error message for a specific field
   const getFieldErrorMessage = useCallback(
     (fieldName: string): string => {
+      if (!keepValidation) {
+        return '';
+      }
       return validationState.errors[fieldName] || '';
     },
-    [validationState.errors]
+    [validationState.errors, keepValidation]
   );
 
   // Check if a field has been touched
@@ -296,8 +338,11 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
 
   // Check if form is valid
   const isFormValid = useCallback((): boolean => {
+    if (!keepValidation) {
+      return true;
+    }
     return validationState.isValid;
-  }, [validationState.isValid]);
+  }, [validationState.isValid, keepValidation]);
 
   // Update file upload state
   const updateFileUploadState = useCallback((hasFiles: boolean) => {
@@ -341,6 +386,9 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
   // Validate form method (used by some components)
   const validateFormMethod = useCallback(
     (data: Partial<PublisherFormData>) => {
+      if (!keepValidation) {
+        return true;
+      }
       const formDataObj: PublisherFormData = {
         affiliateId: data.affiliateId || '',
         companyName: data.companyName || '',
@@ -362,7 +410,7 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
       );
       return result.valid;
     },
-    [validateCompleteFormData, hasUploadedFiles, hasFromSubjectLines]
+    [validateCompleteFormData, hasUploadedFiles, hasFromSubjectLines, keepValidation]
   );
 
   return {
