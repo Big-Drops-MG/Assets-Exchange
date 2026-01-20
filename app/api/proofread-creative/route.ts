@@ -3,63 +3,82 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { logger } from "@/lib/logger";
+import { GrammarService } from "@/lib/services/grammar.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: req.headers,
-    });
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
+    let userId: string | undefined;
+    try {
+      const session = await auth.api.getSession({
+        headers: req.headers,
+      });
+      userId = session?.user?.id;
+    } catch (authError) {
+      console.warn("Auth check skipped:", authError);
     }
 
     const body = await req.json();
-    const { fileType, creativeType } = body;
+    const { creativeId, fileUrl } = body;
 
-    if (!fileType || !creativeType) {
+    if (!creativeId || !fileUrl) {
       return NextResponse.json(
-        { success: false, error: "fileType and creativeType are required" },
+        { success: false, error: "Missing creativeId or fileUrl" },
         { status: 400 }
       );
     }
 
-    // TODO: Implement actual proofreading logic
-    // For now, return a mock response
-    const mockResponse = {
-      success: true,
-      issues: [],
-      suggestions: [],
-      qualityScore: {
-        grammar: 85,
-        readability: 90,
-        conversion: 80,
-        brandAlignment: 88,
-      },
-    };
+    const result = await GrammarService.submitForAnalysis(
+      creativeId,
+      fileUrl,
+      userId
+    );
 
     logger.info({
-      action: "proofread.creative",
-      userId: session.user.id,
-      fileType,
-      creativeType,
+      action: "proofread.creative.submitted",
+      userId: userId || "anonymous",
+      creativeId,
+      taskId: result.taskId,
     });
 
-    return NextResponse.json(mockResponse);
+    return NextResponse.json(result);
   } catch (error) {
+    const errorMessage = (error as Error).message || "Failed to start analysis";
     logger.error({
       action: "proofread.creative.error",
-      error: (error as Error).message,
+      error: errorMessage,
       details: error,
     });
     return NextResponse.json(
-      { success: false, error: "Failed to proofread creative" },
+      { success: false, error: errorMessage },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const taskId = searchParams.get("taskId");
+
+    if (!taskId) {
+      return NextResponse.json(
+        { success: false, error: "Missing taskId" },
+        { status: 400 }
+      );
+    }
+
+    const result = await GrammarService.checkTaskStatus(taskId);
+    return NextResponse.json({ success: true, ...result });
+  } catch (error) {
+    logger.error({
+      action: "proofread.creative.status.error",
+      error: (error as Error).message,
+    });
+    return NextResponse.json(
+      { success: false, error: "Failed to check status" },
       { status: 500 }
     );
   }

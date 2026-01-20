@@ -538,3 +538,35 @@ export const creativeMetadata = pgTable(
     updatedAtIdx: index("idx_creative_metadata_updated_at").on(table.updatedAt),
   })
 );
+
+export const externalTasks = pgTable(
+  "external_tasks",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+
+    creativeId: text("creative_id").notNull(),
+
+    userId: text("user_id"),
+
+    source: text("source").notNull(),
+
+    externalTaskId: text("external_task_id"),
+
+    status: text("status").notNull().default("pending"),
+    result: jsonb("result"),
+
+    startedAt: timestamp("started_at").defaultNow(),
+    finishedAt: timestamp("finished_at"),
+    errorMessage: text("error_message"),
+  },
+  (table) => ({
+    creativeIdIdx: index("idx_external_tasks_creative_id").on(table.creativeId),
+    statusIdx: index("idx_external_tasks_status").on(table.status),
+    sourceIdx: index("idx_external_tasks_source").on(table.source),
+    externalTaskIdIdx: index("idx_external_tasks_external_task_id").on(
+      table.externalTaskId
+    ),
+  })
+);

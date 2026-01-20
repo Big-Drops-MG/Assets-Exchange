@@ -22,16 +22,23 @@ export interface QualityScore {
 
 export interface ProofreadCreativeResponse {
   success: boolean;
-  issues: ProofreadIssue[];
-  suggestions: ProofreadSuggestion[];
-  qualityScore: QualityScore;
+  taskId?: string;
+  dbTaskId?: string;
+  issues?: ProofreadIssue[];
+  suggestions?: ProofreadSuggestion[];
+  qualityScore?: QualityScore;
+  status?: string;
+  result?: unknown;
+  error?: string;
 }
 
 interface ProofreadCreativeParams {
-  fileType: "html" | "image";
-  htmlContent?: string;
-  fileUrl?: string;
-  creativeType: "email" | "display" | "search" | "social" | "native" | "push";
+  creativeId: string;
+  fileUrl: string;
+}
+
+interface CheckStatusParams {
+  taskId: string;
 }
 
 export async function proofreadCreative(
@@ -43,6 +50,7 @@ export async function proofreadCreative(
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
       body: JSON.stringify(params),
     });
 
@@ -55,6 +63,31 @@ export async function proofreadCreative(
     return data;
   } catch (error) {
     console.error("Proofread creative error:", error);
+    throw error;
+  }
+}
+
+export async function checkProofreadStatus(
+  params: CheckStatusParams
+): Promise<ProofreadCreativeResponse> {
+  try {
+    const response = await fetch(
+      `/api/proofread-creative?taskId=${params.taskId}`,
+      {
+        method: "GET",
+        credentials: "include",
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Status check failed");
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Check proofread status error:", error);
     throw error;
   }
 }

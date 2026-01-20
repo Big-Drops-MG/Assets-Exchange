@@ -417,16 +417,8 @@ export const useSingleCreativeViewModal = ({
           return;
         }
         const result = await proofreadCreative({
-          fileType: "html",
-          htmlContent,
-          fileUrl: creative.previewUrl,
-          creativeType: creative.type as
-            | "email"
-            | "display"
-            | "search"
-            | "social"
-            | "native"
-            | "push",
+          creativeId: creative.id,
+          fileUrl: creative.url,
         });
         setProofreadingData(result);
         setShowOriginal(false); // Reset to Marked view when new analysis completes
@@ -459,15 +451,8 @@ export const useSingleCreativeViewModal = ({
         }
 
         const result = await proofreadCreative({
-          fileType: "image",
+          creativeId: creative.id,
           fileUrl: imageUrl,
-          creativeType: creative.type as
-            | "email"
-            | "display"
-            | "search"
-            | "social"
-            | "native"
-            | "push",
         });
         setProofreadingData(result);
         setShowOriginal(false); // Reset to Marked view when new analysis completes

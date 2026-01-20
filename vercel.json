@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/telegram-poll",
       "schedule": "*/1 * * * *"
+    },
+    {
+      "path": "/api/cron/warmup-grammar",
+      "schedule": "*/10 * * * *"
     }
   ]
 }
