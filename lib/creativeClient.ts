@@ -73,8 +73,27 @@ export async function renameCreative(params: RenameCreativeParams): Promise<void
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || "Failed to rename creative");
+      let errorMessage = "Failed to rename creative";
+      try {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } else {
+          const errorText = await response.text();
+          if (errorText && !errorText.startsWith("<!DOCTYPE")) {
+            errorMessage = errorText;
+          }
+        }
+      } catch (parseError) {
+        console.error("Error parsing error response:", parseError);
+      }
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || "Failed to rename creative");
     }
   } catch (error) {
     console.error("Rename creative error:", error);
