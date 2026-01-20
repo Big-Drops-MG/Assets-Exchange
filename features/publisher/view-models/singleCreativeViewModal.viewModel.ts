@@ -1,3 +1,4 @@
+import type React from "react";
 import { useState, useEffect, useCallback } from "react";
 
 import { API_ENDPOINTS } from "@/constants/apiEndpoints";
@@ -28,6 +29,10 @@ interface UseSingleCreativeViewModalProps {
   creative: Creative;
   onClose: () => void;
   onFileNameChange?: (fileId: string, newFileName: string) => void;
+  onMetadataChange?: (
+    fileId: string,
+    metadata: { fromLines?: string; subjectLines?: string }
+  ) => void;
   showAdditionalNotes?: boolean;
   creativeType?: string;
 }
@@ -37,6 +42,7 @@ export const useSingleCreativeViewModal = ({
   creative,
   onClose,
   onFileNameChange,
+  onMetadataChange,
   showAdditionalNotes: _showAdditionalNotes = false,
   creativeType: _creativeType = "email",
 }: UseSingleCreativeViewModalProps) => {
@@ -55,6 +61,14 @@ export const useSingleCreativeViewModal = ({
     useState(false);
   const [isHtmlPreviewFullscreen, setIsHtmlPreviewFullscreen] = useState(false);
   const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(false);
+  const [imageZoom, setImageZoom] = useState(1);
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [imageDimensions, setImageDimensions] = useState({
+    width: 0,
+    height: 0,
+  });
   const [proofreadingData, setProofreadingData] =
     useState<ProofreadCreativeResponse | null>(null);
   const [htmlContent, setHtmlContent] = useState("");
@@ -63,13 +77,16 @@ export const useSingleCreativeViewModal = ({
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(false); // Default to false (show marked/corrections)
 
   const loadExistingCreativeData = useCallback(async () => {
     try {
       const data = await getCreativeMetadata(creative.id);
       if (data.success && data.metadata) {
-        setFromLines(data.metadata.fromLines || "");
-        setSubjectLines(data.metadata.subjectLines || "");
+        const loadedFromLines = data.metadata.fromLines || "";
+        const loadedSubjectLines = data.metadata.subjectLines || "";
+        setFromLines(loadedFromLines);
+        setSubjectLines(loadedSubjectLines);
         if (
           data.metadata.proofreadingData &&
           typeof data.metadata.proofreadingData === "object" &&
@@ -85,11 +102,17 @@ export const useSingleCreativeViewModal = ({
         if (data.metadata.additionalNotes) {
           setAdditionalNotes(data.metadata.additionalNotes);
         }
+        if (loadedFromLines || loadedSubjectLines) {
+          onMetadataChange?.(creative.id, {
+            fromLines: loadedFromLines,
+            subjectLines: loadedSubjectLines,
+          });
+        }
       }
     } catch (_error) {
       console.error("No existing data found for creative:", creative.id);
     }
-  }, [creative.id]);
+  }, [creative.id, onMetadataChange]);
 
   useEffect(() => {
     if (isOpen && creative.id) {
@@ -221,6 +244,10 @@ export const useSingleCreativeViewModal = ({
           fileName: creative.name,
         },
       });
+      onMetadataChange?.(creative.id, {
+        fromLines,
+        subjectLines,
+      });
       onClose();
     } catch (error) {
       console.error("Failed to save creative data:", error);
@@ -232,13 +259,14 @@ export const useSingleCreativeViewModal = ({
     }
   }, [
     creative.id,
+    creative.name,
+    creative.type,
     fromLines,
     subjectLines,
     proofreadingData,
     htmlContent,
     additionalNotes,
-    creative.type,
-    creative.name,
+    onMetadataChange,
     onClose,
   ]);
 
@@ -257,6 +285,7 @@ export const useSingleCreativeViewModal = ({
       return;
     }
 
+    const previousName = creative.name;
     setEditableFileName(newFileName);
     setIsEditing(false);
 
@@ -271,13 +300,16 @@ export const useSingleCreativeViewModal = ({
       onFileNameChange?.(creative.id, newFileName);
     } catch (error) {
       console.error("Failed to rename file:", error);
-      setEditableFileName(creative.name);
-      const lastDotIndex = creative.name.lastIndexOf(".");
+      setEditableFileName(previousName);
+      const lastDotIndex = previousName.lastIndexOf(".");
       setEditableNameOnly(
         lastDotIndex > 0
-          ? creative.name.substring(0, lastDotIndex)
-          : creative.name
+          ? previousName.substring(0, lastDotIndex)
+          : previousName
       );
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to rename file";
+      alert(`Error: ${errorMessage}`);
     }
   };
 
@@ -397,6 +429,7 @@ export const useSingleCreativeViewModal = ({
             | "push",
         });
         setProofreadingData(result);
+        setShowOriginal(false); // Reset to Marked view when new analysis completes
 
         try {
           await saveCreativeMetadata({
@@ -437,6 +470,7 @@ export const useSingleCreativeViewModal = ({
             | "push",
         });
         setProofreadingData(result);
+        setShowOriginal(false); // Reset to Marked view when new analysis completes
       }
     } catch (error) {
       console.error("Proofreading failed:", error);
@@ -498,6 +532,188 @@ export const useSingleCreativeViewModal = ({
     };
   }, [isOpen, handleSaveAll]);
 
+  useEffect(() => {
+    if (!isImagePreviewFullscreen) {
+      setImageZoom(1);
+      setImagePosition({ x: 0, y: 0 });
+    }
+  }, [isImagePreviewFullscreen]);
+
+  const constrainPosition = useCallback(
+    (
+      x: number,
+      y: number,
+      zoom: number,
+      containerWidth: number,
+      containerHeight: number,
+      imgWidth: number,
+      imgHeight: number
+    ) => {
+      if (zoom <= 1) {
+        return { x: 0, y: 0 };
+      }
+
+      // Calculate the displayed size (image fits in container with object-contain)
+      const containerAspect = containerWidth / containerHeight;
+      const imageAspect = imgWidth / imgHeight;
+
+      let displayedWidth: number;
+      let displayedHeight: number;
+
+      if (imageAspect > containerAspect) {
+        // Image is wider - fit to width
+        displayedWidth = containerWidth;
+        displayedHeight = containerWidth / imageAspect;
+      } else {
+        // Image is taller - fit to height
+        displayedHeight = containerHeight;
+        displayedWidth = containerHeight * imageAspect;
+      }
+
+      // Calculate scaled dimensions
+      const scaledWidth = displayedWidth * zoom;
+      const scaledHeight = displayedHeight * zoom;
+
+      // Calculate bounds (how far the image can move before going off-screen)
+      const maxX = Math.max(0, (scaledWidth - containerWidth) / 2);
+      const maxY = Math.max(0, (scaledHeight - containerHeight) / 2);
+
+      // Constrain the position
+      const constrainedX = Math.max(-maxX, Math.min(maxX, x));
+      const constrainedY = Math.max(-maxY, Math.min(maxY, y));
+
+      return { x: constrainedX, y: constrainedY };
+    },
+    []
+  );
+
+  const handleZoomIn = useCallback(() => {
+    setImageZoom((prev) => {
+      const newZoom = Math.min(prev + 0.25, 1.5);
+      if (
+        newZoom > 1 &&
+        imageDimensions.width > 0 &&
+        imageDimensions.height > 0
+      ) {
+        const containerWidth = window.innerWidth;
+        const containerHeight = window.innerHeight - 80;
+        const constrained = constrainPosition(
+          imagePosition.x,
+          imagePosition.y,
+          newZoom,
+          containerWidth,
+          containerHeight,
+          imageDimensions.width,
+          imageDimensions.height
+        );
+        setImagePosition(constrained);
+      }
+      return newZoom;
+    });
+  }, [imagePosition, imageDimensions, constrainPosition]);
+
+  const handleZoomOut = useCallback(() => {
+    setImageZoom((prev) => {
+      const newZoom = Math.max(prev - 0.25, 1);
+      if (newZoom === 1) {
+        setImagePosition({ x: 0, y: 0 });
+      } else if (imageDimensions.width > 0 && imageDimensions.height > 0) {
+        const containerWidth = window.innerWidth;
+        const containerHeight = window.innerHeight - 80;
+        const constrained = constrainPosition(
+          imagePosition.x,
+          imagePosition.y,
+          newZoom,
+          containerWidth,
+          containerHeight,
+          imageDimensions.width,
+          imageDimensions.height
+        );
+        setImagePosition(constrained);
+      }
+      return newZoom;
+    });
+  }, [imagePosition, imageDimensions, constrainPosition]);
+
+  const handleResetZoom = useCallback(() => {
+    setImageZoom(1);
+    setImagePosition({ x: 0, y: 0 });
+  }, []);
+
+  const handleImageMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (imageZoom > 1) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+        setDragStart({
+          x: e.clientX - imagePosition.x,
+          y: e.clientY - imagePosition.y,
+        });
+      }
+    },
+    [imageZoom, imagePosition]
+  );
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (
+        isDragging &&
+        imageZoom > 1 &&
+        imageDimensions.width > 0 &&
+        imageDimensions.height > 0
+      ) {
+        const newX = e.clientX - dragStart.x;
+        const newY = e.clientY - dragStart.y;
+
+        // Get container dimensions (viewport)
+        const containerWidth = window.innerWidth;
+        const containerHeight = window.innerHeight - 80; // Subtract header height
+
+        const constrained = constrainPosition(
+          newX,
+          newY,
+          imageZoom,
+          containerWidth,
+          containerHeight,
+          imageDimensions.width,
+          imageDimensions.height
+        );
+
+        setImagePosition(constrained);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, imageZoom, dragStart, imageDimensions, constrainPosition]);
+
+  const handleImageMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const handleImageLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement>) => {
+      const img = e.currentTarget;
+      setImageDimensions({
+        width: img.naturalWidth || img.width,
+        height: img.naturalHeight || img.height,
+      });
+    },
+    []
+  );
+
   return {
     editableFileName,
     editableNameOnly,
@@ -515,6 +731,11 @@ export const useSingleCreativeViewModal = ({
     additionalNotes,
     isGeneratingContent,
     isAnalyzing,
+    imageZoom,
+    imagePosition,
+    isDragging,
+    showOriginal,
+    setShowOriginal,
     setIsEditing,
     setEditableFileName,
     setEditableNameOnly,
@@ -533,6 +754,12 @@ export const useSingleCreativeViewModal = ({
     handleGenerateContent,
     handleRegenerateAnalysis,
     handleSaveHtml,
+    handleZoomIn,
+    handleZoomOut,
+    handleResetZoom,
+    handleImageMouseDown,
+    handleImageMouseUp,
+    handleImageLoad,
     toggleHtmlEditorFullscreen: () =>
       setIsHtmlEditorFullscreen(!isHtmlEditorFullscreen),
     toggleImagePreviewFullscreen: () =>
