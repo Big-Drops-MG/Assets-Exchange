@@ -617,36 +617,46 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             {viewModel.proofreadingData?.issues &&
                             viewModel.proofreadingData.issues.length > 0 ? (
                               viewModel.proofreadingData.issues.map(
-                                (issue: unknown, index: number) => (
-                                  <div
-                                    key={index}
-                                    className="p-3 bg-red-50 border border-red-200 rounded-lg"
-                                  >
-                                    <div className="flex items-start gap-2">
-                                      <span className="text-xs px-2 py-1 rounded font-medium bg-red-200 text-red-800 w-max text-nowrap">
-                                        {issue.type}
-                                      </span>
-                                      <div className="flex-1">
-                                        <p className="text-xs font-medium text-red-800">
-                                          {issue.note || issue.type}
-                                        </p>
-                                        {issue.original && (
-                                          <p className="text-xs text-red-600 mt-1">
-                                            <span className="line-through">
-                                              {issue.original}
-                                            </span>
+                                (issue: unknown, index: number) => {
+                                  const issueData = issue as {
+                                    type?: string;
+                                    note?: string;
+                                    original?: string;
+                                    correction?: string;
+                                  };
+                                  return (
+                                    <div
+                                      key={index}
+                                      className="p-3 bg-red-50 border border-red-200 rounded-lg"
+                                    >
+                                      <div className="flex items-start gap-2">
+                                        <span className="text-xs px-2 py-1 rounded font-medium bg-red-200 text-red-800 w-max text-nowrap">
+                                          {issueData.type || "Issue"}
+                                        </span>
+                                        <div className="flex-1">
+                                          <p className="text-xs font-medium text-red-800">
+                                            {issueData.note ||
+                                              issueData.type ||
+                                              "Issue"}
                                           </p>
-                                        )}
-                                        {issue.correction && (
-                                          <p className="text-xs text-green-600 mt-1">
-                                            <strong>Correction:</strong>{" "}
-                                            {issue.correction}
-                                          </p>
-                                        )}
+                                          {issueData.original && (
+                                            <p className="text-xs text-red-600 mt-1">
+                                              <span className="line-through">
+                                                {issueData.original}
+                                              </span>
+                                            </p>
+                                          )}
+                                          {issueData.correction && (
+                                            <p className="text-xs text-green-600 mt-1">
+                                              <strong>Correction:</strong>{" "}
+                                              {issueData.correction}
+                                            </p>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                )
+                                  );
+                                }
                               )
                             ) : (
                               <div className="p-4 text-center text-gray-500">
@@ -672,21 +682,28 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                               </h4>
                               <div className="space-y-2">
                                 {viewModel.proofreadingData.suggestions.map(
-                                  (suggestion: unknown, index: number) => (
-                                    <div
-                                      key={index}
-                                      className="p-3 bg-blue-50 border border-blue-200 rounded-lg"
-                                    >
-                                      <div className="flex items-start gap-2">
-                                        <span className="text-xs px-2 py-1 rounded font-medium bg-blue-200 text-blue-800 w-max text-nowrap">
-                                          {suggestion.type}
-                                        </span>
-                                        <p className="text-xs text-blue-800">
-                                          {suggestion.description}
-                                        </p>
+                                  (suggestion: unknown, index: number) => {
+                                    const suggestionData = suggestion as {
+                                      type?: string;
+                                      description?: string;
+                                    };
+                                    return (
+                                      <div
+                                        key={index}
+                                        className="p-3 bg-blue-50 border border-blue-200 rounded-lg"
+                                      >
+                                        <div className="flex items-start gap-2">
+                                          <span className="text-xs px-2 py-1 rounded font-medium bg-blue-200 text-blue-800 w-max text-nowrap">
+                                            {suggestionData.type ||
+                                              "Suggestion"}
+                                          </span>
+                                          <p className="text-xs text-blue-800">
+                                            {suggestionData.description || ""}
+                                          </p>
+                                        </div>
                                       </div>
-                                    </div>
-                                  )
+                                    );
+                                  }
                                 )}
                               </div>
                             </div>

@@ -43,7 +43,8 @@ const formatFileSize = (bytes: number): string => {
 const getFileIcon = (fileName: string, isHtml?: boolean) => {
   const lowerName = fileName.toLowerCase();
   if (/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(lowerName)) {
-    return <Image className="h-5 w-5 text-blue-500" alt="" />;
+    // eslint-disable-next-line jsx-a11y/alt-text
+    return <Image className="h-5 w-5 text-blue-500" />;
   }
   if (/\.(html|htm)$/i.test(lowerName) || isHtml) {
     return <FileText className="h-5 w-5 text-green-500" />;
