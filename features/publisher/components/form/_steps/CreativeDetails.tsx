@@ -4,6 +4,7 @@ import { File, FileArchive, PencilLine, Search } from "lucide-react";
 import { useState, useEffect } from "react";
 
 import { getVariables } from "@/components/_variables/variables";
+import { loadFilesState, saveFilesState, clearFilesState, type SavedFileMeta } from "@/features/publisher/utils/autoSave";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +34,8 @@ type UploadedFileMeta = {
   previewUrl?: string;
   assetCount?: number;
   hasAssets?: boolean;
+  fromLines?: string;
+  subjectLines?: string;
 };
 
 const formatFileSize = (bytes: number): string => {
@@ -112,14 +115,87 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
 
   const [hasFromSubjectLines, setHasFromSubjectLines] = useState(false);
   const [hasUploadedFiles, setHasUploadedFiles] = useState(false);
+  
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileMeta[]>([]);
+  const [uploadedZipFileName, setUploadedZipFileName] = useState<string>("");
+  const [isInitialMount, setIsInitialMount] = useState(true);
+  
   const [_uploading, setUploading] = useState(false);
   const [selectedCreative, setSelectedCreative] =
     useState<UploadedFileMeta | null>(null);
   const [selectedCreatives, setSelectedCreatives] = useState<
     UploadedFileMeta[]
   >([]);
-  const [uploadedZipFileName, setUploadedZipFileName] = useState<string>("");
+
+  // Load and restore saved files state on mount
+  useEffect(() => {
+    const savedFilesState = loadFilesState();
+    if (savedFilesState && savedFilesState.files.length > 0) {
+      setUploadedFiles(savedFilesState.files as UploadedFileMeta[]);
+      setUploadedZipFileName(savedFilesState.uploadedZipFileName || "");
+      setHasUploadedFiles(true);
+      validation.updateFileUploadState(true);
+    }
+    // Mark initial mount as complete after a brief delay to allow state to settle
+    const timer = setTimeout(() => {
+      setIsInitialMount(false);
+    }, 200);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
+
+  // Fetch metadata for uploaded HTML creatives
+  useEffect(() => {
+    const fetchMetadataForFiles = async () => {
+      for (const file of uploadedFiles) {
+        // Only fetch for single HTML/email creatives that don't already have metadata
+        if (
+          file.html &&
+          uploadedFiles.length === 1 &&
+          formData.creativeType === "email" &&
+          !file.fromLines &&
+          !file.subjectLines
+        ) {
+          try {
+            const response = await fetch(
+              `/api/creative/metadata?creativeId=${encodeURIComponent(file.id)}`
+            );
+            if (response.ok) {
+              const data = await response.json();
+              if (data.success && data.metadata) {
+                const fromLines = data.metadata.fromLines || "";
+                const subjectLines = data.metadata.subjectLines || "";
+                if (fromLines || subjectLines) {
+                  setUploadedFiles((prev) =>
+                    prev.map((f) =>
+                      f.id === file.id
+                        ? { ...f, fromLines, subjectLines }
+                        : f
+                    )
+                  );
+                }
+              }
+            }
+          } catch (error) {
+            console.error("Failed to fetch metadata for file:", error);
+          }
+        }
+      }
+    };
+
+    if (uploadedFiles.length === 1 && formData.creativeType === "email") {
+      fetchMetadataForFiles();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadedFiles.length, formData.creativeType]);
+
+  // Auto-save files state whenever uploadedFiles changes (but not on initial mount)
+  useEffect(() => {
+    // Skip saving on initial mount to avoid overwriting loaded data
+    if (!isInitialMount) {
+      saveFilesState(uploadedFiles, uploadedZipFileName);
+    }
+  }, [uploadedFiles, uploadedZipFileName, isInitialMount]);
 
   useEffect(() => {
     const hasFiles = uploadedFiles.length > 0;
@@ -333,6 +409,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
     setHasUploadedFiles(false);
     setUploadedZipFileName("");
     validation.updateFileUploadState(false);
+    clearFilesState();
   };
 
   const handleViewUploadedFiles = () => {
@@ -404,7 +481,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
                     `,
         }}
       />
-      <div className="space-y-6 w-full">
+      <div className="space-y-4 w-full pb-0">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="offerId" className="font-inter text-sm">
@@ -536,7 +613,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-2">
           <Label className="text-sm font-medium font-inter">
             {hasFromSubjectLines
               ? "Uploaded From & Subject Lines"
@@ -605,6 +682,34 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
                           0
                         )
                       )}
+                      {/* Show from/subject line counts for single HTML email creatives */}
+                      {uploadedFiles.length === 1 &&
+                        uploadedFiles[0].html &&
+                        formData.creativeType === "email" &&
+                        (uploadedFiles[0].fromLines || uploadedFiles[0].subjectLines) && (
+                          <>
+                            {" • "}
+                            {uploadedFiles[0].fromLines
+                              ? uploadedFiles[0].fromLines.split("\n").filter((line) => line.trim()).length
+                              : 0}{" "}
+                            from line
+                            {(uploadedFiles[0].fromLines
+                              ? uploadedFiles[0].fromLines.split("\n").filter((line) => line.trim()).length
+                              : 0) !== 1
+                              ? "s"
+                              : ""}{" "}
+                            •{" "}
+                            {uploadedFiles[0].subjectLines
+                              ? uploadedFiles[0].subjectLines.split("\n").filter((line) => line.trim()).length
+                              : 0}{" "}
+                            subject line
+                            {(uploadedFiles[0].subjectLines
+                              ? uploadedFiles[0].subjectLines.split("\n").filter((line) => line.trim()).length
+                              : 0) !== 1
+                              ? "s"
+                              : ""}
+                          </>
+                        )}
                     </p>
                   </div>
                 </div>
@@ -718,7 +823,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
             )}
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           <Label className="text-sm font-medium font-inter">Set Priority</Label>
           <div
             className="flex rounded-lg p-1 w-fit shadow-sm"
@@ -769,21 +874,19 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="additionalNotes" className="font-inter text-sm">
-              Additional Notes
-            </Label>
-            <Textarea
-              id="additionalNotes"
-              name="additionalNotes"
-              value={formData.additionalNotes}
-              onChange={handleTextareaChange}
-              placeholder="Enter any additional notes..."
-              rows={4}
-              className="w-full font-inter publisher-form-input"
-            />
-          </div>
+        <div className="space-y-2 mb-0">
+          <Label htmlFor="additionalNotes" className="font-inter text-sm">
+            Additional Notes
+          </Label>
+          <Textarea
+            id="additionalNotes"
+            name="additionalNotes"
+            value={formData.additionalNotes}
+            onChange={handleTextareaChange}
+            placeholder="Enter any additional notes..."
+            rows={4}
+            className="w-full font-inter publisher-form-input"
+          />
         </div>
 
         <FileUploadModal
@@ -829,6 +932,28 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
               );
               if (selectedCreative.id === fileId) {
                 setSelectedCreative({ ...selectedCreative, name: newFileName });
+              }
+            }}
+            onMetadataChange={(fileId, metadata) => {
+              // Update fromLines and subjectLines in uploaded files
+              setUploadedFiles((prev) =>
+                prev.map((file) =>
+                  file.id === fileId
+                    ? {
+                        ...file,
+                        fromLines: metadata.fromLines,
+                        subjectLines: metadata.subjectLines,
+                      }
+                    : file
+                )
+              );
+              // Update selectedCreative if it matches
+              if (selectedCreative.id === fileId) {
+                setSelectedCreative({
+                  ...selectedCreative,
+                  fromLines: metadata.fromLines,
+                  subjectLines: metadata.subjectLines,
+                });
               }
             }}
             showAdditionalNotes={false}

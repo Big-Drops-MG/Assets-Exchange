@@ -1,9 +1,8 @@
 "use client";
 
 interface SaveHtmlParams {
-  fileUrl: string;
+  creativeId: string;
   html: string;
-  newFileName: string;
 }
 
 interface RenameCreativeParams {
@@ -44,17 +43,52 @@ interface GetCreativeMetadataResponse {
 
 export async function saveHtml(params: SaveHtmlParams): Promise<void> {
   try {
-    const response = await fetch("/api/creative/save-html", {
+    // First, fetch existing metadata to preserve it
+    const existingMetadata = await getCreativeMetadata(params.creativeId);
+    
+    // Merge existing metadata with new HTML content
+    const metadataToSave = {
+      creativeId: params.creativeId,
+      htmlContent: params.html,
+      // Preserve existing metadata
+      fromLines: existingMetadata.metadata?.fromLines,
+      subjectLines: existingMetadata.metadata?.subjectLines,
+      proofreadingData: existingMetadata.metadata?.proofreadingData,
+      additionalNotes: existingMetadata.metadata?.additionalNotes,
+      metadata: existingMetadata.metadata?.metadata,
+    };
+
+    // Use the metadata endpoint to save HTML content
+    const response = await fetch("/api/creative/metadata", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(params),
+      body: JSON.stringify(metadataToSave),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || "Failed to save HTML");
+      let errorMessage = "Failed to save HTML";
+      try {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } else {
+          const errorText = await response.text();
+          if (errorText && !errorText.startsWith("<!DOCTYPE")) {
+            errorMessage = errorText;
+          }
+        }
+      } catch (parseError) {
+        console.error("Error parsing error response:", parseError);
+      }
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || "Failed to save HTML");
     }
   } catch (error) {
     console.error("Save HTML error:", error);

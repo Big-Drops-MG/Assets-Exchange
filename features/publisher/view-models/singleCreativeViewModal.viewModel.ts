@@ -416,30 +416,21 @@ export const useSingleCreativeViewModal = ({
         if (!htmlContent) {
           return;
         }
+        let htmlUrl = creative.url;
+        if (!htmlUrl) {
+          return;
+        }
+
+        if (htmlUrl && htmlUrl.startsWith("/")) {
+          htmlUrl = `${window.location.origin}${htmlUrl}`;
+        }
+
         const result = await proofreadCreative({
           creativeId: creative.id,
-          fileUrl: creative.url,
+          fileUrl: htmlUrl,
         });
         setProofreadingData(result);
         setShowOriginal(false); // Reset to Marked view when new analysis completes
-
-        try {
-          await saveCreativeMetadata({
-            creativeId: creative.id,
-            fromLines,
-            subjectLines,
-            proofreadingData: result,
-            htmlContent,
-            additionalNotes,
-            metadata: {
-              lastProofread: new Date().toISOString(),
-              creativeType: creative.type,
-              fileName: creative.name,
-            },
-          });
-        } catch (saveError) {
-          console.error("Failed to save proofreading results:", saveError);
-        }
       } else if (isImg) {
         let imageUrl = creative.previewUrl || creative.url;
         if (!imageUrl) {
@@ -485,9 +476,8 @@ export const useSingleCreativeViewModal = ({
     try {
       setIsSaving(true);
       await saveHtml({
-        fileUrl: creative.url,
+        creativeId: creative.id,
         html: htmlContent,
-        newFileName: creative.name,
       });
       setPreviewKey((prev) => prev + 1);
     } catch (error) {

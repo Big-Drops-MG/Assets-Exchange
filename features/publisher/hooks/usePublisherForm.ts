@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { loadFormState, saveFormState, clearFormState } from "../utils/autoSave";
 
 export interface PublisherFormData {
   affiliateId: string;
@@ -16,44 +17,53 @@ export interface PublisherFormData {
 }
 
 export const usePublisherForm = () => {
-  const [currentStep, setCurrentStep] = useState(1);
+  // Load saved state on mount
+  const savedState = loadFormState();
+  const [currentStep, setCurrentStep] = useState(savedState?.currentStep || 1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState<PublisherFormData>({
-    affiliateId: "",
-    companyName: "",
-    firstName: "",
-    lastName: "",
-    email: "",
-    telegramId: "",
-    offerId: "",
-    creativeType: "",
-    additionalNotes: "",
-    fromLines: "",
-    subjectLines: "",
-    priority: "medium",
-  });
+  const [formData, setFormData] = useState<PublisherFormData>(
+    savedState?.formData || {
+      affiliateId: "",
+      companyName: "",
+      firstName: "",
+      lastName: "",
+      email: "",
+      telegramId: "",
+      offerId: "",
+      creativeType: "",
+      additionalNotes: "",
+      fromLines: "",
+      subjectLines: "",
+      priority: "medium",
+    }
+  );
 
-  const onDataChange = (data: Partial<PublisherFormData>) => {
+  // Auto-save form data whenever it changes
+  useEffect(() => {
+    saveFormState(formData, currentStep);
+  }, [formData, currentStep]);
+
+  const onDataChange = useCallback((data: Partial<PublisherFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
-  };
+  }, []);
 
-  const nextStep = () => {
+  const nextStep = useCallback(() => {
     if (currentStep < 3) {
       setCurrentStep((prev) => prev + 1);
     }
-  };
+  }, [currentStep]);
 
-  const previousStep = () => {
+  const previousStep = useCallback(() => {
     if (currentStep > 1) {
       setCurrentStep((prev) => prev - 1);
     }
-  };
+  }, [currentStep]);
 
-  const goToStep = (step: number) => {
+  const goToStep = useCallback((step: number) => {
     if (step >= 1 && step <= 3) {
       setCurrentStep(step);
     }
-  };
+  }, []);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -72,6 +82,10 @@ export const usePublisherForm = () => {
       }
 
       const result = await response.json();
+      
+      // Clear saved state on successful submission
+      clearFormState();
+      
       return result;
     } catch (error) {
       console.error("Submission error:", error);

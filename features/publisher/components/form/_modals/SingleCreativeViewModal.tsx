@@ -281,6 +281,42 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                         </div>
                       )}
 
+                    {/* Toggle between Original and Marked view for HTML - only show after analysis */}
+                    {isHtml && viewModel.proofreadingData && (
+                      <div className="inline-flex items-center gap-0 border border-gray-300 rounded-lg p-0.5 bg-white shadow-sm h-9">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            viewModel.setShowOriginal(true);
+                          }}
+                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${
+                            viewModel.showOriginal
+                              ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
+                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
+                          }`}
+                        >
+                          Original
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            viewModel.setShowOriginal(false);
+                          }}
+                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${
+                            !viewModel.showOriginal
+                              ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
+                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
+                          }`}
+                        >
+                          Marked
+                        </button>
+                      </div>
+                    )}
+
                     {isImage && (creative.previewUrl || creative.url) && (
                       <Button
                         variant="outline"
@@ -354,16 +390,44 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                       </div>
                     )
                   ) : isHtml ? (
-                    <iframe
-                      key={viewModel.previewKey}
-                      srcDoc={
-                        viewModel.htmlContent ||
-                        '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial,sans-serif;color:#666;"><p>HTML content will appear here</p></div>'
-                      }
-                      title="HTML Preview"
-                      className="w-full h-full border-0"
-                      sandbox="allow-scripts allow-same-origin"
-                    />
+                    viewModel.proofreadingData && !viewModel.showOriginal ? (
+                      // Marked view - show icons/placeholders for corrections
+                      <div className="w-full h-full flex items-center justify-center p-8">
+                        <div className="flex flex-col items-center gap-4 text-center max-w-md">
+                          <div className="p-4 bg-amber-100 rounded-full">
+                            <FileText className="h-12 w-12 text-amber-600" />
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-semibold text-gray-800 mb-2">
+                              Marked View
+                            </h4>
+                            <p className="text-sm text-gray-600">
+                              This view will display the HTML with corrections and error markings highlighted.
+                            </p>
+                            {viewModel.proofreadingData.issues && viewModel.proofreadingData.issues.length > 0 && (
+                              <div className="mt-4 flex items-center justify-center gap-2">
+                                <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                                  <X className="h-3 w-3" />
+                                  {viewModel.proofreadingData.issues.length} Issue{viewModel.proofreadingData.issues.length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      // Original view - show the actual HTML
+                      <iframe
+                        key={viewModel.previewKey}
+                        srcDoc={
+                          viewModel.htmlContent ||
+                          '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial,sans-serif;color:#666;"><p>HTML content will appear here</p></div>'
+                        }
+                        title="HTML Preview"
+                        className="w-full h-full border-0"
+                        sandbox="allow-scripts allow-same-origin"
+                      />
+                    )
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-center space-y-3 p-4">
                       <div>
@@ -447,7 +511,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                               size="sm"
                               onClick={viewModel.handleSaveHtml}
                               disabled={viewModel.isSaving}
-                              className="flex items-center gap-2 h-9 disabled:opacity-50"
+                              className="flex items-center gap-2 h-9 disabled:opacity-50 bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100 hover:text-orange-800 hover:border-orange-400 font-medium shadow-sm transition-colors"
                             >
                               {viewModel.isSaving ? (
                                 <>
@@ -669,19 +733,21 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                           </div>
                         </div>
 
-                        {viewModel.proofreadingData?.suggestions &&
-                          viewModel.proofreadingData.suggestions.length > 0 && (
-                            <div className="space-y-3">
-                              <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                                Suggestions
-                                {viewModel.proofreadingData.suggestions.length >
-                                0
-                                  ? ` (${viewModel.proofreadingData.suggestions.length})`
-                                  : ""}
-                              </h4>
-                              <div className="space-y-2">
-                                {viewModel.proofreadingData.suggestions.map(
+                        {/* Suggestions - Always show when proofreading data exists */}
+                        {viewModel.proofreadingData && (
+                          <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                              Suggestions
+                              {viewModel.proofreadingData.suggestions &&
+                              viewModel.proofreadingData.suggestions.length > 0
+                                ? ` (${viewModel.proofreadingData.suggestions.length})`
+                                : ""}
+                            </h4>
+                            <div className="space-y-2">
+                              {viewModel.proofreadingData.suggestions &&
+                              viewModel.proofreadingData.suggestions.length > 0 ? (
+                                viewModel.proofreadingData.suggestions.map(
                                   (suggestion: unknown, index: number) => {
                                     const suggestionData = suggestion as {
                                       type?: string;
@@ -704,12 +770,20 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                                       </div>
                                     );
                                   }
-                                )}
-                              </div>
+                                )
+                              ) : (
+                                <div className="p-4 text-center text-gray-500">
+                                  <p className="text-sm">
+                                    No suggestions available at this time.
+                                  </p>
+                                </div>
+                              )}
                             </div>
-                          )}
+                          </div>
+                        )}
 
-                        {viewModel.proofreadingData?.qualityScore && (
+                        {/* Quality Score - Always show when proofreading data exists */}
+                        {viewModel.proofreadingData && (
                           <div className="space-y-3">
                             <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                               <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
@@ -721,10 +795,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                                   Grammar
                                 </p>
                                 <p className="text-lg font-bold text-purple-800">
-                                  {
-                                    viewModel.proofreadingData.qualityScore
-                                      .grammar
-                                  }
+                                  {viewModel.proofreadingData.qualityScore?.grammar ?? 0}
                                   /100
                                 </p>
                               </div>
@@ -733,10 +804,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                                   Readability
                                 </p>
                                 <p className="text-lg font-bold text-purple-800">
-                                  {
-                                    viewModel.proofreadingData.qualityScore
-                                      .readability
-                                  }
+                                  {viewModel.proofreadingData.qualityScore?.readability ?? 0}
                                   /100
                                 </p>
                               </div>
@@ -745,10 +813,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                                   Conversion
                                 </p>
                                 <p className="text-lg font-bold text-purple-800">
-                                  {
-                                    viewModel.proofreadingData.qualityScore
-                                      .conversion
-                                  }
+                                  {viewModel.proofreadingData.qualityScore?.conversion ?? 0}
                                   /100
                                 </p>
                               </div>
@@ -757,10 +822,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                                   Brand Alignment
                                 </p>
                                 <p className="text-lg font-bold text-purple-800">
-                                  {
-                                    viewModel.proofreadingData.qualityScore
-                                      .brandAlignment
-                                  }
+                                  {viewModel.proofreadingData.qualityScore?.brandAlignment ?? 0}
                                   /100
                                 </p>
                               </div>
@@ -920,34 +982,210 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
             }
           }}
         >
-          <DialogContent className="max-w-screen max-h-screen w-screen h-screen m-0 p-0 rounded-none">
-            <div className="flex flex-col h-full w-full">
-              <DialogHeader className="shrink-0 border-b p-4">
+          <DialogContent className="max-w-screen! max-h-screen w-screen h-screen m-0 p-0 rounded-none bg-black/50 backdrop-blur-md">
+            <DialogTitle className="sr-only">Fullscreen HTML Preview - {creative.name}</DialogTitle>
+            <div className="flex flex-col h-full w-full relative">
+              <DialogHeader className="shrink-0 border-b border-gray-700 p-4 bg-black/30 backdrop-blur-sm">
                 <div className="flex items-center justify-between">
-                  <DialogTitle className="text-lg font-semibold">
-                    {creative.name} - HTML Preview
-                  </DialogTitle>
+                  <div className="flex items-center gap-2">
+                    {/* Toggle between Original and Marked view for HTML in fullscreen */}
+                    {viewModel.proofreadingData && (
+                      <div className="inline-flex items-center gap-0 border border-gray-300 rounded-lg p-0.5 bg-white shadow-sm h-9">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            viewModel.setShowOriginal(true);
+                          }}
+                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${
+                            viewModel.showOriginal
+                              ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
+                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
+                          }`}
+                        >
+                          Original
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            viewModel.setShowOriginal(false);
+                          }}
+                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${
+                            !viewModel.showOriginal
+                              ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
+                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
+                          }`}
+                        >
+                          Marked
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => viewModel.setIsHtmlPreviewFullscreen(false)}
-                    className="h-9"
+                    className="h-9 text-white hover:bg-white/20"
+                    title="Close"
                   >
                     <Minimize2 className="h-5 w-5" />
                   </Button>
                 </div>
               </DialogHeader>
-              <DialogBody className="flex-1 overflow-hidden p-0">
-                <iframe
-                  key={`fullscreen-${viewModel.previewKey}`}
-                  srcDoc={
-                    viewModel.htmlContent ||
-                    '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial,sans-serif;color:#666;"><p>HTML content will appear here</p></div>'
-                  }
-                  title="HTML Preview Fullscreen"
-                  className="w-full h-full border-0"
-                  sandbox="allow-scripts allow-same-origin"
-                />
+              <DialogBody className="flex-1 overflow-hidden p-0 max-w-full! max-h-full!">
+                {viewModel.proofreadingData && !viewModel.showOriginal ? (
+                  // Marked view - show icon placeholder
+                  <div className="w-full h-full flex items-center justify-center p-8 bg-white">
+                    <div className="flex flex-col items-center gap-4 text-center max-w-md">
+                      <div className="p-4 bg-amber-100 rounded-full">
+                        <FileText className="h-12 w-12 text-amber-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-800 mb-2">
+                          Marked View
+                        </h4>
+                        <p className="text-sm text-gray-600">
+                          This view will display the HTML with corrections and error markings highlighted.
+                        </p>
+                        {viewModel.proofreadingData.issues && viewModel.proofreadingData.issues.length > 0 && (
+                          <div className="mt-4 flex items-center justify-center gap-2">
+                            <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                              <X className="h-3 w-3" />
+                              {viewModel.proofreadingData.issues.length} Issue{viewModel.proofreadingData.issues.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // Original view - show the actual HTML
+                  <iframe
+                    key={`fullscreen-${viewModel.previewKey}`}
+                    srcDoc={
+                      viewModel.htmlContent ||
+                      '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial,sans-serif;color:#666;"><p>HTML content will appear here</p></div>'
+                    }
+                    title="HTML Preview Fullscreen"
+                    className="w-full h-full border-0"
+                    sandbox="allow-scripts allow-same-origin"
+                  />
+                )}
+              </DialogBody>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Fullscreen HTML Editor Modal */}
+      {isHtml && (
+        <Dialog
+          open={viewModel.isHtmlEditorFullscreen}
+          onOpenChange={(open) => {
+            if (!open) {
+              viewModel.setIsHtmlEditorFullscreen(false);
+            }
+          }}
+        >
+          <DialogContent className="max-w-screen! max-h-screen w-screen h-screen m-0 p-0 rounded-none">
+            <DialogTitle className="sr-only">Fullscreen HTML Editor - {creative.name}</DialogTitle>
+            <div className="flex flex-col h-full w-full">
+              <DialogHeader className="shrink-0 border-b border-gray-200 p-4 bg-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-100 rounded-lg">
+                      <FileText className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-800">
+                        HTML Editor - {creative.name}
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Edit your HTML code and see live preview
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={viewModel.handleSaveHtml}
+                      disabled={viewModel.isSaving}
+                      className="flex items-center gap-2 h-9 disabled:opacity-50 bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100 hover:text-orange-800 hover:border-orange-400 font-medium shadow-sm transition-colors"
+                    >
+                      {viewModel.isSaving ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-orange-700 border-t-transparent rounded-full animate-spin" />
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="h-4 w-4" />
+                          <span>Save Changes</span>
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => viewModel.setIsHtmlEditorFullscreen(false)}
+                      className="h-9 w-9 p-0 hover:bg-red-400 hover:text-white transition-colors"
+                      title="Close"
+                    >
+                      <Minimize2 className="h-5 w-5" />
+                    </Button>
+                  </div>
+                </div>
+              </DialogHeader>
+              <DialogBody className="flex-1 overflow-hidden p-0 max-w-full! max-h-full!">
+                <div className="flex h-full w-full">
+                  {/* Editor Column - Left */}
+                  <div className="w-1/2 border-r border-gray-200 flex flex-col bg-gray-50">
+                    <div className="shrink-0 p-3 border-b border-gray-200 bg-white">
+                      <Label className="text-sm font-semibold text-gray-700">
+                        HTML Code Editor
+                      </Label>
+                    </div>
+                    <div className="flex-1 overflow-auto p-4">
+                      <Textarea
+                        value={viewModel.htmlContent}
+                        onChange={(e) => {
+                          viewModel.setHtmlContent(e.target.value);
+                        }}
+                        placeholder="Edit your HTML code here..."
+                        className="w-full h-full resize-none text-sm font-mono border-gray-300 focus:border-orange-500 focus:ring-orange-500/20 min-h-full"
+                        style={{ minHeight: '100%' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Preview Column - Right */}
+                  <div className="w-1/2 flex flex-col bg-white">
+                    <div className="shrink-0 p-3 border-b border-gray-200 bg-white">
+                      <Label className="text-sm font-semibold text-gray-700">
+                        Live Preview
+                      </Label>
+                    </div>
+                    <div className="flex-1 overflow-auto p-4 bg-gray-50">
+                      <div className="w-full h-full border border-gray-300 rounded-lg overflow-hidden bg-white shadow-sm">
+                        <iframe
+                          key={`editor-fullscreen-${viewModel.previewKey}`}
+                          srcDoc={
+                            viewModel.htmlContent ||
+                            '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial,sans-serif;color:#666;"><p>HTML content will appear here</p></div>'
+                          }
+                          title="HTML Editor Live Preview"
+                          className="w-full h-full border-0"
+                          sandbox="allow-scripts allow-same-origin"
+                          style={{ minHeight: '100%' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </DialogBody>
             </div>
           </DialogContent>

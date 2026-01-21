@@ -204,10 +204,8 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
                             variant="ghost"
                             size="sm"
                             onClick={handleClose}
-                            className="h-8 w-8 p-0"
-                            style={{
-                                color: variables.colors.descriptionColor,
-                            }}
+                            className="h-8 w-8 p-0 hover:bg-red-400 hover:text-white"
+                            
                         >
                             <X className="h-4 w-4" />
                         </Button>
