@@ -69,23 +69,34 @@ export async function GET(request: Request) {
 
     // Call the RPC handler directly
     const procedure = router.admin.dashboard.performance;
-    const procedureAny = procedure as {
+    const procedureAny = procedure as unknown as {
       "~orpc"?: { handler?: (opts: { input: unknown }) => Promise<unknown> };
+      func?: (input: unknown) => Promise<unknown>;
     };
 
-    if (!procedureAny["~orpc"] || !procedureAny["~orpc"].handler) {
+    let result: unknown;
+
+    if (
+      procedureAny["~orpc"] &&
+      typeof procedureAny["~orpc"].handler === "function"
+    ) {
+      result = await procedureAny["~orpc"].handler({
+        input: {
+          comparisonType,
+          metric,
+        },
+      });
+    } else if (typeof procedureAny === "function") {
+      result = await (procedureAny as (input: unknown) => Promise<unknown>)({
+        comparisonType,
+        metric,
+      });
+    } else {
       return NextResponse.json(
-        { error: "RPC handler not found" },
+        { error: "RPC handler not found or not callable" },
         { status: 500 }
       );
     }
-
-    const result = await procedureAny["~orpc"].handler({
-      input: {
-        comparisonType,
-        metric,
-      },
-    });
 
     return NextResponse.json({
       success: true,
