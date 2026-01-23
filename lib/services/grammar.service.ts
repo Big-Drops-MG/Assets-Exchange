@@ -200,15 +200,13 @@ interface CorrectionItem {
 function applyCorrectionsToHtml(html: string, corrections: unknown[]): string {
   if (!corrections || corrections.length === 0) return html;
 
-  let correctedHtml = html;
-  let appliedCount = 0;
+  let highlightedHtml = html;
 
   for (const item of corrections) {
     if (!item || typeof item !== "object") continue;
 
     const correction = item as CorrectionItem;
 
-    // Find the original/incorrect text (various possible field names from different AI response formats)
     let originalText =
       correction.original ||
       correction.incorrect ||
@@ -219,7 +217,6 @@ function applyCorrectionsToHtml(html: string, corrections: unknown[]): string {
       correction.text ||
       correction.before;
 
-    // Find the corrected text (various possible field names)
     let correctedText =
       correction.correction ||
       correction.corrected ||
@@ -231,7 +228,6 @@ function applyCorrectionsToHtml(html: string, corrections: unknown[]): string {
       correction.after ||
       correction.fix;
 
-    // If standard fields not found, try to find any field that looks like original/corrected
     if (!originalText || !correctedText) {
       const keys = Object.keys(correction);
       for (const key of keys) {
@@ -263,7 +259,6 @@ function applyCorrectionsToHtml(html: string, corrections: unknown[]): string {
     }
 
     if (originalText && correctedText && originalText !== correctedText) {
-      // Replace in HTML while preserving HTML tags
       const escapedOriginal = originalText.replace(
         /[.*+?^${}()|[\]\\]/g,
         "\\$&"
@@ -273,32 +268,37 @@ function applyCorrectionsToHtml(html: string, corrections: unknown[]): string {
         "gi"
       );
 
-      const beforeReplace = correctedHtml;
-      correctedHtml = correctedHtml.replace(
+      const beforeHighlight = highlightedHtml;
+      const escapedCorrected = correctedText
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+      highlightedHtml = highlightedHtml.replace(
         regex,
         (match, before, found, after) => {
-          return `${before}${correctedText}${after}`;
+          return `${before}<mark class="grammar-highlight" data-correction="${escapedCorrected}" title="Suggested: ${escapedCorrected}">${found}</mark>${after}`;
         }
       );
 
-      // If regex didn't match (text might not be between tags), try simple replace
-      if (correctedHtml === beforeReplace) {
-        correctedHtml = correctedHtml.split(originalText).join(correctedText);
-      }
-
-      if (correctedHtml !== beforeReplace) {
-        appliedCount++;
-        console.warn(
-          `Applied correction: "${originalText}" -> "${correctedText}"`
+      if (highlightedHtml === beforeHighlight) {
+        const escapedCorrectedSimple = correctedText
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+        highlightedHtml = highlightedHtml.replace(
+          originalText,
+          `<mark class="grammar-highlight" data-correction="${escapedCorrectedSimple}" title="Suggested: ${escapedCorrectedSimple}">${originalText}</mark>`
         );
       }
     }
   }
 
-  console.warn(
-    `Applied ${appliedCount}/${corrections.length} text corrections to HTML`
-  );
-  return correctedHtml;
+  return highlightedHtml;
 }
 
 export const GrammarService = {
@@ -493,10 +493,6 @@ export const GrammarService = {
           const extractedImages = await extractImagesFromHtml(htmlText);
 
           if (extractedImages.length > 0) {
-            console.warn(
-              `Processing ${extractedImages.length} extracted images...`
-            );
-
             // Process each image with the AI model
             for (const img of extractedImages) {
               const imgResult = await processImageWithAI(
@@ -514,24 +510,16 @@ export const GrammarService = {
                 let markedUrl: string | null = null;
 
                 const imgResultKeys = Object.keys(resultData);
-                console.warn(
-                  `Image result keys for ${img.filename}:`,
-                  imgResultKeys.join(", ")
-                );
 
                 // Check various possible field names for marked image
                 if (typeof resultData.marked_image === "string") {
                   markedUrl = resultData.marked_image;
-                  console.warn(`Found marked_image for ${img.filename}`);
                 } else if (typeof resultData.annotated_image === "string") {
                   markedUrl = resultData.annotated_image;
-                  console.warn(`Found annotated_image for ${img.filename}`);
                 } else if (typeof resultData.output_image === "string") {
                   markedUrl = resultData.output_image;
-                  console.warn(`Found output_image for ${img.filename}`);
                 } else if (typeof resultData.processed_image === "string") {
                   markedUrl = resultData.processed_image;
-                  console.warn(`Found processed_image for ${img.filename}`);
                 } else {
                   // Try to find any field with image data
                   for (const key of imgResultKeys) {
@@ -588,26 +576,15 @@ export const GrammarService = {
 
             // Replace original image URLs with marked image URLs in HTML
             if (urlReplacements.size > 0) {
-              console.warn(
-                `Replacing ${urlReplacements.size} images in HTML with marked versions...`
-              );
               for (const [originalUrl, markedUrl] of urlReplacements) {
                 htmlText = htmlText.split(originalUrl).join(markedUrl);
               }
               // Save modified HTML content for the result
               modifiedHtmlContent = htmlText;
-              console.warn(`HTML updated with marked images`);
             }
-
-            console.warn(
-              `Processed ${extractedImageResults.length}/${extractedImages.length} images successfully`
-            );
           } else {
             // No images found, use original HTML for corrections
             modifiedHtmlContent = originalHtmlText;
-            console.warn(
-              "No images found in HTML, will apply text corrections only"
-            );
           }
 
           // For HTML text analysis, strip images to focus on text content
@@ -617,9 +594,6 @@ export const GrammarService = {
             "<!-- image placeholder -->"
           );
           blob = new Blob([textOnlyHtml], { type: "text/html" });
-          console.warn(
-            `Sending text-only HTML for analysis (images stripped), size: ${(blob.size / 1024).toFixed(1)}KB`
-          );
         } catch (extractErr) {
           console.warn(
             "Failed to extract/process images from HTML:",
@@ -759,10 +733,6 @@ export const GrammarService = {
               const imageMarkedUrls: string[] = [];
 
               if (extractedImageResults.length > 0) {
-                console.warn(
-                  `Merging ${extractedImageResults.length} image results with HTML results...`
-                );
-
                 for (const imgResult of extractedImageResults) {
                   const imgData = (imgResult.result || imgResult) as Record<
                     string,
@@ -798,34 +768,56 @@ export const GrammarService = {
                 `Image analysis found: ${allCorrections.length} corrections, ${allIssues.length} issues`
               );
 
-              // Log first correction/issue structure for debugging
-              if (htmlCorrections.length > 0) {
-                console.warn(
-                  "First correction structure:",
-                  JSON.stringify(htmlCorrections[0], null, 2)
-                );
-              }
-              if (htmlIssues.length > 0) {
-                console.warn(
-                  "First issue structure:",
-                  JSON.stringify(htmlIssues[0], null, 2)
-                );
-              }
-
               // Build final HTML: Start with HTML that has marked images (or original if no images)
               let finalHtml: string | null =
                 modifiedHtmlContent || originalHtmlText;
 
-              // Apply text corrections from AI to the HTML
+              // Apply text corrections from AI to the HTML (highlighting instead of replacing)
               if (finalHtml && htmlCorrections.length > 0) {
-                console.warn("Applying text corrections to HTML...");
                 finalHtml = applyCorrectionsToHtml(finalHtml, htmlCorrections);
               }
 
               // Also try to apply corrections from issues array (some AI responses put corrections there)
               if (finalHtml && htmlIssues.length > 0) {
-                console.warn("Checking issues for corrections to apply...");
                 finalHtml = applyCorrectionsToHtml(finalHtml, htmlIssues);
+              }
+
+              // Inject CSS styles for grammar highlights if any highlights were added
+              if (
+                finalHtml &&
+                finalHtml.includes('class="grammar-highlight"')
+              ) {
+                const highlightStyles = `
+                  <style>
+                    .grammar-highlight {
+                      background-color: #fef08a;
+                      padding: 2px 4px;
+                      border-radius: 3px;
+                      border-bottom: 2px solid #facc15;
+                      cursor: help;
+                      position: relative;
+                    }
+                    .grammar-highlight:hover {
+                      background-color: #fde047;
+                      border-bottom-color: #eab308;
+                    }
+                  </style>
+                `;
+
+                // Insert styles in the head if it exists, otherwise at the beginning
+                if (finalHtml.includes("</head>")) {
+                  finalHtml = finalHtml.replace(
+                    "</head>",
+                    `${highlightStyles}</head>`
+                  );
+                } else if (finalHtml.includes("<head>")) {
+                  finalHtml = finalHtml.replace(
+                    "<head>",
+                    `<head>${highlightStyles}`
+                  );
+                } else {
+                  finalHtml = highlightStyles + finalHtml;
+                }
               }
 
               resultData = {
@@ -840,17 +832,7 @@ export const GrammarService = {
               if (finalHtml) {
                 resultData.output_content = finalHtml;
                 resultData.marked_html = finalHtml;
-                console.warn(
-                  "Added final HTML with text corrections to result"
-                );
               }
-
-              const totalCorrections =
-                htmlCorrections.length + allCorrections.length;
-              const totalIssues = htmlIssues.length + allIssues.length;
-              console.warn(
-                `Total merged: ${totalCorrections} corrections, ${totalIssues} issues (HTML text + images)`
-              );
             }
 
             // IMAGE OPTIMIZATION: Convert Base64 images to URLs for sync responses

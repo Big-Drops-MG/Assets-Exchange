@@ -101,33 +101,12 @@ export const useSingleCreativeViewModal = ({
       !proofreadingData?.result ||
       typeof proofreadingData.result !== "object"
     ) {
-      console.warn("getMarkedImageUrl: No result or not an object", {
-        hasProofreadingData: !!proofreadingData,
-        hasResult: !!proofreadingData?.result,
-        resultType: typeof proofreadingData?.result,
-      });
       return null;
     }
     const result = proofreadingData.result as Record<string, unknown>;
 
-    const keys = Object.keys(result);
-    console.warn("getMarkedImageUrl: Keys in result:", keys);
-
-    // Log each key and its value type/preview
-    for (const key of keys) {
-      const val = result[key];
-      if (typeof val === "string") {
-        console.warn(
-          `  - ${key}: string (${val.length} chars) -> "${val.substring(0, 80)}..."`
-        );
-      } else {
-        console.warn(`  - ${key}: ${typeof val}`);
-      }
-    }
-
     // Check direct properties
     if (result.marked_image && typeof result.marked_image === "string") {
-      console.warn("getMarkedImageUrl: Found marked_image");
       return result.marked_image;
     }
     if (
@@ -140,39 +119,32 @@ export const useSingleCreativeViewModal = ({
       result.annotated_image_url &&
       typeof result.annotated_image_url === "string"
     ) {
-      console.warn("getMarkedImageUrl: Found annotated_image_url");
       return result.annotated_image_url;
     }
     if (
       result.marked_image_url &&
       typeof result.marked_image_url === "string"
     ) {
-      console.warn("getMarkedImageUrl: Found marked_image_url");
       return result.marked_image_url;
     }
     // Check for annotated_image (base64 direct)
     if (result.annotated_image && typeof result.annotated_image === "string") {
-      console.warn("getMarkedImageUrl: Found annotated_image");
       return result.annotated_image;
     }
     // Check for output_image
     if (result.output_image && typeof result.output_image === "string") {
-      console.warn("getMarkedImageUrl: Found output_image");
       return result.output_image;
     }
     // Check for processed_image
     if (result.processed_image && typeof result.processed_image === "string") {
-      console.warn("getMarkedImageUrl: Found processed_image");
       return result.processed_image;
     }
     // Check for image (simple key)
     if (result.image && typeof result.image === "string") {
-      console.warn("getMarkedImageUrl: Found image");
       return result.image;
     }
     // Check for output (simple key)
     if (result.output && typeof result.output === "string") {
-      console.warn("getMarkedImageUrl: Found output");
       return result.output;
     }
     // Check for image_marked_urls array (from HTML with multiple images)
@@ -182,15 +154,13 @@ export const useSingleCreativeViewModal = ({
     ) {
       const firstMarkedUrl = result.image_marked_urls[0];
       if (typeof firstMarkedUrl === "string") {
-        console.warn(
-          "getMarkedImageUrl: Found image_marked_urls array, using first"
-        );
         return firstMarkedUrl;
       }
     }
 
     // Fallback: find any string that looks like an image URL or base64
-    for (const key of keys) {
+    const allKeys = Object.keys(result);
+    for (const key of allKeys) {
       const value = result[key];
       if (typeof value === "string") {
         if (
@@ -201,7 +171,6 @@ export const useSingleCreativeViewModal = ({
               value.includes(".jpeg") ||
               value.includes("blob")))
         ) {
-          console.warn(`getMarkedImageUrl: Found image in key '${key}'`);
           return value;
         }
       }
@@ -248,10 +217,6 @@ export const useSingleCreativeViewModal = ({
       }
     }
 
-    console.warn(
-      "getMarkedImageUrl: No marked image found in result. Available keys:",
-      keys.join(", ")
-    );
     return null;
   }, [proofreadingData]);
 
@@ -265,7 +230,6 @@ export const useSingleCreativeViewModal = ({
     }
     const result = proofreadingData.result as Record<string, unknown>;
 
-    // Check direct properties - including output_content from grammar AI
     if (result.output_content && typeof result.output_content === "string") {
       return result.output_content;
     }
@@ -366,54 +330,77 @@ export const useSingleCreativeViewModal = ({
 
   const fetchHtmlContent = useCallback(async () => {
     try {
+      let htmlText = "";
+
       if (
         (creative as { embeddedHtml?: string }).embeddedHtml &&
         (creative as { embeddedHtml?: string }).embeddedHtml!.length > 0
       ) {
-        setHtmlContent((creative as { embeddedHtml?: string }).embeddedHtml!);
-        return;
-      }
-
-      const encodedFileUrl = encodeURIComponent(creative.url);
-      let apiUrl = `${API_ENDPOINTS.GET_FILE_CONTENT}?fileId=${creative.id}&fileUrl=${encodedFileUrl}&processAssets=true`;
-      if (creative.uploadId) {
-        apiUrl += `&uploadId=${encodeURIComponent(creative.uploadId)}`;
-      }
-
-      const apiResponse = await fetch(apiUrl, {
-        method: "GET",
-        headers: {
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        },
-      });
-
-      if (apiResponse.ok) {
-        const htmlText = await apiResponse.text();
-        setHtmlContent(htmlText);
-        return;
-      }
-
-      const directResponse = await fetch(creative.url, {
-        method: "GET",
-        headers: {
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        },
-        mode: "cors",
-      });
-
-      if (directResponse.ok) {
-        const htmlText = await directResponse.text();
-        setHtmlContent(htmlText);
+        htmlText = (creative as { embeddedHtml?: string }).embeddedHtml!;
       } else {
-        await tryAlternativeHtmlLoading();
+        const encodedFileUrl = encodeURIComponent(creative.url);
+        let apiUrl = `${API_ENDPOINTS.GET_FILE_CONTENT}?fileId=${creative.id}&fileUrl=${encodedFileUrl}&processAssets=true`;
+        if (creative.uploadId) {
+          apiUrl += `&uploadId=${encodeURIComponent(creative.uploadId)}`;
+        }
+
+        const apiResponse = await fetch(apiUrl, {
+          method: "GET",
+          headers: {
+            Accept:
+              "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          },
+        });
+
+        if (apiResponse.ok) {
+          htmlText = await apiResponse.text();
+        } else {
+          const directResponse = await fetch(creative.url, {
+            method: "GET",
+            headers: {
+              Accept:
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            },
+            mode: "cors",
+          });
+
+          if (directResponse.ok) {
+            htmlText = await directResponse.text();
+          }
+        }
+      }
+
+      if (htmlText) {
+        // Check if we have corrected HTML from proofreading
+        // Only set original HTML if we don't have corrected version
+        const hasProofreading = proofreadingData?.result;
+        if (hasProofreading) {
+          const result = proofreadingData.result as Record<string, unknown>;
+          const correctedHtml =
+            (result.output_content && typeof result.output_content === "string"
+              ? result.output_content
+              : null) ||
+            (result.marked_html && typeof result.marked_html === "string"
+              ? result.marked_html
+              : null) ||
+            (result.corrected_html && typeof result.corrected_html === "string"
+              ? result.corrected_html
+              : null);
+
+          if (correctedHtml && correctedHtml.trim().length > 0) {
+            setHtmlContent(correctedHtml);
+          } else {
+            setHtmlContent(htmlText);
+          }
+        } else {
+          setHtmlContent(htmlText);
+        }
       }
     } catch (error) {
       console.error("Error fetching HTML:", error);
       await tryAlternativeHtmlLoading();
     }
-  }, [creative]);
+  }, [creative, proofreadingData]);
 
   const tryAlternativeHtmlLoading = async () => {
     const fallbackContent = `<!-- HTML Content Loading Failed -->
@@ -459,6 +446,35 @@ export const useSingleCreativeViewModal = ({
       fetchHtmlContent();
     }
   }, [isOpen, creative.type, creative.name, fetchHtmlContent]);
+
+  // Update htmlContent with corrected HTML when proofreading data is available
+  useEffect(() => {
+    const isHtmlFile =
+      creative.html ||
+      creative.type === "html" ||
+      /\.html?$/i.test(creative.name);
+
+    if (isHtmlFile && proofreadingData?.result) {
+      const result = proofreadingData.result as Record<string, unknown>;
+
+      let correctedHtml: string | null = null;
+      if (result.output_content && typeof result.output_content === "string") {
+        correctedHtml = result.output_content;
+      } else if (result.marked_html && typeof result.marked_html === "string") {
+        correctedHtml = result.marked_html;
+      } else if (
+        result.corrected_html &&
+        typeof result.corrected_html === "string"
+      ) {
+        correctedHtml = result.corrected_html;
+      }
+
+      if (correctedHtml && correctedHtml.trim().length > 0) {
+        setHtmlContent(correctedHtml);
+        setPreviewKey((prev) => prev + 1);
+      }
+    }
+  }, [proofreadingData, creative.html, creative.type, creative.name]);
 
   const handleSaveAll = useCallback(async () => {
     try {
@@ -728,6 +744,43 @@ export const useSingleCreativeViewModal = ({
         };
 
         setProofreadingData(finalResult);
+
+        // Immediately update HTML content with corrected version if available
+        const isHtmlFile =
+          creative.html ||
+          creative.type === "html" ||
+          /\.html?$/i.test(creative.name);
+
+        if (isHtmlFile) {
+          const proofreadResult = (finalResult.result || finalResult) as Record<
+            string,
+            unknown
+          >;
+
+          let correctedHtml: string | null = null;
+          if (
+            proofreadResult.output_content &&
+            typeof proofreadResult.output_content === "string"
+          ) {
+            correctedHtml = proofreadResult.output_content;
+          } else if (
+            proofreadResult.marked_html &&
+            typeof proofreadResult.marked_html === "string"
+          ) {
+            correctedHtml = proofreadResult.marked_html;
+          } else if (
+            proofreadResult.corrected_html &&
+            typeof proofreadResult.corrected_html === "string"
+          ) {
+            correctedHtml = proofreadResult.corrected_html;
+          }
+
+          if (correctedHtml && correctedHtml.trim().length > 0) {
+            setHtmlContent(correctedHtml);
+            setPreviewKey((prev) => prev + 1);
+          }
+        }
+
         setShowOriginal(false);
         setShowOriginalFullscreen(false);
         setShowOriginalHtmlFullscreen(false);
@@ -798,6 +851,41 @@ export const useSingleCreativeViewModal = ({
               };
 
               setProofreadingData(finalResult);
+
+              // Immediately update HTML content with corrected version if available
+              const isHtmlFile =
+                creative.html ||
+                creative.type === "html" ||
+                /\.html?$/i.test(creative.name);
+
+              if (isHtmlFile) {
+                const proofreadResult = (finalResult.result ||
+                  finalResult) as Record<string, unknown>;
+
+                let correctedHtml: string | null = null;
+                if (
+                  proofreadResult.output_content &&
+                  typeof proofreadResult.output_content === "string"
+                ) {
+                  correctedHtml = proofreadResult.output_content;
+                } else if (
+                  proofreadResult.marked_html &&
+                  typeof proofreadResult.marked_html === "string"
+                ) {
+                  correctedHtml = proofreadResult.marked_html;
+                } else if (
+                  proofreadResult.corrected_html &&
+                  typeof proofreadResult.corrected_html === "string"
+                ) {
+                  correctedHtml = proofreadResult.corrected_html;
+                }
+
+                if (correctedHtml && correctedHtml.trim().length > 0) {
+                  setHtmlContent(correctedHtml);
+                  setPreviewKey((prev) => prev + 1);
+                }
+              }
+
               setShowOriginal(false);
               setShowOriginalFullscreen(false);
               setShowOriginalHtmlFullscreen(false);
