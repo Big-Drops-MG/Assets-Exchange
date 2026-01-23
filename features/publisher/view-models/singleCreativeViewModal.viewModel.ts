@@ -103,16 +103,7 @@ export const useSingleCreativeViewModal = ({
 
     const originalUrl = creative.url || creative.previewUrl || "";
 
-    // First check if marked_image is at top level of proofreadingData
-    if (
-      proofreadingData.marked_image &&
-      typeof proofreadingData.marked_image === "string" &&
-      proofreadingData.marked_image !== originalUrl
-    ) {
-      return proofreadingData.marked_image;
-    }
-
-    // Then check result object
+    // Check result object
     if (
       !proofreadingData.result ||
       typeof proofreadingData.result !== "object"

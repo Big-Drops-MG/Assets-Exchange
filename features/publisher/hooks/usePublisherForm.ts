@@ -4,6 +4,7 @@ import {
   loadFormState,
   saveFormState,
   clearFormState,
+  loadFilesState,
 } from "../utils/autoSave";
 import { type SavedFileMeta } from "../utils/autoSave";
 
@@ -87,7 +88,7 @@ export const usePublisherForm = () => {
                 url: f.url,
                 size: f.size,
                 type: f.type,
-                metadata: {
+                metadata: f.metadata || {
                   fromLines: f.fromLines,
                   subjectLines: f.subjectLines,
                 },

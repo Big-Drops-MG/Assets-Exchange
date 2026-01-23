@@ -24,6 +24,25 @@ export interface SavedFileMeta {
   hasAssets?: boolean;
   fromLines?: string;
   subjectLines?: string;
+  metadata?: {
+    fromLines?: string;
+    subjectLines?: string;
+    proofreadingData?: {
+      issues?: Array<unknown>;
+      suggestions?: Array<unknown>;
+      qualityScore?: {
+        grammar?: number;
+        readability?: number;
+        conversion?: number;
+        brandAlignment?: number;
+      };
+      success?: boolean;
+    };
+    ai_issues?: Array<unknown>;
+    ai_score?: number;
+    ai_status?: string;
+    last_checked?: string;
+  };
 }
 
 export interface SavedFilesState {

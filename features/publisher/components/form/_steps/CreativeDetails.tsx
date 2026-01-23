@@ -41,10 +41,17 @@ type UploadedFileMeta = {
   fromLines?: string;
   subjectLines?: string;
   metadata?: {
+    fromLines?: string;
+    subjectLines?: string;
     proofreadingData?: {
       issues?: Array<unknown>;
       suggestions?: Array<unknown>;
-      qualityScore?: number;
+      qualityScore?: {
+        grammar?: number;
+        readability?: number;
+        conversion?: number;
+        brandAlignment?: number;
+      };
       success?: boolean;
     };
     ai_issues?: Array<unknown>;
