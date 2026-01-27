@@ -35,12 +35,19 @@ export const useThankYouPage = () => {
   const [submissionType, setSubmissionType] = useState<SubmissionType>(null);
   const [fileCount, setFileCount] = useState<number>(0);
 
+  const [trackingCode, setTrackingCode] = useState<string | null>(null);
+
   useEffect(() => {
     // Get submission type from URL parameters
     const type = searchParams.get("type") as SubmissionType;
     const count = searchParams.get("count")
       ? parseInt(searchParams.get("count")!)
       : 0;
+    const code = searchParams.get("trackingCode");
+
+    if (code) {
+      setTrackingCode(code);
+    }
 
     // If no URL params, try to get from localStorage (fallback)
     if (!type) {
@@ -143,6 +150,7 @@ export const useThankYouPage = () => {
   return {
     submissionType,
     fileCount,
+    trackingCode,
     statuses,
     submissionInfo,
     handleBackToHome,

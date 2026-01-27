@@ -32,10 +32,10 @@ export default function Home() {
   const handleTrackingIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
 
-    // Only allow alphanumeric characters (letters and numbers) and limit to 12 characters
+    // Only allow alphanumeric characters (letters and numbers) and limit to 8 characters
     const alphanumericOnly = value
       .replace(/[^a-zA-Z0-9]/g, "")
-      .slice(0, 12)
+      .slice(0, 8)
       .toUpperCase();
     setTrackingId(alphanumericOnly);
 
@@ -51,8 +51,8 @@ export default function Home() {
       return false;
     }
 
-    if (trackingId.length !== 12) {
-      setError("Tracking ID must be exactly 12 characters");
+    if (trackingId.length !== 8) {
+      setError("Tracking ID must be exactly 8 characters");
       return false;
     }
 
@@ -69,12 +69,8 @@ export default function Home() {
       setIsLoading(true);
       setError("");
 
-      // TODO: BACKEND - Implement GET /api/track/:trackingId endpoint
-      // Simulating API call for now
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Navigate to tracking page with the tracking ID
-      router.push(`/track/${trackingId}`);
+      // Navigate to tracking page with the tracking ID as query param
+      router.push(`/track?code=${trackingId}`);
     } catch (err) {
       setError("Failed to track creative. Please try again.");
       console.error("Tracking error:", err);
@@ -147,12 +143,12 @@ export default function Home() {
             </div>
             <div className="w-full flex flex-col gap-2">
               <Input
-                placeholder="Enter 12-character ID"
+                placeholder="Enter 8-digit code"
                 className={`w-full h-12 font-inter bg-[#FFFFFF] ${error ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                 value={trackingId}
                 onChange={handleTrackingIdChange}
                 onKeyPress={handleKeyPress}
-                maxLength={12}
+                maxLength={8}
                 disabled={isLoading}
                 aria-label="Tracking ID"
                 aria-invalid={!!error}
@@ -172,7 +168,7 @@ export default function Home() {
               className="w-full h-12 font-inter bg-[#3B82F6] hover:bg-[#2563EB] disabled:opacity-50 disabled:cursor-not-allowed"
               variant="default"
               onClick={handleTrackClick}
-              disabled={isLoading || !trackingId || trackingId.length !== 12}
+              disabled={isLoading || !trackingId || trackingId.length !== 8}
               aria-label="Track creative submission"
             >
               {isLoading ? "Tracking..." : "Track Now"}

@@ -55,12 +55,24 @@ function ThankYouPageContent() {
 
             {/* Enhanced confirmation message */}
             <div className="bg-linear-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl px-4 py-3 max-w-3xl mx-auto shadow-sm">
-              <div className="flex items-center justify-center space-x-2">
-                <Mail className="w-4 h-4 text-blue-600" />
-                <p className="text-xs md:text-sm text-blue-800 font-medium">
-                  A confirmation email with your submission ID and tracking
-                  number will be sent to your email.
-                </p>
+              <div className="flex flex-col items-center justify-center space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Mail className="w-4 h-4 text-blue-600" />
+                  <p className="text-xs md:text-sm text-blue-800 font-medium">
+                    A confirmation email with your submission ID and tracking
+                    number will be sent to your email.
+                  </p>
+                </div>
+                {viewModel.trackingCode && (
+                  <div className="mt-2 text-center p-2 bg-white rounded-lg border border-blue-100 w-full max-w-sm">
+                    <p className="text-xs text-gray-500 mb-1">
+                      Your Tracking Code
+                    </p>
+                    <p className="text-xl font-mono font-bold text-blue-700 tracking-wider">
+                      {viewModel.trackingCode}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </CardHeader>

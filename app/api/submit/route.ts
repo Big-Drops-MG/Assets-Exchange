@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getOffer } from "@/features/admin/services/offer.service";
 import { db } from "@/lib/db";
 import { creativeRequests, creatives } from "@/lib/schema";
+import { generateTrackingCode } from "@/lib/utils/tracking";
 
 const fileSchema = z.object({
   id: z.string(),
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
     const subjectLinesCount = countLines(data.subjectLines);
     const priority =
       data.priority === "high" ? "High Priority" : "Medium Priority";
+    const trackingCode = generateTrackingCode(); // Used correctly
 
     const [request] = await db
       .insert(creativeRequests)
@@ -90,6 +92,7 @@ export async function POST(req: NextRequest) {
         clientId: data.affiliateId,
         clientName: data.companyName,
         priority,
+        trackingCode, // Added trackingCode
         status: "new",
         approvalStage: "admin",
         adminStatus: "pending",
@@ -119,7 +122,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { success: true, requestId: request.id },
+      { success: true, requestId: request.id, trackingCode },
       { status: 201 }
     );
   } catch (error) {

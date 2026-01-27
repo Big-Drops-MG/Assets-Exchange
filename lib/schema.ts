@@ -137,6 +137,7 @@ export const creativeRequests = pgTable(
       .notNull()
       .default("admin"),
     priority: priorityEnum("priority").notNull(),
+    trackingCode: text("tracking_code").unique(),
     adminStatus: adminStatusEnum("admin_status").default("pending"),
     adminApprovedBy: text("admin_approved_by"),
     adminApprovedAt: timestamp("admin_approved_at"),

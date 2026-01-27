@@ -142,7 +142,10 @@ export const usePublisherForm = () => {
         submissionType = "fromSubjectLines";
       }
 
-      router.push(`/thankyou?type=${submissionType}&count=${fileCount}`);
+      const trackingCode = result.trackingCode;
+      router.push(
+        `/thankyou?type=${submissionType}&count=${fileCount}${trackingCode ? `&trackingCode=${trackingCode}` : ""}`
+      );
 
       return result;
     } catch (error) {
