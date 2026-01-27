@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import type { PublisherFormData } from './usePublisherForm';
+import { useState, useCallback, useMemo } from "react";
+
 import {
   validatePersonalDetails,
   validateContactDetails,
@@ -7,7 +7,9 @@ import {
   validateForm,
   validateField,
   type ValidationResult,
-} from '@/features/publisher/utils/validation';
+} from "@/features/publisher/utils/validation";
+
+import type { PublisherFormData } from "./usePublisherForm";
 
 export interface ValidationState {
   errors: Record<string, string>;
@@ -15,9 +17,9 @@ export interface ValidationState {
   isValid: boolean;
 }
 
-export const useFormValidation = (initialFormData: PublisherFormData) => {
+export const useFormValidation = (_initialFormData: PublisherFormData) => {
   const keepValidation = false;
-  
+
   const [validationState, setValidationState] = useState<ValidationState>({
     errors: {},
     touched: {},
@@ -27,7 +29,7 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
   const [hasFromSubjectLines, setHasFromSubjectLines] = useState(false);
 
   // Update form data - this should not trigger state updates that cause infinite loops
-  const updateFormData = useCallback((updates: Partial<PublisherFormData>) => {
+  const updateFormData = useCallback((_updates: Partial<PublisherFormData>) => {
     // This function is now just a placeholder - actual form data is managed by the parent component
     // We don't need to store form data here since it's passed as a parameter to validation functions
   }, []);
@@ -52,10 +54,10 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
   const validateSingleField = useCallback(
     (fieldName: keyof PublisherFormData, value: string) => {
       if (!keepValidation) {
-        return '';
+        return "";
       }
       const result = validateField(fieldName, value);
-      return result.error || '';
+      return result.error || "";
     },
     [keepValidation]
   );
@@ -67,7 +69,7 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
         return;
       }
       const result = validateField(fieldName, value);
-      const error = result.error || '';
+      const error = result.error || "";
 
       setValidationState((prev) => ({
         ...prev,
@@ -91,17 +93,17 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
       }
 
       const result = validatePersonalDetails({
-        affiliateId: formData.affiliateId || '',
-        companyName: formData.companyName || '',
-        firstName: formData.firstName || '',
-        lastName: formData.lastName || '',
+        affiliateId: formData.affiliateId || "",
+        companyName: formData.companyName || "",
+        firstName: formData.firstName || "",
+        lastName: formData.lastName || "",
       });
 
       const fieldsToTouch: Array<keyof PublisherFormData> = [
-        'affiliateId',
-        'companyName',
-        'firstName',
-        'lastName'
+        "affiliateId",
+        "companyName",
+        "firstName",
+        "lastName",
       ];
 
       const touchedFields: Record<string, boolean> = {};
@@ -131,13 +133,13 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
       }
 
       const result = validateContactDetails({
-        email: formData.email || '',
-        telegramId: formData.telegramId || '',
+        email: formData.email || "",
+        telegramId: formData.telegramId || "",
       });
 
       const fieldsToTouch: Array<keyof PublisherFormData> = [
-        'email',
-        'telegramId'
+        "email",
+        "telegramId",
       ];
 
       const touchedFields: Record<string, boolean> = {};
@@ -173,34 +175,36 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
       const errors: Record<string, string> = {};
 
       const result = validateCreativeDetails({
-        offerId: formData.offerId || '',
-        creativeType: formData.creativeType || '',
-        fromLines: formData.fromLines || '',
-        subjectLines: formData.subjectLines || '',
+        offerId: formData.offerId || "",
+        creativeType: formData.creativeType || "",
+        fromLines: formData.fromLines || "",
+        subjectLines: formData.subjectLines || "",
       });
 
       Object.assign(errors, result.errors);
 
       // Additional validation for files and lines if required
       if (!formData.creativeType) {
-        errors.creativeType = errors.creativeType || 'Please select a creative type';
+        errors.creativeType =
+          errors.creativeType || "Please select a creative type";
       } else {
-        if (formData.creativeType === 'email') {
+        if (formData.creativeType === "email") {
           if (!hasFiles && !hasLines) {
-            errors.creativeType = 'Please upload files or add from/subject lines';
+            errors.creativeType =
+              "Please upload files or add from/subject lines";
           }
         } else {
           if (!hasFiles) {
-            errors.creativeType = 'Please upload at least one creative file';
+            errors.creativeType = "Please upload at least one creative file";
           }
         }
       }
 
       const fieldsToTouch: Array<keyof PublisherFormData> = [
-        'offerId',
-        'creativeType',
-        'fromLines',
-        'subjectLines'
+        "offerId",
+        "creativeType",
+        "fromLines",
+        "subjectLines",
       ];
 
       const touchedFields: Record<string, boolean> = {};
@@ -241,27 +245,30 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
       // Additional checks for files and lines
       const errors = { ...result.errors };
 
-      if (formData.creativeType === 'email') {
+      if (formData.creativeType === "email") {
         if (!hasFiles && !hasLines) {
-          errors.creativeType = errors.creativeType || 'Please upload files or add from/subject lines';
+          errors.creativeType =
+            errors.creativeType ||
+            "Please upload files or add from/subject lines";
         }
       } else {
         if (!hasFiles) {
-          errors.creativeType = errors.creativeType || 'Please upload at least one creative file';
+          errors.creativeType =
+            errors.creativeType || "Please upload at least one creative file";
         }
       }
 
       const allFields: Array<keyof PublisherFormData> = [
-        'affiliateId',
-        'companyName',
-        'firstName',
-        'lastName',
-        'email',
-        'telegramId',
-        'offerId',
-        'creativeType',
-        'fromLines',
-        'subjectLines'
+        "affiliateId",
+        "companyName",
+        "firstName",
+        "lastName",
+        "email",
+        "telegramId",
+        "offerId",
+        "creativeType",
+        "fromLines",
+        "subjectLines",
       ];
 
       const touchedFields: Record<string, boolean> = {};
@@ -301,7 +308,7 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
       ...prev,
       errors: {
         ...prev.errors,
-        [fieldName]: '',
+        [fieldName]: "",
       },
     }));
   }, []);
@@ -321,9 +328,9 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
   const getFieldErrorMessage = useCallback(
     (fieldName: string): string => {
       if (!keepValidation) {
-        return '';
+        return "";
       }
-      return validationState.errors[fieldName] || '';
+      return validationState.errors[fieldName] || "";
     },
     [validationState.errors, keepValidation]
   );
@@ -356,11 +363,7 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
 
   // Validate all fields and update validation state
   const validateAllFields = useCallback(
-    (
-      formData: PublisherFormData,
-      hasFiles: boolean,
-      hasLines: boolean
-    ) => {
+    (formData: PublisherFormData, hasFiles: boolean, hasLines: boolean) => {
       const result = validateCompleteFormData(formData, hasFiles, hasLines);
       return result;
     },
@@ -390,18 +393,18 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
         return true;
       }
       const formDataObj: PublisherFormData = {
-        affiliateId: data.affiliateId || '',
-        companyName: data.companyName || '',
-        firstName: data.firstName || '',
-        lastName: data.lastName || '',
-        email: data.email || '',
-        telegramId: data.telegramId || '',
-        offerId: data.offerId || '',
-        creativeType: data.creativeType || '',
-        additionalNotes: data.additionalNotes || '',
-        fromLines: data.fromLines || '',
-        subjectLines: data.subjectLines || '',
-        priority: data.priority || 'medium',
+        affiliateId: data.affiliateId || "",
+        companyName: data.companyName || "",
+        firstName: data.firstName || "",
+        lastName: data.lastName || "",
+        email: data.email || "",
+        telegramId: data.telegramId || "",
+        offerId: data.offerId || "",
+        creativeType: data.creativeType || "",
+        additionalNotes: data.additionalNotes || "",
+        fromLines: data.fromLines || "",
+        subjectLines: data.subjectLines || "",
+        priority: data.priority || "medium",
       };
       const result = validateCompleteFormData(
         formDataObj,
@@ -410,44 +413,77 @@ export const useFormValidation = (initialFormData: PublisherFormData) => {
       );
       return result.valid;
     },
-    [validateCompleteFormData, hasUploadedFiles, hasFromSubjectLines, keepValidation]
+    [
+      validateCompleteFormData,
+      hasUploadedFiles,
+      hasFromSubjectLines,
+      keepValidation,
+    ]
   );
 
-  return {
-    // Core validation state
-    errors: validationState.errors,
-    hasErrors,
-    isValid: validationState.isValid,
-    hasUploadedFiles,
-    hasFromSubjectLines,
+  return useMemo(
+    () => ({
+      // Core validation state
+      errors: validationState.errors,
+      hasErrors,
+      isValid: validationState.isValid,
+      hasUploadedFiles,
+      hasFromSubjectLines,
 
-    // Core methods
-    validateField: validateSingleField,
-    validateForm: validateFormMethod,
-    clearErrors,
+      // Core methods
+      validateField: validateSingleField,
+      validateForm: validateFormMethod,
+      clearErrors,
 
-    // Methods used by step components
-    handleFieldChange,
-    handleFieldBlur,
-    getFieldErrorMessage,
-    hasFieldError,
-    isFieldTouched,
-    markFieldAsTouched,
+      // Methods used by step components
+      handleFieldChange,
+      handleFieldBlur,
+      getFieldErrorMessage,
+      hasFieldError,
+      isFieldTouched,
+      markFieldAsTouched,
 
-    // Step validation methods used by CreativeForm
-    validatePersonalDetailsStep,
-    validateContactDetailsStep,
-    validateCreativeDetailsStep,
-    validateCompleteFormData,
+      // Step validation methods used by CreativeForm
+      validatePersonalDetailsStep,
+      validateContactDetailsStep,
+      validateCreativeDetailsStep,
+      validateCompleteFormData,
 
-    // Additional methods (for backward compatibility)
-    validationState,
-    updateFormData,
-    validateAllFields,
-    clearFieldError,
-    isFormValid,
-    updateFileUploadState,
-    updateFromSubjectLinesState,
-    resetForm,
-  };
+      // Additional methods (for backward compatibility)
+      validationState,
+      updateFormData,
+      validateAllFields,
+      clearFieldError,
+      isFormValid,
+      updateFileUploadState,
+      updateFromSubjectLinesState,
+      resetForm,
+    }),
+    [
+      validationState,
+      hasErrors,
+      hasUploadedFiles,
+      hasFromSubjectLines,
+      validateSingleField,
+      validateFormMethod,
+      clearErrors,
+      handleFieldChange,
+      handleFieldBlur,
+      getFieldErrorMessage,
+      hasFieldError,
+      isFieldTouched,
+      markFieldAsTouched,
+      validatePersonalDetailsStep,
+      validateContactDetailsStep,
+      validateCreativeDetailsStep,
+      validateCompleteFormData,
+      updateFormData,
+      validateAllFields,
+      clearFieldError,
+      isFormValid,
+      updateFileUploadState,
+      updateFromSubjectLinesState,
+      resetForm,
+    ]
+  );
 };

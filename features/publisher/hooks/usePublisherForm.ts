@@ -1,3 +1,4 @@
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 
 import {
@@ -24,6 +25,7 @@ export interface PublisherFormData {
 }
 
 export const usePublisherForm = () => {
+  const router = useRouter();
   // Load saved state on mount
   const savedState = loadFormState();
   const [currentStep, setCurrentStep] = useState(savedState?.currentStep || 1);
@@ -107,13 +109,40 @@ export const usePublisherForm = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to submit form");
+        const errorMessage = errorData.error || "Failed to submit form";
+        const fieldErrors = errorData.fieldErrors || {};
+        const errorDetails =
+          Object.keys(fieldErrors).length > 0
+            ? `${errorMessage}: ${Object.entries(fieldErrors)
+                .map(
+                  ([key, value]) =>
+                    `${key}: ${Array.isArray(value) ? value.join(", ") : value}`
+                )
+                .join("; ")}`
+            : errorMessage;
+        console.error("Submission validation error:", errorData);
+        throw new Error(errorDetails);
       }
 
       const result = await response.json();
 
       // Clear saved state on successful submission
       clearFormState();
+
+      // Redirect to thank you page with submission details
+      const fileCount = files.length;
+      let submissionType = "single";
+
+      if (fileCount > 1) {
+        submissionType = "multiple";
+      } else if (
+        fileCount === 0 &&
+        (formData.fromLines || formData.subjectLines)
+      ) {
+        submissionType = "fromSubjectLines";
+      }
+
+      router.push(`/thankyou?type=${submissionType}&count=${fileCount}`);
 
       return result;
     } catch (error) {

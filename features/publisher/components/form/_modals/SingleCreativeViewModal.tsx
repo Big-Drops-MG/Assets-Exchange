@@ -4,7 +4,7 @@ import {
   Edit3,
   Eye,
   FileText,
-  Image,
+  Image as ImageIcon,
   File,
   Sparkles,
   Maximize2,
@@ -17,12 +17,13 @@ import {
   ZoomOut,
   RotateCcw,
 } from "lucide-react";
-import React from "react";
+import React, { useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogBody,
@@ -108,10 +109,26 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
     creativeType,
   });
 
-  const { isProofreadComplete, proofreadResult } = viewModel;
+  const { isProofreadComplete, proofreadResult, isAnalyzing } = viewModel;
 
+  // ✅ FIX: Add sync guard to prevent infinite loop
+  const hasSyncedRef = useRef(false);
+
+  // Reset sync flag when a NEW analysis starts
   React.useEffect(() => {
-    if (isProofreadComplete && proofreadResult && onFileUpdate) {
+    if (isAnalyzing) {
+      hasSyncedRef.current = false;
+    }
+  }, [isAnalyzing]);
+
+  // ✅ UPDATED EFFECT: Sync AI Results with Guard
+  React.useEffect(() => {
+    if (
+      isProofreadComplete &&
+      proofreadResult &&
+      !hasSyncedRef.current &&
+      onFileUpdate
+    ) {
       onFileUpdate({
         url: proofreadResult.marked_image || creative?.url,
         metadata: {
@@ -130,6 +147,9 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
           last_checked: new Date().toISOString(),
         },
       });
+
+      // 🔒 LOCK: Prevent this block from running again for this result
+      hasSyncedRef.current = true;
     }
   }, [isProofreadComplete, proofreadResult, onFileUpdate, creative?.url]);
 
@@ -146,6 +166,9 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
           className="max-w-screen! max-h-screen! w-screen h-screen m-0 p-0 rounded-none"
           showCloseButton={false}
         >
+          <DialogDescription className="sr-only">
+            Single creative view
+          </DialogDescription>
           <div className="flex flex-col h-full w-full">
             {/* Header */}
             <DialogHeader className="shrink-0 border-b p-4 sm:p-6">
@@ -153,8 +176,8 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                   <div className="shrink-0">
                     {isImage ? (
-                      // eslint-disable-next-line jsx-a11y/alt-text
-                      <Image className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" />
+                       
+                      <ImageIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" />
                     ) : isHtml ? (
                       <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-green-500" />
                     ) : (

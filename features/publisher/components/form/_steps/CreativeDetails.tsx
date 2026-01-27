@@ -1,7 +1,7 @@
 "use client";
 
 import { File, FileArchive, PencilLine, Search } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo, useRef, useCallback } from "react";
 
 import { getVariables } from "@/components/_variables/variables";
 import { Button } from "@/components/ui/button";
@@ -168,18 +168,23 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
   }, []); // Only run on mount
 
   // Fetch metadata for uploaded HTML creatives
+  const fetchedMetadataRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     const fetchMetadataForFiles = async () => {
       for (const file of uploadedFiles) {
         // Only fetch for single HTML/email creatives that don't already have metadata
+        // and haven't been fetched before
         if (
           file.html &&
           uploadedFiles.length === 1 &&
           formData.creativeType === "email" &&
           !file.fromLines &&
-          !file.subjectLines
+          !file.subjectLines &&
+          !fetchedMetadataRef.current.has(file.id)
         ) {
           try {
+            fetchedMetadataRef.current.add(file.id);
             const response = await fetch(
               `/api/creative/metadata?creativeId=${encodeURIComponent(file.id)}`
             );
@@ -199,6 +204,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
             }
           } catch (error) {
             console.error("Failed to fetch metadata for file:", error);
+            fetchedMetadataRef.current.delete(file.id); // Remove from set on error so it can retry
           }
         }
       }
@@ -207,8 +213,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
     if (uploadedFiles.length === 1 && formData.creativeType === "email") {
       fetchMetadataForFiles();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uploadedFiles.length, formData.creativeType]);
+  }, [uploadedFiles.length, formData.creativeType, uploadedFiles]);
 
   // Auto-save files state whenever uploadedFiles changes (but not on initial mount)
   // Use debouncing to reduce save frequency and prevent quota errors
@@ -228,14 +233,35 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
     }
   }, [uploadedFiles, uploadedZipFileName, isInitialMount]);
 
+  const { updateFileUploadState, updateFromSubjectLinesState } = validation;
+
+  // Use refs to track previous values and prevent circular dependencies
+  const prevHasFilesRef = useRef<boolean>(false);
+  const prevHasLinesRef = useRef<boolean>(false);
+
   useEffect(() => {
     const hasFiles = uploadedFiles.length > 0;
     const hasLines = !!(formData.fromLines && formData.subjectLines);
+
     setHasUploadedFiles(hasFiles);
     setHasFromSubjectLines(hasLines);
-    validation.updateFileUploadState(hasFiles);
-    validation.updateFromSubjectLinesState(hasLines);
-  }, [uploadedFiles, formData.fromLines, formData.subjectLines, validation]);
+
+    // Only call update functions if values actually changed
+    if (prevHasFilesRef.current !== hasFiles) {
+      updateFileUploadState(hasFiles);
+      prevHasFilesRef.current = hasFiles;
+    }
+    if (prevHasLinesRef.current !== hasLines) {
+      updateFromSubjectLinesState(hasLines);
+      prevHasLinesRef.current = hasLines;
+    }
+  }, [
+    uploadedFiles,
+    formData.fromLines,
+    formData.subjectLines,
+    updateFileUploadState,
+    updateFromSubjectLinesState,
+  ]);
 
   const handleSelectChange = (fieldName: string, value: string) => {
     onDataChange({ [fieldName]: value });
@@ -262,17 +288,22 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
     setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
-  const handleFileUpdate = (
-    fileId: string,
-    updates: Partial<UploadedFileMeta>
-  ) => {
-    setUploadedFiles((prev) =>
-      prev.map((file) => (file.id === fileId ? { ...file, ...updates } : file))
-    );
-    if (selectedCreative?.id === fileId) {
-      setSelectedCreative((prev) => (prev ? { ...prev, ...updates } : null));
-    }
-  };
+  // ✅ FIX: Stabilize handleFileUpdate with useCallback to prevent infinite loop
+  // Empty dependency array [] ensures the function reference NEVER changes
+  const handleFileUpdate = useCallback(
+    (fileId: string, updates: Partial<UploadedFileMeta>) => {
+      setUploadedFiles((prev) =>
+        prev.map((file) =>
+          file.id === fileId ? { ...file, ...updates } : file
+        )
+      );
+      // Use functional update to access latest selectedCreative without dependency
+      setSelectedCreative((prev) =>
+        prev?.id === fileId ? { ...prev, ...updates } : prev
+      );
+    },
+    []
+  ); // 👈 Empty array is key!
 
   const makeThumb = (file: File): Promise<string | undefined> =>
     new Promise((resolve) => {
@@ -547,16 +578,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
                 }
               }}
             >
-              <SelectTrigger
-                className="w-full h-12! font-inter publisher-form-input"
-                style={{
-                  borderColor:
-                    validation.hasFieldError("offerId") &&
-                    validation.isFieldTouched("offerId")
-                      ? variables.colors.inputErrorColor
-                      : variables.colors.inputBorderColor,
-                }}
-              >
+              <SelectTrigger className="w-full h-12! font-inter publisher-form-input bg-background">
                 <SelectValue placeholder="Select an offer" />
               </SelectTrigger>
               <SelectContent>
@@ -1099,7 +1121,23 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
             }}
             onFileUpdate={(updates) => {
               if (selectedCreative?.id) {
+                // 1. Update main list
                 handleFileUpdate(selectedCreative.id, updates);
+
+                // 2. Update local view with change detection to prevent unnecessary renders
+                setSelectedCreative((prev) => {
+                  if (!prev) return null;
+                  // Check if values actually changed
+                  const urlChanged = updates.url && prev.url !== updates.url;
+                  const metadataChanged =
+                    updates.metadata &&
+                    JSON.stringify(prev.metadata) !==
+                      JSON.stringify(updates.metadata);
+                  if (!urlChanged && !metadataChanged) {
+                    return prev; // No change, return same reference to prevent re-render
+                  }
+                  return { ...prev, ...updates };
+                });
               }
             }}
             showAdditionalNotes={false}
@@ -1139,4 +1177,4 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
   );
 };
 
-export default CreativeDetails;
+export default memo(CreativeDetails);

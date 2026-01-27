@@ -1,23 +1,25 @@
 "use client";
 
-import { FileArchive, FileText, Image, File, X, Edit3, Check } from "lucide-react";
+import { FileArchive, FileText, File, X, Edit3, Check } from "lucide-react";
 import React, { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogBody,
 } from "@/components/ui/dialog";
-import { formatFileSize, getFileType } from "@/constants";
-import SingleCreativeViewModal from "./SingleCreativeViewModal";
+import { Input } from "@/components/ui/input";
+import { formatFileSize } from "@/constants";
 import {
   useMultipleCreativesModal,
   type CreativeFile,
 } from "@/features/publisher/view-models/multipleCreativesModal.viewModel";
+
+import SingleCreativeViewModal from "./SingleCreativeViewModal";
 
 interface MultipleCreativesModalProps {
   isOpen: boolean;
@@ -100,9 +102,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
 
   if (!isOpen) return null;
 
-  const htmlFiles = creatives.filter(
-    (c) => c.html || /\.html?$/i.test(c.name)
-  );
+  const htmlFiles = creatives.filter((c) => c.html || /\.html?$/i.test(c.name));
   const imageFiles = creatives.filter((c) =>
     /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(c.name)
   );
@@ -115,8 +115,11 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
 
   return (
     <>
-    <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="h-screen! max-w-screen! max-h-screen! rounded-none p-0 flex flex-col">
+          <DialogDescription className="sr-only">
+            Multiple creatives view
+          </DialogDescription>
           <DialogHeader className="p-4 sm:p-6 border-b border-gray-200 bg-linear-to-r from-purple-50 to-blue-50">
             <div className="flex items-center justify-between gap-3 sm:gap-4">
               <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
@@ -203,8 +206,8 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                   </div>
                   <div className="flex items-center gap-1 sm:gap-2">
                     <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-              {creatives.length} files
-            </span>
+                      {creatives.length} files
+                    </span>
                     <span className="text-gray-600 text-xs">•</span>
                     <span className="text-xs text-gray-600">ZIP Archive</span>
                   </div>
@@ -220,7 +223,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                 <span>Save and Continue</span>
               </Button>
             </div>
-        </DialogHeader>
+          </DialogHeader>
 
           <DialogBody className="p-3 sm:p-4 lg:p-6 bg-gray-50 overflow-y-auto flex-1 pb-0 max-h-screen!">
             {/* Summary Stats */}
@@ -253,19 +256,19 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                 const isHtml = fileType === "html";
 
                 return (
-                <div
-                  key={creative.id}
+                  <div
+                    key={creative.id}
                     className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 overflow-hidden group"
-                >
+                  >
                     {/* Preview Section */}
                     <div className="aspect-[4/3] bg-gray-50 overflow-hidden relative">
                       {isImage && (creative.previewUrl || creative.url) ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
                           src={creative.previewUrl || creative.url}
-                      alt={creative.name}
+                          alt={creative.name}
                           className="w-full h-full object-cover"
-                    />
+                        />
                       ) : isHtml ? (
                         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-50 to-green-50">
                           <div className="text-center">
@@ -283,8 +286,8 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                               File
                             </p>
                           </div>
-                    </div>
-                  )}
+                        </div>
+                      )}
 
                       {/* Action Buttons - Top Right */}
                       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
@@ -315,7 +318,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                           className="font-medium text-gray-900 text-xs sm:text-sm truncate mb-1"
                           title={creative.name}
                         >
-                      {creative.name}
+                          {creative.name}
                         </h3>
                         <div className="flex items-center justify-between text-xs text-gray-500">
                           <span
@@ -323,27 +326,29 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                               isImage
                                 ? "bg-blue-50 text-blue-600"
                                 : isHtml
-                                ? "bg-emerald-50 text-emerald-600"
-                                : "bg-gray-50 text-gray-600"
+                                  ? "bg-emerald-50 text-emerald-600"
+                                  : "bg-gray-50 text-gray-600"
                             }`}
                           >
                             {fileType}
                           </span>
                           <span className="font-medium text-xs">
-                        {formatFileSize(creative.size)}
-                      </span>
-                    </div>
-                  </div>
+                            {formatFileSize(creative.size)}
+                          </span>
+                        </div>
+                      </div>
 
                       {/* View Button */}
-                    <Button
-                        onClick={() => viewModel.openSingleCreativeView(creative)}
+                      <Button
+                        onClick={() =>
+                          viewModel.openSingleCreativeView(creative)
+                        }
                         className="w-full h-9 bg-blue-400 hover:bg-blue-600 text-white font-medium px-3 sm:px-4 rounded-md text-xs sm:text-sm transition-colors duration-200"
-                    >
+                      >
                         <span>View Creative</span>
-                    </Button>
+                      </Button>
+                    </div>
                   </div>
-                </div>
                 );
               })}
             </div>
@@ -354,9 +359,9 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                 <p>No files in this upload</p>
               </div>
             )}
-        </DialogBody>
-      </DialogContent>
-    </Dialog>
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
 
       {/* SingleCreativeViewModal - Opens when View Creative is clicked */}
       {viewModel.selectedCreative && (

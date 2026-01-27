@@ -11,8 +11,8 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { usePublisherForm } from "@/features/publisher/hooks/usePublisherForm";
 import { useFormValidation } from "@/features/publisher/hooks/useFormValidation";
+import { usePublisherForm } from "@/features/publisher/hooks/usePublisherForm";
 import {
   renderStep,
   getStepLabel,
@@ -21,7 +21,17 @@ import {
 
 export default function PublisherForm() {
   const variables = getVariables();
-  const { currentStep, formData, onDataChange, nextStep, previousStep, isSubmitting, handleSubmit } = usePublisherForm();
+  const {
+    currentStep,
+    formData,
+    onDataChange,
+    nextStep,
+    previousStep,
+    isSubmitting,
+    handleSubmit,
+  } = usePublisherForm();
+
+  // validation is already memoized in the hook itself, but let's ensure it's not re-created here unnecessarily
   const validation = useFormValidation(formData);
   const inputRingColor = variables.colors.inputRingColor;
 
@@ -85,7 +95,12 @@ export default function PublisherForm() {
             <Separator />
           </CardHeader>
           <CardContent>
-            {renderStep({ step: currentStep, formData, onDataChange, validation })}
+            {renderStep({
+              step: currentStep,
+              formData,
+              onDataChange,
+              validation,
+            })}
           </CardContent>
           <CardFooter className="flex flex-col justify-between gap-4 w-full">
             {currentStep > 1 && (
@@ -94,7 +109,8 @@ export default function PublisherForm() {
                 className="w-full h-14 font-inter font-medium"
                 onClick={previousStep}
                 style={{
-                  backgroundColor: variables.colors.buttonOutlineBackgroundColor,
+                  backgroundColor:
+                    variables.colors.buttonOutlineBackgroundColor,
                   borderColor: variables.colors.buttonOutlineBorderColor,
                   color: variables.colors.buttonOutlineTextColor,
                 }}
@@ -114,7 +130,7 @@ export default function PublisherForm() {
                   if (result.valid) {
                     await handleSubmit();
                   } else {
-                    const creativeResult = validation.validateCreativeDetailsStep(
+                    validation.validateCreativeDetailsStep(
                       formData,
                       validation.hasUploadedFiles,
                       validation.hasFromSubjectLines
@@ -123,13 +139,15 @@ export default function PublisherForm() {
                 } else {
                   let isValid = false;
                   if (currentStep === 1) {
-                    const result = validation.validatePersonalDetailsStep(formData);
+                    const result =
+                      validation.validatePersonalDetailsStep(formData);
                     isValid = result.valid;
                     if (!isValid) {
                       return;
                     }
                   } else if (currentStep === 2) {
-                    const result = validation.validateContactDetailsStep(formData);
+                    const result =
+                      validation.validateContactDetailsStep(formData);
                     isValid = result.valid;
                     if (!isValid) {
                       return;

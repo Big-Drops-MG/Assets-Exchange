@@ -17,13 +17,54 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const response = await fetch(urlToFetch, {
-      method: "GET",
-      headers: {
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-    });
+    // Check if this is a Vercel Blob Storage URL
+    const isVercelBlobUrl = urlToFetch.includes("blob.vercel-storage.com");
+
+    let response: Response;
+
+    if (isVercelBlobUrl) {
+      // For Vercel Blob Storage, try fetching directly
+      // If server-side fetch fails, return early to let client handle it
+      try {
+        response = await fetch(urlToFetch, {
+          method: "GET",
+          headers: {
+            Accept:
+              "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          },
+        });
+
+        // If server-side fetch fails with 403, return early to let client handle it
+        if (!response.ok && response.status === 403) {
+          return NextResponse.json(
+            {
+              error: "File access requires client-side fetch",
+              requiresClientFetch: true,
+              url: urlToFetch,
+            },
+            { status: 200 } // Return 200 so client can handle it
+          );
+        }
+      } catch (_error) {
+        // If fetch fails, return URL for client-side fetch
+        return NextResponse.json(
+          {
+            error: "File access requires client-side fetch",
+            requiresClientFetch: true,
+            url: urlToFetch,
+          },
+          { status: 200 }
+        );
+      }
+    } else {
+      response = await fetch(urlToFetch, {
+        method: "GET",
+        headers: {
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+      });
+    }
 
     if (!response.ok) {
       return NextResponse.json(

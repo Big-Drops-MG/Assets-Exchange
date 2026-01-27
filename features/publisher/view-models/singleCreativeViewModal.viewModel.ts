@@ -367,34 +367,98 @@ export const useSingleCreativeViewModal = ({
       ) {
         htmlText = (creative as { embeddedHtml?: string }).embeddedHtml!;
       } else {
-        const encodedFileUrl = encodeURIComponent(creative.url);
-        let apiUrl = `${API_ENDPOINTS.GET_FILE_CONTENT}?fileId=${creative.id}&fileUrl=${encodedFileUrl}&processAssets=true`;
-        if (creative.uploadId) {
-          apiUrl += `&uploadId=${encodeURIComponent(creative.uploadId)}`;
-        }
+        // Check if this is a Vercel Blob Storage URL
+        const isVercelBlobUrl = creative.url.includes(
+          "blob.vercel-storage.com"
+        );
 
-        const apiResponse = await fetch(apiUrl, {
-          method: "GET",
-          headers: {
-            Accept:
-              "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          },
-        });
+        if (isVercelBlobUrl) {
+          // For Vercel Blob Storage, fetch directly from the client
+          // This avoids server-side 403 issues and CSP violations
+          try {
+            const directResponse = await fetch(creative.url, {
+              method: "GET",
+              headers: {
+                Accept:
+                  "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+              },
+              mode: "cors",
+            });
 
-        if (apiResponse.ok) {
-          htmlText = await apiResponse.text();
+            if (directResponse.ok) {
+              htmlText = await directResponse.text();
+            }
+          } catch (error) {
+            console.error("Error fetching HTML from Vercel Blob:", error);
+          }
         } else {
-          const directResponse = await fetch(creative.url, {
-            method: "GET",
-            headers: {
-              Accept:
-                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            },
-            mode: "cors",
-          });
+          // For other URLs, try API endpoint first
+          const encodedFileUrl = encodeURIComponent(creative.url);
+          let apiUrl = `${API_ENDPOINTS.GET_FILE_CONTENT}?fileId=${creative.id}&fileUrl=${encodedFileUrl}&processAssets=true`;
+          if (creative.uploadId) {
+            apiUrl += `&uploadId=${encodeURIComponent(creative.uploadId)}`;
+          }
 
-          if (directResponse.ok) {
-            htmlText = await directResponse.text();
+          try {
+            const apiResponse = await fetch(apiUrl, {
+              method: "GET",
+              headers: {
+                Accept:
+                  "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+              },
+            });
+
+            if (apiResponse.ok) {
+              const responseData = await apiResponse.json();
+              // Check if API returned a requiresClientFetch flag
+              if (responseData.requiresClientFetch && responseData.url) {
+                const directResponse = await fetch(responseData.url, {
+                  method: "GET",
+                  headers: {
+                    Accept:
+                      "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                  },
+                  mode: "cors",
+                });
+                if (directResponse.ok) {
+                  htmlText = await directResponse.text();
+                }
+              } else {
+                htmlText = await apiResponse.text();
+              }
+            } else {
+              // Fallback to direct fetch
+              const directResponse = await fetch(creative.url, {
+                method: "GET",
+                headers: {
+                  Accept:
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                },
+                mode: "cors",
+              });
+
+              if (directResponse.ok) {
+                htmlText = await directResponse.text();
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching HTML via API:", error);
+            // Final fallback to direct fetch
+            try {
+              const directResponse = await fetch(creative.url, {
+                method: "GET",
+                headers: {
+                  Accept:
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                },
+                mode: "cors",
+              });
+              if (directResponse.ok) {
+                htmlText = await directResponse.text();
+              }
+            } catch (fallbackError) {
+              console.error("Error fetching HTML directly:", fallbackError);
+            }
           }
         }
       }

@@ -42,8 +42,16 @@ export async function POST(req: NextRequest) {
     const parsed = submitSchema.safeParse(body);
 
     if (!parsed.success) {
+      console.error(
+        "Validation error:",
+        JSON.stringify(parsed.error.flatten(), null, 2)
+      );
       return NextResponse.json(
-        { error: "Invalid input", details: parsed.error.flatten() },
+        {
+          error: "Invalid input",
+          details: parsed.error.flatten(),
+          fieldErrors: parsed.error.flatten().fieldErrors,
+        },
         { status: 400 }
       );
     }
