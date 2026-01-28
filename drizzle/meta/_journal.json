@@ -50,6 +50,20 @@
       "when": 1768852485077,
       "tag": "0006_lovely_pandemic",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1769588332794,
+      "tag": "0007_harsh_morbius",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1769588514123,
+      "tag": "0008_tan_baron_zemo",
+      "breakpoints": true
     }
   ]
 }

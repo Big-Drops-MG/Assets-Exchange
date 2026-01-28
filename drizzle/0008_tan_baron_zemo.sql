@@ -1,0 +1,1 @@
+ALTER TABLE "creative_requests" ADD COLUMN "additional_notes" text;

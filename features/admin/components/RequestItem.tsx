@@ -41,7 +41,6 @@ import {
 } from "../actions/request.actions";
 import type { CreativeRequest } from "../types/request.types";
 
-
 const MAX_COMMENT_LENGTH = 5000;
 
 interface RequestItemProps {
@@ -346,9 +345,9 @@ export function RequestItem({
               className="font-inter"
               style={{ color: variables.colors.requestCardTextColor }}
             >
-              {request.advertiserName} - AFF ID :{" "}
+              {request.advertiserName} - ADV ID :{" "}
               <span className="font-inter font-semibold">
-                {request.affiliateId || ""}
+                {request.advertiserEverflowId || request.affiliateId || ""}
               </span>
             </span>
             <span

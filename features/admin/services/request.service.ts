@@ -4,7 +4,7 @@ import { logStatusChange } from "@/features/admin/services/statusHistory.service
 import { notifyWorkflowEvent } from "@/features/notifications/notification.service";
 import type { WorkflowEvent } from "@/features/notifications/types";
 import { db } from "@/lib/db";
-import { creativeRequests, creatives } from "@/lib/schema";
+import { creativeRequests, offers, advertisers, creatives } from "@/lib/schema";
 
 export async function getAdminRequests({
   page,
@@ -51,8 +51,19 @@ export async function getAdminRequests({
         creativeType: creativeRequests.creativeType,
         advertiserName: creativeRequests.advertiserName,
         priority: creativeRequests.priority,
+        // Added fields for detailed view
+        offerId: offers.everflowOfferId,
+        creativeCount: creativeRequests.creativeCount,
+        fromLinesCount: creativeRequests.fromLinesCount,
+        subjectLinesCount: creativeRequests.subjectLinesCount,
+        affiliateId: creativeRequests.affiliateId,
+        clientId: creativeRequests.clientId,
+        clientName: creativeRequests.clientName,
+        advertiserEverflowId: advertisers.everflowAdvertiserId,
       })
       .from(creativeRequests)
+      .leftJoin(offers, eq(creativeRequests.offerId, offers.id))
+      .leftJoin(advertisers, eq(offers.advertiserId, advertisers.id))
       .where(and(...where))
       .limit(limit)
       .offset(offset)

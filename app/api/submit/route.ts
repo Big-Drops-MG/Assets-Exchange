@@ -28,6 +28,7 @@ const submitSchema = z.object({
   creativeType: z.string().min(1),
   fromLines: z.string().optional(),
   subjectLines: z.string().optional(),
+  additionalNotes: z.string().optional(),
   priority: z.string().optional(),
   files: z.array(fileSchema).optional(),
 });
@@ -67,8 +68,24 @@ export async function POST(req: NextRequest) {
 
     const publisherName = `${data.firstName} ${data.lastName}`;
     const publisherId = data.affiliateId;
-    const fromLinesCount = countLines(data.fromLines);
-    const subjectLinesCount = countLines(data.subjectLines);
+
+    let fromLinesCount = countLines(data.fromLines);
+    let subjectLinesCount = countLines(data.subjectLines);
+
+    if (data.files && data.files.length > 0) {
+      data.files.forEach((file) => {
+        if (file.metadata) {
+          const metadata = file.metadata as Record<string, unknown>;
+          if (typeof metadata.fromLines === "string") {
+            fromLinesCount += countLines(metadata.fromLines);
+          }
+          if (typeof metadata.subjectLines === "string") {
+            subjectLinesCount += countLines(metadata.subjectLines);
+          }
+        }
+      });
+    }
+
     const priority =
       data.priority === "high" ? "High Priority" : "Medium Priority";
     const trackingCode = generateTrackingCode(); // Used correctly
@@ -96,6 +113,9 @@ export async function POST(req: NextRequest) {
         status: "new",
         approvalStage: "admin",
         adminStatus: "pending",
+        fromLines: data.fromLines,
+        subjectLines: data.subjectLines,
+        additionalNotes: data.additionalNotes,
       })
       .returning({ id: creativeRequests.id });
 
