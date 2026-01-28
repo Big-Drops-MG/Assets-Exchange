@@ -1,11 +1,10 @@
-import { and, eq, inArray, ilike, or, sql, type SQL } from "drizzle-orm"
+import { and, asc, eq, inArray, ilike, or, sql, type SQL } from "drizzle-orm";
 
-import { logStatusChange } from "@/features/admin/services/statusHistory.service"
-import { notifyWorkflowEvent } from "@/features/notifications/notification.service"
-import type { WorkflowEvent } from "@/features/notifications/types"
-import { db } from "@/lib/db"
-import { creativeRequests } from "@/lib/schema"
-
+import { logStatusChange } from "@/features/admin/services/statusHistory.service";
+import { notifyWorkflowEvent } from "@/features/notifications/notification.service";
+import type { WorkflowEvent } from "@/features/notifications/types";
+import { db } from "@/lib/db";
+import { creativeRequests, creatives } from "@/lib/schema";
 
 export async function getAdminRequests({
   page,
@@ -15,44 +14,54 @@ export async function getAdminRequests({
   search,
   sort,
 }: {
-  page: number
-  limit: number
-  status?: ("new" | "pending" | "approved" | "rejected" | "sent-back")[]
-  approvalStage?: "admin" | "advertiser" | "completed"
-  search?: string
-  sort?: string
+  page: number;
+  limit: number;
+  status?: ("new" | "pending" | "approved" | "rejected" | "sent-back")[];
+  approvalStage?: "admin" | "advertiser" | "completed";
+  search?: string;
+  sort?: string;
 }) {
-  const where: SQL[] = []
-  if (status) where.push(inArray(creativeRequests.status, status))
-  if (approvalStage) where.push(eq(creativeRequests.approvalStage, approvalStage))
+  const where: SQL[] = [];
+  if (status) where.push(inArray(creativeRequests.status, status));
+  if (approvalStage)
+    where.push(eq(creativeRequests.approvalStage, approvalStage));
   if (search) {
     const searchCondition = or(
       ilike(creativeRequests.offerName, `%${search}%`),
       ilike(creativeRequests.id, `%${search}%`)
-    )
-    if (searchCondition) where.push(searchCondition)
+    );
+    if (searchCondition) where.push(searchCondition);
   }
 
-  const offset = (page - 1) * limit
+  const offset = (page - 1) * limit;
 
   const orderBy: ReturnType<typeof sql> =
     sort === "submittedAt:asc"
       ? sql`${creativeRequests.submittedAt} ASC`
-      : sql`${creativeRequests.submittedAt} DESC`
+      : sql`${creativeRequests.submittedAt} DESC`;
 
   const [rows, total] = await Promise.all([
-    db.select({
-      id: creativeRequests.id,
-      offerName: creativeRequests.offerName,
-      status: creativeRequests.status,
-      approvalStage: creativeRequests.approvalStage,
-      submittedAt: creativeRequests.submittedAt,
-      creativeType: creativeRequests.creativeType,
-      advertiserName: creativeRequests.advertiserName,
-      priority: creativeRequests.priority,
-    }).from(creativeRequests).where(and(...where)).limit(limit).offset(offset).orderBy(orderBy),
-    db.select({ count: sql<number>`count(*)` }).from(creativeRequests).where(and(...where)),
-  ])
+    db
+      .select({
+        id: creativeRequests.id,
+        offerName: creativeRequests.offerName,
+        status: creativeRequests.status,
+        approvalStage: creativeRequests.approvalStage,
+        submittedAt: creativeRequests.submittedAt,
+        creativeType: creativeRequests.creativeType,
+        advertiserName: creativeRequests.advertiserName,
+        priority: creativeRequests.priority,
+      })
+      .from(creativeRequests)
+      .where(and(...where))
+      .limit(limit)
+      .offset(offset)
+      .orderBy(orderBy),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(creativeRequests)
+      .where(and(...where)),
+  ]);
 
   return {
     data: rows,
@@ -61,35 +70,71 @@ export async function getAdminRequests({
       limit,
       total: Number(total[0].count),
     },
-  }
+  };
 }
 
 export async function getAdminRequestById(id: string) {
   const [row] = await db
     .select()
     .from(creativeRequests)
-    .where(eq(creativeRequests.id, id))
+    .where(eq(creativeRequests.id, id));
 
-  return row ?? null
+  return row ?? null;
+}
+
+export type RequestCreativeRow = {
+  id: string;
+  name: string;
+  url: string;
+  size: number;
+  type: string;
+  format: string | null;
+};
+
+export async function getRequestWithCreatives(requestId: string) {
+  const [requestRow] = await db
+    .select()
+    .from(creativeRequests)
+    .where(eq(creativeRequests.id, requestId));
+
+  if (!requestRow) return null;
+
+  const creativeRows = await db
+    .select({
+      id: creatives.id,
+      name: creatives.name,
+      url: creatives.url,
+      size: creatives.size,
+      type: creatives.type,
+      format: creatives.format,
+    })
+    .from(creatives)
+    .where(eq(creatives.requestId, requestId))
+    .orderBy(asc(creatives.createdAt));
+
+  return {
+    request: requestRow,
+    creatives: creativeRows as RequestCreativeRow[],
+  };
 }
 
 export async function approveRequest(id: string, adminId: string) {
-  let evt: WorkflowEvent | null = null
-  let historyEntry: Parameters<typeof logStatusChange>[0] | null = null
+  let evt: WorkflowEvent | null = null;
+  let historyEntry: Parameters<typeof logStatusChange>[0] | null = null;
 
   await db.transaction(async (tx) => {
     const [row] = await tx
       .select()
       .from(creativeRequests)
       .where(eq(creativeRequests.id, id))
-      .for("update")
+      .for("update");
 
     if (!row) {
-      throw new Error("Request not found")
+      throw new Error("Request not found");
     }
 
     if (row.status !== "new" || row.approvalStage !== "admin") {
-      throw new Error("Invalid state transition")
+      throw new Error("Invalid state transition");
     }
 
     await tx
@@ -100,7 +145,7 @@ export async function approveRequest(id: string, adminId: string) {
         adminApprovedAt: new Date(),
         adminStatus: "approved",
       })
-      .where(eq(creativeRequests.id, id))
+      .where(eq(creativeRequests.id, id));
 
     evt = {
       event: "request.approved_by_admin",
@@ -110,7 +155,7 @@ export async function approveRequest(id: string, adminId: string) {
       toStatus: "pending",
       actor: { role: "admin", id: adminId },
       timestamp: new Date().toISOString(),
-    }
+    };
 
     historyEntry = {
       requestId: row.id,
@@ -118,30 +163,34 @@ export async function approveRequest(id: string, adminId: string) {
       toStatus: "pending",
       actorRole: "admin",
       actorId: adminId,
-    }
-  })
+    };
+  });
 
-  if (evt) await notifyWorkflowEvent(evt)
-  if (historyEntry) await logStatusChange(historyEntry)
+  if (evt) await notifyWorkflowEvent(evt);
+  if (historyEntry) await logStatusChange(historyEntry);
 }
 
-export async function rejectRequest(id: string, adminId: string, reason: string) {
-  let evt: WorkflowEvent | null = null
-  let historyEntry: Parameters<typeof logStatusChange>[0] | null = null
+export async function rejectRequest(
+  id: string,
+  adminId: string,
+  reason: string
+) {
+  let evt: WorkflowEvent | null = null;
+  let historyEntry: Parameters<typeof logStatusChange>[0] | null = null;
 
   await db.transaction(async (tx) => {
     const [row] = await tx
       .select()
       .from(creativeRequests)
       .where(eq(creativeRequests.id, id))
-      .for("update")
+      .for("update");
 
     if (!row) {
-      throw new Error("Request not found")
+      throw new Error("Request not found");
     }
 
     if (row.status !== "new" || row.approvalStage !== "admin") {
-      throw new Error("Invalid state transition")
+      throw new Error("Invalid state transition");
     }
 
     await tx
@@ -151,7 +200,7 @@ export async function rejectRequest(id: string, adminId: string, reason: string)
         adminComments: reason,
         adminStatus: "rejected",
       })
-      .where(eq(creativeRequests.id, id))
+      .where(eq(creativeRequests.id, id));
 
     evt = {
       event: "request.rejected_by_admin",
@@ -161,7 +210,7 @@ export async function rejectRequest(id: string, adminId: string, reason: string)
       toStatus: "rejected",
       actor: { role: "admin", id: adminId },
       timestamp: new Date().toISOString(),
-    }
+    };
 
     historyEntry = {
       requestId: row.id,
@@ -170,9 +219,9 @@ export async function rejectRequest(id: string, adminId: string, reason: string)
       actorRole: "admin",
       actorId: adminId,
       reason,
-    }
-  })
+    };
+  });
 
-  if (evt) await notifyWorkflowEvent(evt)
-  if (historyEntry) await logStatusChange(historyEntry)
+  if (evt) await notifyWorkflowEvent(evt);
+  if (historyEntry) await logStatusChange(historyEntry);
 }

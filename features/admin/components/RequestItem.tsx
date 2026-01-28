@@ -22,7 +22,6 @@ import { ChevronDown, ChevronUp, Download, Loader2 } from "lucide-react";
 import { useState, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 
-
 import { getVariables } from "@/components/_variables/variables";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,8 +32,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import MultipleCreativesModal from "@/features/publisher/components/form/_modals/MultipleCreativesModal";
+import SingleCreativeViewModal from "@/features/publisher/components/form/_modals/SingleCreativeViewModal";
 
+import {
+  getRequestViewData,
+  type RequestViewData,
+} from "../actions/request.actions";
 import type { CreativeRequest } from "../types/request.types";
+
 
 const MAX_COMMENT_LENGTH = 5000;
 
@@ -222,9 +228,12 @@ export function RequestItem({
   const [isDownloading, setIsDownloading] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
 
-
   // Error states
   const [error, setError] = useState<string | null>(null);
+
+  const [viewData, setViewData] = useState<RequestViewData | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isViewLoading, setIsViewLoading] = useState(false);
 
   // Character count for comments
   const rejectCommentsLength = useMemo(() => {
@@ -250,7 +259,8 @@ export function RequestItem({
       if (!open && hasUnsavedRejectComments) {
         const confirmed = await confirmDialog({
           title: "Unsaved Comments",
-          description: "You have unsaved comments. Are you sure you want to close?",
+          description:
+            "You have unsaved comments. Are you sure you want to close?",
           confirmText: "Close",
           cancelText: "No, keep editing",
           variant: "default",
@@ -279,7 +289,8 @@ export function RequestItem({
       if (!open && hasUnsavedSendBackComments) {
         const confirmed = await confirmDialog({
           title: "Unsaved Comments",
-          description: "You have unsaved comments. Are you sure you want to close?",
+          description:
+            "You have unsaved comments. Are you sure you want to close?",
           confirmText: "Close",
           cancelText: "No, keep editing",
           variant: "default",
@@ -408,52 +419,38 @@ export function RequestItem({
               variables.colors.requestCardViewButtonBackgroundColor,
             border: `1px solid ${variables.colors.requestCardViewButtonBorderColor}`,
           }}
-        // TODO: BACKEND - Implement View Request Navigation (UNIFIED MODEL)
-        //
-        // Frontend Implementation:
-        // onClick={() => {
-        //   router.push(`/requests/${request.id}`);
-        // })
-        //
-        // Backend API Endpoint: GET /api/admin/creative-requests/:id
-        //
-        // Backend Requirements:
-        // 1. Validate user has permission to view request
-        // 2. Retrieve full request details from creative_requests table
-        // 3. Retrieve complete approval timeline from creative_request_history table
-        // 4. Include related data:
-        //    - Offer details (from offers table via offer_id)
-        //    - Publisher details (from users table via publisher_id)
-        //    - Advertiser details (from users table via advertiser_id)
-        //    - Admin action details (admin_approved_by, admin_rejected_by, etc.)
-        //    - Advertiser action details (advertiser_approved_by, advertiser_rejected_by, etc.)
-        // 5. Return comprehensive request object with all related data
-        //
-        // Response Format:
-        // {
-        //   request: Request (full request object),
-        //   history: RequestHistory[] (array of history records),
-        //   offer: Offer (offer details),
-        //   publisher: User (publisher details),
-        //   advertiser: User (advertiser details)
-        // }
-        //
-        // Frontend Page: Create detailed view page at /requests/[id]/page.tsx showing:
-        // - Full creative/offer details (immutable)
-        // - Complete approval timeline from creative_request_history table
-        // - Admin approval info (who, when, comments)
-        // - Advertiser response info (who, when, comments)
-        // - Current status and next steps
-        // - Action buttons if applicable
-        // - Export functionality
-        //
-        // Example timeline:
-        // [Dec 20, 10:30] Publisher submitted creative
-        // [Dec 21, 14:15] Admin approved and forwarded to advertiser
-        // [Dec 22, 09:00] Advertiser sent back for reconsideration
-        // [Dec 22, 16:30] Admin rejected and sent to advertiser
+          disabled={isViewLoading}
+          onClick={async () => {
+            setIsViewLoading(true);
+            setError(null);
+            try {
+              const data = await getRequestViewData(request.id);
+              if (!data) {
+                toast.error("No creatives found", {
+                  description: "This request has no creative files.",
+                });
+                return;
+              }
+              setViewData(data);
+              setIsViewModalOpen(true);
+            } catch (err) {
+              const msg =
+                err instanceof Error ? err.message : "Failed to load request";
+              setError(msg);
+              toast.error("Failed to load request", { description: msg });
+            } finally {
+              setIsViewLoading(false);
+            }
+          }}
         >
-          {viewButtonText}
+          {isViewLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Loading...
+            </>
+          ) : (
+            viewButtonText
+          )}
         </Button>
       </div>
 
@@ -507,8 +504,7 @@ export function RequestItem({
                 style={{
                   color: variables.colors.requestCardApproveButtonTextColor,
                   backgroundColor:
-                    variables.colors
-                      .requestCardApproveButtonBackgroundColor,
+                    variables.colors.requestCardApproveButtonBackgroundColor,
                 }}
                 disabled={isNotifying}
                 onClick={async () => {
@@ -566,7 +562,8 @@ export function RequestItem({
                     // Simulate API call delay
                     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-                    const statusLabel = request.status === "approved" ? "approved" : "rejected";
+                    const statusLabel =
+                      request.status === "approved" ? "approved" : "rejected";
                     toast.success("Notification sent", {
                       description: `The ${statusLabel} request notification has been sent successfully.`,
                     });
@@ -596,9 +593,7 @@ export function RequestItem({
               </Button>
               {error && (
                 <div className="rounded-md bg-destructive/10 p-3 border border-destructive/20">
-                  <p className="text-xs text-destructive font-inter">
-                    {error}
-                  </p>
+                  <p className="text-xs text-destructive font-inter">{error}</p>
                 </div>
               )}
             </div>
@@ -903,10 +898,11 @@ export function RequestItem({
                           </span>
                         </label>
                         <span
-                          className={`text-xs font-inter ${isRejectCommentsValid
+                          className={`text-xs font-inter ${
+                            isRejectCommentsValid
                               ? "text-muted-foreground"
                               : "text-destructive"
-                            }`}
+                          }`}
                         >
                           {rejectCommentsLength} / {MAX_COMMENT_LENGTH}
                         </span>
@@ -1112,13 +1108,10 @@ export function RequestItem({
                             //   throw new Error(errorData.message || 'Failed to send back request');
                             // }
 
-                            toast.success(
-                              "Request sent back to publisher",
-                              {
-                                description:
-                                  "The request has been sent back to the publisher for revision.",
-                              }
-                            );
+                            toast.success("Request sent back to publisher", {
+                              description:
+                                "The request has been sent back to the publisher for revision.",
+                            });
 
                             setRejectComments("");
                             // await refreshRequests();
@@ -1274,9 +1267,9 @@ export function RequestItem({
               )}
             </div>
           ) : shouldShowRejectButtonOnly(
-            request.status,
-            request.approvalStage
-          ) ? (
+              request.status,
+              request.approvalStage
+            ) ? (
             <div className="flex flex-col gap-4 xl:gap-4 justify-self-end">
               <Popover
                 open={sendBackPopoverOpen}
@@ -1324,10 +1317,11 @@ export function RequestItem({
                           </span>
                         </label>
                         <span
-                          className={`text-xs font-inter ${isSendBackCommentsValid
+                          className={`text-xs font-inter ${
+                            isSendBackCommentsValid
                               ? "text-muted-foreground"
                               : "text-destructive"
-                            }`}
+                          }`}
                         >
                           {sendBackCommentsLength} / {MAX_COMMENT_LENGTH}
                         </span>
@@ -1458,13 +1452,10 @@ export function RequestItem({
                             //   throw new Error(errorData.message || 'Failed to send back request');
                             // }
 
-                            toast.success(
-                              "Request sent back to publisher",
-                              {
-                                description:
-                                  "The request has been sent back to the publisher for revision.",
-                              }
-                            );
+                            toast.success("Request sent back to publisher", {
+                              description:
+                                "The request has been sent back to the publisher for revision.",
+                            });
 
                             setSendBackComments("");
                             // await refreshRequests();
@@ -1741,6 +1732,32 @@ export function RequestItem({
           ) : null}
         </div>
       </Accordion.Content>
+
+      {viewData?.type === "single" && (
+        <SingleCreativeViewModal
+          isOpen={isViewModalOpen && viewData.type === "single"}
+          onClose={() => {
+            setIsViewModalOpen(false);
+            setViewData(null);
+          }}
+          creative={viewData.creative}
+          showAdditionalNotes={false}
+          creativeType={viewData.creativeType}
+        />
+      )}
+
+      {viewData?.type === "multiple" && (
+        <MultipleCreativesModal
+          isOpen={isViewModalOpen && viewData.type === "multiple"}
+          onClose={() => {
+            setIsViewModalOpen(false);
+            setViewData(null);
+          }}
+          creatives={viewData.creatives}
+          onRemoveCreative={() => {}}
+          creativeType={viewData.creativeType}
+        />
+      )}
     </Accordion.Item>
   );
 }
