@@ -31,6 +31,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             // optional, sent to your server on upload completion
             // userEmail: user.email,
           }),
+          addRandomSuffix: true,
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
