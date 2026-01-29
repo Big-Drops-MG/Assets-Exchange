@@ -1,0 +1,93 @@
+import { type NextRequest, NextResponse } from "next/server";
+import { v4 as uuidv4 } from "uuid";
+
+import { saveBuffer } from "@/lib/fileStorage";
+import { ZipParserService } from "@/lib/services/zip-parser.service";
+
+export const runtime = "nodejs";
+
+export async function POST(req: NextRequest) {
+  try {
+    const { url } = await req.json();
+
+    if (!url) {
+      return NextResponse.json({ error: "No URL provided" }, { status: 400 });
+    }
+
+    // 1. Download the ZIP file from Blob
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ZIP from Blob: ${response.statusText}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    const fileBuffer = Buffer.from(arrayBuffer);
+
+    // 2. Process with existing ZipParserService
+    const parsedEntries =
+      await ZipParserService.parseAndIdentifyDependencies(fileBuffer);
+
+    if (parsedEntries.length > 50) {
+      return NextResponse.json(
+        { error: "ZIP contains too many files (Limit: 50)" },
+        { status: 400 }
+      );
+    }
+
+    const zipId = uuidv4();
+    const items: Array<{
+      id: string;
+      name: string;
+      url: string;
+      size: number;
+      type: string;
+      isDependency: boolean;
+    }> = [];
+    let imagesCount = 0;
+    let htmlCount = 0;
+
+    for (const entry of parsedEntries) {
+      // 3. Save extracted files to Blob (server-side)
+      const saved = await saveBuffer(
+        entry.content,
+        entry.name.split("/").pop() || "file",
+        `extracted/${zipId}`
+      );
+
+      if (entry.type.startsWith("image/")) imagesCount++;
+      if (entry.type.includes("html")) htmlCount++;
+
+      items.push({
+        id: saved.id,
+        name: entry.name,
+        url: saved.url,
+        size: entry.content.length,
+        type: entry.type,
+        isDependency: entry.isDependency,
+      });
+    }
+
+    // 4. Return analysis in same format as before
+    return NextResponse.json({
+      success: true,
+      zipAnalysis: {
+        uploadId: zipId,
+        isSingleCreative: htmlCount === 1,
+        items,
+        counts: { images: imagesCount, htmls: htmlCount },
+        mainCreative:
+          htmlCount === 1
+            ? items.find((i) => i.type.includes("html"))
+            : undefined,
+      },
+    });
+  } catch (error) {
+    console.error("ZIP Processing Error:", error);
+    return NextResponse.json(
+      {
+        error: "ZIP processing failed",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
+  }
+}

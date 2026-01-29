@@ -1,5 +1,6 @@
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import { File, FileArchive, PencilLine, Search } from "lucide-react";
 import { useState, useEffect, memo, useRef, useCallback } from "react";
 
@@ -319,78 +320,86 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
   const handleSingleFileUpload = async (file: File) => {
     try {
       setUploading(true);
-      let r: Response;
 
+      // 1. Handle ZIP files -> Client Upload + Server Process
       if (
         file.type === "application/zip" ||
         file.name.toLowerCase().endsWith(".zip")
       ) {
-        const url = new URL("/api/upload", window.location.href);
-        url.searchParams.set("smartDetection", "true");
-        url.searchParams.set("filename", encodeURIComponent(file.name));
-
-        r = await fetch(url.toString(), {
-          method: "POST",
-          body: file,
-          headers: { "Content-Type": file.type || "application/octet-stream" },
+        // Upload ZIP directly to Blob
+        const newBlob = await upload(file.name, file, {
+          access: "public",
+          handleUploadUrl: "/api/upload/token",
         });
-      } else {
-        const fd = new FormData();
-        fd.append("file", file);
-        r = await fetch("/api/upload", { method: "POST", body: fd });
-      }
-      if (!r.ok) throw new Error(await r.text());
-      const data = await r.json();
 
-      if (data.zipAnalysis) {
-        // All ZIP files should open MultipleCreativesModal, even if single creative
-        if (data.zipAnalysis.isSingleCreative) {
-          // Convert single creative to array format for MultipleCreativesModal
-          const mainFile = data.zipAnalysis.mainCreative;
-          const mapped: UploadedFileMeta[] = [
-            {
-              id: mainFile.fileId,
-              name: mainFile.fileName,
-              url: mainFile.fileUrl,
-              size: mainFile.fileSize,
-              type: mainFile.fileType || "text/html",
-              source: "zip",
-              html: /\.html?$/i.test(mainFile.fileName),
-              previewUrl: mainFile.previewUrl,
-              assetCount: data.zipAnalysis.assetCount,
-              hasAssets: data.zipAnalysis.assetCount > 0,
-            },
-          ];
-          addFiles(mapped);
-          setSelectedCreatives(mapped);
-          setUploadedZipFileName(file.name);
-          setIsUploadDialogOpen(false);
-          setIsMultipleCreativeDialogOpen(true);
-          return;
-        } else {
-          await handleMultipleFileUpload(file);
-          return;
+        // Call process-zip endpoint
+        const r = await fetch("/api/upload/process-zip", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: newBlob.url, filename: file.name }),
+        });
+
+        if (!r.ok) throw new Error(await r.text());
+        const data = await r.json();
+
+        // Handle ZIP analysis (same logic as before)
+        if (data.zipAnalysis) {
+          if (data.zipAnalysis.isSingleCreative) {
+            // Convert single creative to array format for MultipleCreativesModal
+            const mainFile = data.zipAnalysis.mainCreative;
+            if (!mainFile)
+              throw new Error("Single creative ZIP missing main file");
+
+            const mapped: UploadedFileMeta[] = [
+              {
+                id: mainFile.id, // Note: using id not fileId as per new structure, or map if needed
+                name: mainFile.name,
+                url: mainFile.url,
+                size: mainFile.size,
+                type: mainFile.type || "text/html",
+                source: "zip",
+                html: /\.html?$/i.test(mainFile.name),
+                previewUrl: mainFile.url, // URL is now direct
+                assetCount: data.zipAnalysis.items.length - 1,
+                hasAssets: data.zipAnalysis.items.length > 1,
+              },
+            ];
+            addFiles(mapped);
+            setSelectedCreatives(mapped);
+            setUploadedZipFileName(file.name);
+            setIsUploadDialogOpen(false);
+            setIsMultipleCreativeDialogOpen(true);
+            return;
+          } else {
+            // Pass the processed items to handleMultipleFileUpload logic (or inline it here)
+            // Actually handleMultipleFileUpload was rewriting the logic, let's just reuse the mapping logic
+            // But handleMultipleFileUpload does the upload itself in current code.
+            // Let's call a shared helper or just process here.
+            processZipItems(data.zipAnalysis.items, file.name);
+            return;
+          }
         }
       }
 
-      const uploaded = data.file;
-      if (!uploaded) {
-        throw new Error("Upload response missing file data");
-      }
+      // 2. Handle Single File -> Direct Client Upload
+      const newBlob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload/token",
+      });
 
       const previewUrl = await makeThumb(file);
       const uploadedFile: UploadedFileMeta = {
-        id: uploaded.fileId,
-        name: uploaded.fileName,
-        url: uploaded.fileUrl,
-        size: uploaded.fileSize,
-        type: uploaded.fileType || file.type || "application/octet-stream",
+        id: newBlob.url, // Use URL as ID for consistency or keep using blob url
+        name: file.name,
+        url: newBlob.url,
+        size: file.size,
+        type: file.type || "application/octet-stream",
         source: "single",
-        html: /\.html?$/i.test(uploaded.fileName),
+        html: /\.html?$/i.test(file.name),
         previewUrl:
           previewUrl ||
-          (/\.(png|jpe?g|gif|webp)$/i.test(uploaded.fileName)
-            ? uploaded.fileUrl
+          (/\.(png|jpe?g|gif|webp)$/i.test(file.name)
+            ? newBlob.url
             : undefined),
       };
 
@@ -406,74 +415,87 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
     }
   };
 
+  const processZipItems = (
+    items: Array<{
+      name: string;
+      id: string;
+      url: string;
+      size: number;
+      type?: string;
+      isDependency?: boolean;
+    }>,
+    zipName: string
+  ) => {
+    const zipFiles = (items || []).filter(
+      (item: { name: string }) => !item.name.toLowerCase().endsWith(".txt")
+    );
+
+    if (zipFiles.length === 0) {
+      throw new Error(
+        "No valid files found in ZIP archive (txt files are skipped)"
+      );
+    }
+
+    // Helper to check if an item is HTML
+    const isHtmlItem = (item: { name: string; type?: string }) =>
+      item.type?.includes("html") || /\.html?$/i.test(item.name.trim());
+
+    const hasHtml = zipFiles.some(isHtmlItem);
+
+    const mapped: UploadedFileMeta[] = zipFiles.map(
+      (f: {
+        id: string;
+        name: string;
+        url: string;
+        size: number;
+        type?: string;
+        isDependency?: boolean;
+      }) => {
+        const isImageFile = /\.(png|jpe?g|gif|webp|svg)$/i.test(f.name);
+        const isHtml = isHtmlItem(f);
+
+        return {
+          id: f.id,
+          name: f.name,
+          url: f.url,
+          size: f.size,
+          type:
+            f.type || (isImageFile ? "image/png" : "application/octet-stream"),
+          source: "zip",
+          html: isHtml,
+          isHidden: hasHtml && !isHtml,
+          previewUrl: isImageFile || isHtml ? f.url : undefined,
+        };
+      }
+    );
+    addFiles(mapped);
+    setSelectedCreatives(mapped);
+    setUploadedZipFileName(zipName);
+    setIsUploadDialogOpen(false);
+    setIsMultipleCreativeDialogOpen(true);
+  };
+
   const handleMultipleFileUpload = async (file: File) => {
     try {
       setUploading(true);
 
-      const url = new URL("/api/upload", window.location.href);
-      url.searchParams.set("smartDetection", "true");
-      url.searchParams.set("filename", encodeURIComponent(file.name));
-
-      const r = await fetch(url.toString(), {
-        method: "POST",
-        body: file,
-        headers: {
-          "Content-Type": file.type || "application/octet-stream",
-        },
+      // Upload ZIP directly
+      const newBlob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload/token",
       });
+
+      // Process properly
+      const r = await fetch("/api/upload/process-zip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: newBlob.url, filename: file.name }),
+      });
+
       if (!r.ok) throw new Error(await r.text());
       const data = await r.json();
 
-      let zipItems = (data.zipAnalysis?.items || []).filter(
-        (item: { name: string }) => !item.name.toLowerCase().endsWith(".txt")
-      );
-
-      if (zipItems.length === 0) {
-        throw new Error(
-          "No valid files found in ZIP archive (txt files are skipped)"
-        );
-      }
-
-      // Helper to check if an item is HTML
-      const isHtmlItem = (item: { name: string; type?: string }) =>
-        item.type?.includes("html") ||
-        /\.html?$/i.test(item.name.trim());
-
-      // If any HTML files are present, mark others as hidden
-      // We keep them in the state so they can be passed as siblings for preview logic
-      const hasHtml = zipItems.some(isHtmlItem);
-
-      const mapped: UploadedFileMeta[] = zipItems.map(
-        (f: {
-          id: string;
-          name: string;
-          url: string;
-          size: number;
-          type?: string;
-          isDependency?: boolean;
-        }) => {
-          const isImageFile = /\.(png|jpe?g|gif|webp|svg)$/i.test(f.name);
-          const isHtml = isHtmlItem(f);
-
-          return {
-            id: f.id,
-            name: f.name,
-            url: f.url,
-            size: f.size,
-            type: f.type || (isImageFile ? "image/png" : "application/octet-stream"), // Fallback type
-            source: "zip",
-            html: isHtml,
-            // If there's an HTML file in the batch, hide non-HTML files (images/assets) from the main list
-            isHidden: hasHtml && !isHtml,
-            previewUrl: isImageFile || isHtml ? f.url : undefined, // For ZIP items, url IS the blob url
-          };
-        }
-      );
-      addFiles(mapped);
-      setSelectedCreatives(mapped);
-      setUploadedZipFileName(file.name);
-      setIsUploadDialogOpen(false);
-      setIsMultipleCreativeDialogOpen(true);
+      processZipItems(data.zipAnalysis.items, file.name);
     } catch (e: unknown) {
       console.error("ZIP extraction failed:", e);
       alert(e instanceof Error ? e.message : "ZIP extraction failed");
@@ -663,7 +685,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
                 style={{
                   borderColor:
                     validation.hasFieldError("creativeType") &&
-                      validation.isFieldTouched("creativeType")
+                    validation.isFieldTouched("creativeType")
                       ? variables.colors.inputErrorColor
                       : variables.colors.inputBorderColor,
                 }}
@@ -726,7 +748,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
                         {uploadedFiles.length === 1
                           ? uploadedFiles[0].name
                           : uploadedZipFileName ||
-                          `${uploadedFiles.length} Files Uploaded`}
+                            `${uploadedFiles.length} Files Uploaded`}
                       </p>
                       <p className="text-sm text-green-600">
                         {uploadedFiles.length} file
@@ -747,28 +769,28 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
                               {" • "}
                               {uploadedFiles[0].fromLines
                                 ? uploadedFiles[0].fromLines
-                                  .split("\n")
-                                  .filter((line) => line.trim()).length
+                                    .split("\n")
+                                    .filter((line) => line.trim()).length
                                 : 0}{" "}
                               from line
                               {(uploadedFiles[0].fromLines
                                 ? uploadedFiles[0].fromLines
-                                  .split("\n")
-                                  .filter((line) => line.trim()).length
+                                    .split("\n")
+                                    .filter((line) => line.trim()).length
                                 : 0) !== 1
                                 ? "s"
                                 : ""}{" "}
                               •{" "}
                               {uploadedFiles[0].subjectLines
                                 ? uploadedFiles[0].subjectLines
-                                  .split("\n")
-                                  .filter((line) => line.trim()).length
+                                    .split("\n")
+                                    .filter((line) => line.trim()).length
                                 : 0}{" "}
                               subject line
                               {(uploadedFiles[0].subjectLines
                                 ? uploadedFiles[0].subjectLines
-                                  .split("\n")
-                                  .filter((line) => line.trim()).length
+                                    .split("\n")
+                                    .filter((line) => line.trim()).length
                                 : 0) !== 1
                                 ? "s"
                                 : ""}
@@ -916,10 +938,11 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
             </div>
           ) : (
             <div
-              className={`grid gap-4 ${formData.creativeType === "email"
-                ? "grid-cols-1 md:grid-cols-3"
-                : "grid-cols-1 md:grid-cols-2"
-                }`}
+              className={`grid gap-4 ${
+                formData.creativeType === "email"
+                  ? "grid-cols-1 md:grid-cols-3"
+                  : "grid-cols-1 md:grid-cols-2"
+              }`}
             >
               <Button
                 variant="outline"
@@ -980,25 +1003,25 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
               <div className="space-y-2 mt-2">
                 {(validation.hasFieldError("fromLines") ||
                   validation.hasFieldError("subjectLines")) && (
-                    <div className="space-y-1">
-                      {validation.hasFieldError("fromLines") && (
-                        <p
-                          className="text-xs font-inter"
-                          style={{ color: variables.colors.inputErrorColor }}
-                        >
-                          {validation.getFieldErrorMessage("fromLines")}
-                        </p>
-                      )}
-                      {validation.hasFieldError("subjectLines") && (
-                        <p
-                          className="text-xs font-inter"
-                          style={{ color: variables.colors.inputErrorColor }}
-                        >
-                          {validation.getFieldErrorMessage("subjectLines")}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                  <div className="space-y-1">
+                    {validation.hasFieldError("fromLines") && (
+                      <p
+                        className="text-xs font-inter"
+                        style={{ color: variables.colors.inputErrorColor }}
+                      >
+                        {validation.getFieldErrorMessage("fromLines")}
+                      </p>
+                    )}
+                    {validation.hasFieldError("subjectLines") && (
+                      <p
+                        className="text-xs font-inter"
+                        style={{ color: variables.colors.inputErrorColor }}
+                      >
+                        {validation.getFieldErrorMessage("subjectLines")}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
         </div>
@@ -1120,11 +1143,11 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
                 prev.map((file) =>
                   file.id === fileId
                     ? {
-                      ...file,
-                      fromLines: metadata.fromLines,
-                      subjectLines: metadata.subjectLines,
-                      additionalNotes: metadata.additionalNotes,
-                    }
+                        ...file,
+                        fromLines: metadata.fromLines,
+                        subjectLines: metadata.subjectLines,
+                        additionalNotes: metadata.additionalNotes,
+                      }
                     : file
                 )
               );
@@ -1151,7 +1174,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
                   const metadataChanged =
                     updates.metadata &&
                     JSON.stringify(prev.metadata) !==
-                    JSON.stringify(updates.metadata);
+                      JSON.stringify(updates.metadata);
                   if (!urlChanged && !metadataChanged) {
                     return prev; // No change, return same reference to prevent re-render
                   }
