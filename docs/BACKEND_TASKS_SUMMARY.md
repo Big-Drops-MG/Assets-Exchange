@@ -560,17 +560,17 @@ type SubmissionStatus =
 - ⏳ Tracking page shows correct step
 - ⏳ Status history is logged
 
-#### Sprint 9.3: Grammar AI Integration + Analytics ⏳
+### Sprint 9.3: Grammar AI Integration + Analytics ✅ (Partial)
 
 **Grammar Model Integration:**
 
 - Model URL: `https://grammar-correction-1-5tha.onrender.com`
-- ⏳ Create `lib/grammarClient.ts` - Grammar API wrapper
-  - POST /process - Upload and process files
-  - GET /task/{task_id} - Get task status
-  - GET /download/{filename} - Download processed files
-  - GET /health - Check service health
-- ⏳ All grammar calls made from Admin backend only (never from publisher)
+- ✅ **Create `lib/services/grammar.service.ts`** - Grammar service wrapper
+  - ✅ Integrated with OpenAI for Marketing Suggestions & Quality Scores
+  - ✅ Image text extraction and analysis
+  - ✅ HTML/Text processing
+  - ✅ Client-side integration for Publisher Portal
+- ⏳ All grammar calls made from Admin backend only (Currently implemented as client-side service for immediate feedback)
 - ⏳ Create `external_tasks` table
   - Fields: id, source ('grammar'), submission_id, asset_id, status, task_id (external), started_at, finished_at, error
 

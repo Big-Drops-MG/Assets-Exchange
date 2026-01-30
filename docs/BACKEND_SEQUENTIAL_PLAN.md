@@ -9,6 +9,7 @@
 ## Overview
 
 This document consolidates all backend tasks from:
+
 - Notion project tasks (Sprint 1 & Sprint 2)
 - TODO markdown files (Backend_Implementation_TODOs.md, BACKEND_TODOS_SUMMARY.md, STATS_AND_CHARTS_BACKEND_TODOS.md)
 - Code TODOs (120+ `TODO: BACKEND` comments in codebase)
@@ -25,6 +26,7 @@ This document consolidates all backend tasks from:
 **Status:** Partially Done (users, sessions, accounts exist)
 
 #### Tasks:
+
 1. ✅ **Install Drizzle ORM + NeonDB client** (Done - Sprint 1)
 2. ✅ **Create users & roles schema** (Done - Sprint 1)
 3. ⏳ **Create tenants table schema** (Backlog - Sprint 1, moved from Hold)
@@ -36,19 +38,16 @@ This document consolidates all backend tasks from:
    - Epic: EPIC 3 — Database & Multi-Tenant Schema
    - Area: db
    - Reference: `docs/Backend_Implementation_TODOs.md` line 38-72
-   
 4. ⏳ **Add "submissions" table schema** (Backlog - Sprint 2)
    - Unified creative_requests table (see UNIFIED_MODEL_EXPLANATION.md)
    - All fields from `features/admin/types/admin.types.ts` lines 41-90
    - Status: new, pending, approved, rejected, sent-back
    - Approval stages: admin, advertiser, completed
    - Admin & advertiser tracking fields
-   
 5. ⏳ **Add "annotations" table schema** (Backlog - Sprint 2)
    - Annotation tracking for creatives
    - Shape/comment storage
    - Reference: Epic 3 tasks
-   
 6. ✅ **Run Drizzle migration to NeonDB** (Done - Sprint 1)
 7. ⏳ **Run Drizzle migration for submissions + annotations** (Backlog - Sprint 2)
    - Create migration file
@@ -56,6 +55,7 @@ This document consolidates all backend tasks from:
    - Verify indexes
 
 **Files to Create/Update:**
+
 - `lib/schema.ts` - Add new table definitions
 - `drizzle/migrations/` - Create migration files
 - Reference: `features/admin/types/admin.types.ts` (lines 29-110) for SQL schema
@@ -68,6 +68,7 @@ This document consolidates all backend tasks from:
 **Status:** Partially Done
 
 #### Tasks:
+
 1. ✅ **Add initial seed script (SuperAdmin + sample tenant)** (Done - Sprint 1)
 2. ⏳ **Enhance seed script with sample data**
    - Sample creative requests
@@ -76,6 +77,7 @@ This document consolidates all backend tasks from:
    - Reference: `seed-scripts/` directory
 
 **Files:**
+
 - `seed-scripts/seed.ts` or similar
 - `app/api/admin/seed/route.ts` (exists, may need enhancement)
 
@@ -89,6 +91,7 @@ This document consolidates all backend tasks from:
 **Status:** Partially Done
 
 #### Tasks:
+
 1. ✅ **Install BetterAuth** (Done - Sprint 1)
 2. ✅ **Configure BetterAuth provider** (Done - Sprint 1)
 3. ✅ **Add user session helpers** (Done - Sprint 1)
@@ -101,6 +104,7 @@ This document consolidates all backend tasks from:
    - Reference: Notion task ID `2d557c77-ca86-812e-b68a-d6862782b421`
 
 **Files to Update:**
+
 - `lib/rpc/router.ts` - Add auth procedures
 - `lib/auth-helpers.ts` - May need enhancement
 - `app/api/rpc/[...path]/route.ts` - Verify routing
@@ -113,6 +117,7 @@ This document consolidates all backend tasks from:
 **Status:** Partially Done
 
 #### Tasks:
+
 1. ✅ **Install oRPC & set up base RPC router** (Done - Sprint 1)
 2. ⏳ **Add RPC endpoints** (Backlog - Sprint 2)
    - Organize by feature (admin, offers, advertisers, etc.)
@@ -120,6 +125,7 @@ This document consolidates all backend tasks from:
    - Reference: Notion task ID `2d557c77-ca86-8191-8c3b-caa50412eb4e`
 
 **Structure:**
+
 ```
 lib/rpc/router.ts
 ├── health (done)
@@ -145,19 +151,19 @@ lib/rpc/router.ts
 **Status:** ✅ **COMPLETED** (2025-01-XX)
 
 #### Tasks:
+
 1. ✅ **Implement admin dashboard backend** (Done - Phase 3.1)
    - Reference: Notion task ID `2d557c77-ca86-8182-a401-c9e89e1ae5c7`
    - Epic: EPIC 5 — Admin Dashboard & Review Workflow
    - Implementation: `features/admin/services/dashboard.service.ts`
    - API: `app/api/admin/dashboard/stats/route.ts`
-   
 2. ✅ **GET /api/admin/dashboard/stats** (Done - Phase 3.1)
    - Calculate 5 statistics:
-     * Total Assets
-     * New Requests
-     * Approved Assets
-     * Rejected Assets
-     * Pending Approval
+     - Total Assets
+     - New Requests
+     - Approved Assets
+     - Rejected Assets
+     - Pending Approval
    - Include trends (today vs yesterday)
    - Include historical data (Yesterday, Current Month, Last Month)
    - Cache with 2-minute TTL (Redis)
@@ -165,6 +171,7 @@ lib/rpc/router.ts
    - Reference: `features/admin/services/admin.service.ts` line 125
 
 **SQL Queries Needed:**
+
 - See `docs/STATS_AND_CHARTS_BACKEND_TODOS.md` for complete SQL examples
 - Total Assets: UNION of publisher_requests + advertiser_responses
 - New Requests: WHERE status='new' AND approval_stage='admin'
@@ -173,6 +180,7 @@ lib/rpc/router.ts
 - Pending: WHERE status IN ('new', 'pending')
 
 **Files to Create/Update:**
+
 - `lib/rpc/router.ts` - Add `admin.dashboard.stats` procedure
 - `features/admin/services/admin.service.ts` - Replace mock data (line 125)
 - `features/admin/models/admin.model.ts` - Remove after implementation (marked for deletion)
@@ -185,12 +193,13 @@ lib/rpc/router.ts
 **Status:** Not Started
 
 #### Tasks:
+
 1. ⏳ **GET /api/admin/dashboard/performance?comparisonType={type}**
    - Support 4 comparison types:
-     * "Today vs Yesterday" (24 hourly points)
-     * "Today vs Last Week" (24 hourly points)
-     * "Current Week vs Last Week" (7 daily points)
-     * "Current Month vs Last Month" (31 daily points)
+     - "Today vs Yesterday" (24 hourly points)
+     - "Today vs Last Week" (24 hourly points)
+     - "Current Week vs Last Week" (7 daily points)
+     - "Current Month vs Last Month" (31 daily points)
    - Time-series aggregation
    - Fill missing data points with 0
    - Cache with 5-15 minute TTL
@@ -198,10 +207,12 @@ lib/rpc/router.ts
    - Reference: `features/admin/services/performance-chart.service.ts` line 153
 
 **SQL Aggregation Examples:**
+
 - See `docs/STATS_AND_CHARTS_BACKEND_TODOS.md` for hourly/daily/monthly queries
 - Use GROUP BY with DATE(), HOUR(), DAYOFWEEK(), etc.
 
 **Files to Create/Update:**
+
 - `lib/rpc/router.ts` - Add `admin.dashboard.performance` procedure
 - `features/admin/services/performance-chart.service.ts` - Replace mock (line 153)
 - `features/admin/models/performance-chart.model.ts` - Remove after (marked for deletion)
@@ -216,6 +227,7 @@ lib/rpc/router.ts
 **Status:** ✅ **COMPLETED** (Phase 3.2)
 
 #### Tasks:
+
 1. ✅ **GET /api/admin/requests** (Done - Phase 3.2)
    - Pagination (page, limit)
    - Filtering (status, approvalStage, priority, search, dateFrom, dateTo)
@@ -253,12 +265,14 @@ lib/rpc/router.ts
    - Reference: `docs/Backend_Implementation_TODOs.md` lines 704-710
 
 **Files to Create/Update:**
+
 - `lib/rpc/router.ts` - Add `admin.requests.*` and `admin.responses.*` procedures
 - `features/admin/services/request.service.ts` - Replace all mock data calls
 - `features/admin/models/request.model.ts` - Remove after (marked for deletion)
 - `features/admin/models/response.model.ts` - Remove after (marked for deletion)
 
 **Key Implementation Notes:**
+
 - Use unified model (ONE table: creative_requests)
 - See `docs/UNIFIED_MODEL_EXPLANATION.md` for architecture
 - Status filtering: WHERE status IN (...)
@@ -273,6 +287,7 @@ lib/rpc/router.ts
 **Status:** ✅ **COMPLETED** (Phase 3.2, 3.3, 3.4, 3.5)
 
 #### Tasks:
+
 1. ✅ **POST /api/admin/requests/:id/approve** (Done - Phase 3.2)
    - Validate: status='new', approvalStage='admin'
    - Update request: status='pending', approvalStage='advertiser'
@@ -298,12 +313,14 @@ lib/rpc/router.ts
    - Reference: `features/admin/components/RequestItem.tsx` line 1193
 
 **Business Logic:**
+
 - State transition validation (see `docs/Backend_Implementation_TODOs.md` lines 1491-1524)
 - Status history logging (automatic via triggers or application code)
 - Notification triggers
 - Transaction management
 
 **Files to Create/Update:**
+
 - `lib/rpc/router.ts` - Add action procedures
 - `features/admin/services/request.service.ts` - Implement action functions
 - `features/admin/components/RequestItem.tsx` - Wire up handlers (lines 507, 572, 792, 860, 1193, 1261)
@@ -318,6 +335,7 @@ lib/rpc/router.ts
 **Status:** ✅ **COMPLETED** (Phase 3.6, 3.9)
 
 #### Tasks:
+
 1. ✅ **GET /api/admin/offers** (Done - Phase 3.6)
    - Filtering by status (defaults to "Active")
    - Search: offerName
@@ -370,6 +388,7 @@ lib/rpc/router.ts
    - Reference: Phase 5.5 for complete implementation details
 
 **Files to Create/Update:**
+
 - `lib/rpc/router.ts` - Add `offers.*` procedures
 - `features/admin/services/offers.service.ts` - Replace all mock calls (29 TODOs)
 - `features/admin/components/Offers.tsx` - Wire up handlers (lines 264, 316, 373, 469)
@@ -378,6 +397,7 @@ lib/rpc/router.ts
 - `features/admin/components/NewOfferManuallyModal.tsx` - Wire up creation (line 110)
 
 **Database Schema Needed:**
+
 - `offers` table (not yet in schema.ts)
 - `brand_guidelines` table or JSONB column
 - See `docs/Backend_Implementation_TODOs.md` for schema design
@@ -400,6 +420,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
 **Status:** Not Started
 
 #### Tasks:
+
 1. ⏳ **Create Everflow API service wrapper**
    - Install Everflow API client library (if available) or use HTTP client
    - Create `lib/services/everflow.service.ts`
@@ -422,6 +443,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
    - Validate credentials on save
 
 **Files to Create/Update:**
+
 - `lib/services/everflow.service.ts` - Everflow API client
 - `lib/schema.ts` - Add `everflow_config` table (if storing in DB)
 - `lib/rpc/router.ts` - Add `admin.everflow.*` procedures
@@ -435,6 +457,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
 **Status:** Not Started
 
 #### Tasks:
+
 1. ⏳ **POST /api/admin/offers/pull-from-everflow**
    - Sync offers from Everflow API
    - Fetch offers using Everflow API endpoints
@@ -483,6 +506,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
    - Reference: `docs/Backend_Implementation_TODOs.md` lines 1229-1233
 
 **Request Body:**
+
 ```typescript
 {
   source?: "everflow",              // API source identifier
@@ -496,6 +520,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
 ```
 
 **Response:**
+
 ```typescript
 {
   success: boolean,
@@ -514,6 +539,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
 ```
 
 **Files to Create/Update:**
+
 - `lib/services/everflow.service.ts` - Add `syncOffers()` method
 - `lib/rpc/router.ts` - Add `admin.offers.pullFromEverflow` procedure
 - `lib/schema.ts` - Add `offer_sync_history` table
@@ -527,6 +553,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
 **Status:** Not Started
 
 #### Tasks:
+
 1. ⏳ **POST /api/admin/advertisers/pull-from-everflow**
    - Sync advertisers from Everflow API
    - Fetch advertisers using Everflow API endpoints
@@ -568,6 +595,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
    - Store error details for failed syncs
 
 **Request Body:**
+
 ```typescript
 {
   source?: "everflow",
@@ -581,6 +609,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
 ```
 
 **Response:**
+
 ```typescript
 {
   success: boolean,
@@ -599,6 +628,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
 ```
 
 **Files to Create/Update:**
+
 - `lib/services/everflow.service.ts` - Add `syncAdvertisers()` method
 - `lib/rpc/router.ts` - Add `admin.advertisers.pullFromEverflow` procedure
 - `lib/schema.ts` - Add `advertiser_sync_history` table
@@ -612,6 +642,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
 **Status:** Not Started
 
 #### Tasks:
+
 1. ⏳ **Implement scheduled sync jobs**
    - Use cron jobs or scheduled tasks
    - Allow admin to configure sync schedule (daily, weekly, etc.)
@@ -631,6 +662,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
    - Show pending/failed syncs
 
 **Files to Create/Update:**
+
 - `lib/jobs/sync-scheduler.ts` - Scheduled sync jobs
 - `lib/rpc/router.ts` - Add sync scheduling procedures
 - `lib/schema.ts` - Add `sync_schedules` table (if storing in DB)
@@ -643,6 +675,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
 **Status:** Not Started
 
 #### Tasks:
+
 1. ⏳ **Implement retry logic for API calls**
    - Exponential backoff for failed requests
    - Max retry attempts (configurable)
@@ -665,18 +698,21 @@ This phase covers integration with Everflow API for syncing offers and advertise
    - Store error details in sync history
 
 **Files to Create/Update:**
+
 - `lib/services/everflow.service.ts` - Add retry logic
 - `lib/logger.ts` - Add Everflow-specific logging
 
 ---
 
 **Database Schema Needed:**
+
 - `everflow_config` table (optional - for storing API credentials)
 - `offer_sync_history` table
 - `advertiser_sync_history` table
 - `sync_schedules` table (optional - for scheduled syncs)
 
 **Key Implementation Notes:**
+
 - Reference working implementation in https://github.com/Yash-BigDrops/admin_portal
 - Ensure API credentials are stored securely (encrypted)
 - Handle rate limiting from Everflow API
@@ -694,6 +730,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
 **Status:** Not Started
 
 #### Tasks:
+
 1. ⏳ **GET /api/admin/advertisers**
    - Similar to offers endpoint
    - Reference: `features/admin/services/advertiser.service.ts` line 25
@@ -724,6 +761,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
    - Reference: `features/admin/components/Advertiser.tsx` line 299
 
 **Files to Create/Update:**
+
 - `lib/rpc/router.ts` - Add `advertisers.*` procedures
 - `features/admin/services/advertiser.service.ts` - Replace all mock calls (7 TODOs)
 - `features/admin/components/Advertiser.tsx` - Wire up handlers (lines 213, 240, 299)
@@ -737,6 +775,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
 **Status:** ✅ **COMPLETED** (Phase 3.8)
 
 #### Tasks:
+
 1. ✅ **GET /api/admin/publishers** (Done - Phase 3.8)
    - Search by name
    - Implementation: `app/api/admin/publishers/route.ts`
@@ -766,6 +805,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
    - Reference: `features/admin/services/publisher.service.ts`
 
 **Files to Create/Update:**
+
 - `lib/rpc/router.ts` - Add `publishers.*` procedures
 - `features/admin/services/publisher.service.ts` - Replace all mock calls (6 TODOs)
 - `features/admin/components/Publisher.tsx` - Wire up handlers (line 147)
@@ -780,6 +820,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
 **Status:** ✅ **PARTIALLY COMPLETED** (Phase 3.9)
 
 #### Tasks:
+
 1. ⏳ **GET /api/admin/{entityType}s/:id/brand-guidelines** (Not Implemented)
    - Supports: offers, advertisers, publishers
    - Returns: type, url/fileUrl, text, notes
@@ -806,16 +847,18 @@ This phase covers integration with Everflow API for syncing offers and advertise
    - Reference: `docs/Backend_Implementation_TODOs.md` lines 1390-1456
 
 **Files to Create/Update:**
+
 - `lib/rpc/router.ts` - Add `brandGuidelines.*` procedures
 - `features/admin/components/BrandGuidelinesModal.tsx` - Wire up handlers (lines 98, 219)
 - File storage integration (S3/R2/Vercel Blob)
 
 **Storage Setup:**
+
 - ⏳ **Blob Storage Configuration** (See Phase 8.3 for complete setup)
-   - Must be completed before implementing file uploads in brand guidelines
-   - Reference: Phase 8.3 - Blob Storage Configuration
-   - Reference: Notion task ID `2d557c77-ca86-8109-a314-cbb09e743ebc`
-   - Story Points: 2
+  - Must be completed before implementing file uploads in brand guidelines
+  - Reference: Phase 8.3 - Blob Storage Configuration
+  - Reference: Notion task ID `2d557c77-ca86-8109-a314-cbb09e743ebc`
+  - Story Points: 2
 
 ---
 
@@ -827,6 +870,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
 **Status:** Not Started
 
 #### Tasks:
+
 1. ⏳ **Install Redis client (Upstash / ioredis) / Render Redis** (Active - Sprint 1, moved from Hold)
    - Choose provider: Upstash (serverless, recommended) or Render Redis
    - Install package: `@upstash/redis` or `ioredis`
@@ -872,6 +916,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
 **Status:** Partially Done
 
 #### Tasks:
+
 1. ✅ **Install Zod validation** (Done - Sprint 1)
 2. ✅ **Configure CORS & CSP** (Done - Sprint 1)
 3. ✅ **Configure Vercel project & environment variables** (Done - Sprint 1)
@@ -961,6 +1006,7 @@ This phase covers integration with Everflow API for syncing offers and advertise
 **Reference:** `docs/UPLOAD_BACKEND_STRUCTURE.md`
 
 #### Overview
+
 This phase implements the upload backend structure for publisher form creative file uploads, including single files, ZIP archives, and smart detection. This is the first upload implementation priority.
 
 #### Tasks:
@@ -1001,18 +1047,18 @@ This phase implements the upload backend structure for publisher form creative f
 
 4. ⏳ **Configure environment variables**
    - Add to `env.js`:
-     * `BLOB_STORAGE_PROVIDER` (vercel | s3 | r2)
-     * `BLOB_STORAGE_URL` (for Vercel Blob)
-     * `BLOB_READ_WRITE_TOKEN` (for Vercel Blob)
-     * `AWS_S3_BUCKET_NAME` (for S3)
-     * `AWS_S3_REGION` (for S3)
-     * `AWS_ACCESS_KEY_ID` (for S3)
-     * `AWS_SECRET_ACCESS_KEY` (for S3)
-     * `R2_ACCOUNT_ID` (for R2)
-     * `R2_ACCESS_KEY_ID` (for R2)
-     * `R2_SECRET_ACCESS_KEY` (for R2)
-     * `R2_BUCKET_NAME` (for R2)
-     * `MAX_FILE_SIZE_MB` (default: 50)
+     - `BLOB_STORAGE_PROVIDER` (vercel | s3 | r2)
+     - `BLOB_STORAGE_URL` (for Vercel Blob)
+     - `BLOB_READ_WRITE_TOKEN` (for Vercel Blob)
+     - `AWS_S3_BUCKET_NAME` (for S3)
+     - `AWS_S3_REGION` (for S3)
+     - `AWS_ACCESS_KEY_ID` (for S3)
+     - `AWS_SECRET_ACCESS_KEY` (for S3)
+     - `R2_ACCOUNT_ID` (for R2)
+     - `R2_ACCESS_KEY_ID` (for R2)
+     - `R2_SECRET_ACCESS_KEY` (for R2)
+     - `R2_BUCKET_NAME` (for R2)
+     - `MAX_FILE_SIZE_MB` (default: 50)
    - Update `env.js` validation schema
    - Reference: `docs/UPLOAD_BACKEND_STRUCTURE.md` Environment Variables section
 
@@ -1163,6 +1209,7 @@ This phase implements the upload backend structure for publisher form creative f
     - Reference: `docs/UPLOAD_BACKEND_STRUCTURE.md` Best Practices section
 
 **Use Cases:**
+
 - Publisher form creative file uploads (HTML, images)
 - ZIP archive uploads with automatic extraction
 - Smart detection of single creative in ZIP
@@ -1170,6 +1217,7 @@ This phase implements the upload backend structure for publisher form creative f
 - File metadata tracking and management
 
 **Files to Create:**
+
 - `lib/schema.ts` - Add `file_uploads` table
 - `lib/storage.ts` - Main storage service
 - `lib/storage/providers/base.ts` - Base provider interface
@@ -1186,6 +1234,7 @@ This phase implements the upload backend structure for publisher form creative f
 - `app/api/admin/files/[id]/route.ts` - File metadata and deletion
 
 **Implementation Notes:**
+
 - Start with Vercel Blob for development/testing (easiest setup)
 - Design abstraction layer to switch providers easily
 - Support streaming uploads for large files
@@ -1196,6 +1245,7 @@ This phase implements the upload backend structure for publisher form creative f
 - Add file expiration/cleanup policies for temporary uploads
 
 **Mandatory System Behavior:**
+
 - All files MUST start with `status = "pending_scan"` (never `"clean"` immediately)
 - Malware scan background job MUST be enqueued for every upload
 - Only files with `status = "clean"` are usable/attachable
@@ -1204,11 +1254,13 @@ This phase implements the upload backend structure for publisher form creative f
 - Scan failures MUST default to `"pending_scan"` (retryable), NEVER `"clean"`
 
 **Dependencies:**
+
 - Must be completed before publisher form can accept file uploads
 - Foundation for Phase 8.2 (Brand Guidelines Uploads)
 - Can be done in parallel with Phase 5-6 if not blocking
 
 **Reference Documentation:**
+
 - Complete structure: `docs/UPLOAD_BACKEND_STRUCTURE.md`
 - Frontend implementation: `features/publisher/components/form/_steps/CreativeDetails.tsx`
 - Frontend upload modal: `features/publisher/view-models/fileUploadModal.viewModel.ts`
@@ -1222,6 +1274,7 @@ This phase implements the upload backend structure for publisher form creative f
 **Dependencies:** Requires Phase 8.1 (Publisher Form Upload Structure) to be completed first
 
 #### Overview
+
 This phase implements brand guidelines upload functionality for offers, advertisers, and publishers. It builds on the storage infrastructure from Phase 8.1.
 
 #### Tasks:
@@ -1273,12 +1326,14 @@ This phase implements brand guidelines upload functionality for offers, advertis
    - Reference: `docs/UPLOAD_BACKEND_STRUCTURE.md` Implementation Structure section
 
 **Use Cases:**
+
 - Brand guidelines file uploads (offers, advertisers, publishers)
 - Brand guidelines URL links
 - Brand guidelines text content
 - Updating/replacing existing brand guidelines
 
 **Files to Create:**
+
 - `lib/schema.ts` - Add `brand_guidelines` table (optional)
 - `lib/services/brand-guidelines.service.ts` - Brand guidelines business logic
 - `app/api/admin/offers/[id]/brand-guidelines/route.ts` - Offers brand guidelines
@@ -1286,6 +1341,7 @@ This phase implements brand guidelines upload functionality for offers, advertis
 - `app/api/admin/publishers/[id]/brand-guidelines/route.ts` - Publishers brand guidelines
 
 **Implementation Notes:**
+
 - Reuse storage infrastructure from Phase 8.1
 - Support three types: file, URL, text
 - Handle file replacement (delete old file)
@@ -1293,10 +1349,12 @@ This phase implements brand guidelines upload functionality for offers, advertis
 - Log all brand guidelines updates
 
 **Dependencies:**
+
 - Requires Phase 8.1 (Publisher Form Upload Structure) to be completed
 - Must be completed before Phase 7 (Brand Guidelines Management) can use file uploads
 
 **Reference Documentation:**
+
 - Complete structure: `docs/UPLOAD_BACKEND_STRUCTURE.md`
 - Frontend implementation: `features/admin/components/BrandGuidelinesModal.tsx`
 
@@ -1319,6 +1377,7 @@ This phase implements brand guidelines upload functionality for offers, advertis
 **Status:** Not Started
 
 #### Tasks:
+
 1. ⏳ **Create notifications table schema**
    - Reference: `docs/Backend_Implementation_TODOs.md` lines 2239-2258
 
@@ -1349,6 +1408,7 @@ This phase implements brand guidelines upload functionality for offers, advertis
 **Status:** Not Started
 
 #### Tasks:
+
 1. ⏳ **Create error_logs table**
    - Reference: `docs/Backend_Implementation_TODOs.md` lines 2339-2362
 
@@ -1375,6 +1435,7 @@ This phase implements brand guidelines upload functionality for offers, advertis
 **Status:** Not Started
 
 #### Tasks:
+
 1. ⏳ **WebSocket /ws/updates endpoint**
    - Real-time entity updates
    - Reference: `docs/Backend_Implementation_TODOs.md` lines 2392-2413
@@ -1403,29 +1464,30 @@ This phase covers integration with the AI/LLM compliance checking model that val
 **Status:** Can Start Now (Preparation)
 
 #### Tasks:
+
 1. ⏳ **Create compliance_results table schema**
    - Fields:
-     * `id` - Primary key
-     * `creative_request_id` - FK to creative_requests
-     * `status` - "pass" | "fail"
-     * `violations` - JSON array of violation objects
-     * `checked_at` - Timestamp
-     * `model_version` - Version of compliance model used
-     * `input_type` - "pdf" | "image" | "html_file" | "html_string"
-     * `processing_time_ms` - How long the check took
-     * `error_message` - If model API failed
+     - `id` - Primary key
+     - `creative_request_id` - FK to creative_requests
+     - `status` - "pass" | "fail"
+     - `violations` - JSON array of violation objects
+     - `checked_at` - Timestamp
+     - `model_version` - Version of compliance model used
+     - `input_type` - "pdf" | "image" | "html_file" | "html_string"
+     - `processing_time_ms` - How long the check took
+     - `error_message` - If model API failed
    - Add to `lib/schema.ts`
    - Create migration
 
 2. ⏳ **Create compliance_violations table (optional - normalized)**
    - If we want to normalize violations:
-     * `id` - Primary key
-     * `compliance_result_id` - FK to compliance_results
-     * `rule_type` - "prohibited_text" | "fuzzy_text_match" | "prohibited_semantic_claim" | "required_text" | "prohibited_calendar_reference"
-     * `rule_value` - The rule that was violated
-     * `matched_text` - Text that triggered the violation
-     * `confidence` - Confidence score (for semantic matches)
-     * `location` - Where in the creative (bbox coordinates, page number, etc.)
+     - `id` - Primary key
+     - `compliance_result_id` - FK to compliance_results
+     - `rule_type` - "prohibited_text" | "fuzzy_text_match" | "prohibited_semantic_claim" | "required_text" | "prohibited_calendar_reference"
+     - `rule_value` - The rule that was violated
+     - `matched_text` - Text that triggered the violation
+     - `confidence` - Confidence score (for semantic matches)
+     - `location` - Where in the creative (bbox coordinates, page number, etc.)
    - Add to `lib/schema.ts`
    - Create migration
 
@@ -1439,6 +1501,7 @@ This phase covers integration with the AI/LLM compliance checking model that val
    - Test: Insert test compliance result, verify constraints work
 
 **Files to Create/Update:**
+
 - `lib/schema.ts` - Add compliance tables with all fields
 - `drizzle/migrations/XXXXXX_create_compliance_results.sql` - Migration file (auto-generated)
 - `drizzle/migrations/XXXXXX_create_compliance_violations.sql` - Migration file (auto-generated, if normalized)
@@ -1452,26 +1515,27 @@ This phase covers integration with the AI/LLM compliance checking model that val
 **Status:** Can Start Now (Preparation)
 
 #### Tasks:
+
 1. ⏳ **Design compliance check RPC procedure structure**
    - Procedure: `admin.compliance.check`
    - Input:
-     * `creativeRequestId` - ID of the creative request
-     * `inputType` - "pdf" | "image" | "html_file" | "html_string"
-     * `fileUrl` - URL to the creative file (from blob storage)
-     * `guidelinesUrl` - URL to brand guidelines PDF (from blob storage)
+     - `creativeRequestId` - ID of the creative request
+     - `inputType` - "pdf" | "image" | "html_file" | "html_string"
+     - `fileUrl` - URL to the creative file (from blob storage)
+     - `guidelinesUrl` - URL to brand guidelines PDF (from blob storage)
    - Output: `ComplianceResponse`
-     * `status: "pass" | "fail"`
-     * `violations: Array<Violation>`
-     * `checkedAt: timestamp`
-     * `processingTimeMs: number`
+     - `status: "pass" | "fail"`
+     - `violations: Array<Violation>`
+     - `checkedAt: timestamp`
+     - `processingTimeMs: number`
 
 2. ⏳ **Define TypeScript types for compliance**
    - Create `lib/types/compliance.types.ts`
    - Types:
-     * `ComplianceResponse`
-     * `Violation`
-     * `RuleType` enum
-     * `InputType` enum
+     - `ComplianceResponse`
+     - `Violation`
+     - `RuleType` enum
+     - `InputType` enum
 
 3. ⏳ **Identify integration points in workflow**
    - When creative is submitted by publisher → trigger compliance check
@@ -1480,6 +1544,7 @@ This phase covers integration with the AI/LLM compliance checking model that val
    - Manual compliance check trigger (admin action)
 
 **Files to Create:**
+
 - `lib/types/compliance.types.ts` - Type definitions
 - `lib/rpc/procedures/admin/compliance.ts` - RPC procedure (stub initially)
 
@@ -1491,12 +1556,13 @@ This phase covers integration with the AI/LLM compliance checking model that val
 **Status:** Can Start Now (Preparation)
 
 #### Tasks:
+
 1. ⏳ **Create compliance service wrapper**
    - Create `lib/services/compliance.service.ts`
    - Abstract the model API calls
    - Functions:
-     * `checkCompliance(inputType, fileUrl, guidelinesUrl): Promise<ComplianceResponse>`
-     * `handleModelError(error): ComplianceResponse` - Fallback on API failure
+     - `checkCompliance(inputType, fileUrl, guidelinesUrl): Promise<ComplianceResponse>`
+     - `handleModelError(error): ComplianceResponse` - Fallback on API failure
    - Use environment variables for model API URL/keys
 
 2. ⏳ **Add environment variables to env.js**
@@ -1517,6 +1583,7 @@ This phase covers integration with the AI/LLM compliance checking model that val
    - Allow testing the integration flow
 
 **Files to Create:**
+
 - `lib/services/compliance.service.ts` - Service wrapper
 - `lib/services/compliance.mock.ts` - Mock implementation for testing
 - `env.js` - Add compliance model environment variables
@@ -1529,6 +1596,7 @@ This phase covers integration with the AI/LLM compliance checking model that val
 **Status:** BLOCKED - Waiting for Model Deployment
 
 #### Prerequisites (from model team):
+
 - ✅ Model API endpoint URL
 - ✅ Authentication method (API key, OAuth, etc.)
 - ✅ Request/response format documentation
@@ -1537,6 +1605,7 @@ This phase covers integration with the AI/LLM compliance checking model that val
 - ✅ Error response format
 
 #### Tasks (to be completed after deployment):
+
 1. ⏳ **Implement actual model API client**
    - Replace stub with real API calls
    - Handle authentication
@@ -1575,6 +1644,7 @@ This phase covers integration with the AI/LLM compliance checking model that val
    - Test caching
 
 **Files to Update:**
+
 - `lib/services/compliance.service.ts` - Replace stub with real implementation
 - `lib/rpc/procedures/admin/compliance.ts` - Complete implementation
 
@@ -1586,6 +1656,7 @@ This phase covers integration with the AI/LLM compliance checking model that val
 **Status:** Can Start Planning (Implementation after model deployment)
 
 #### Tasks:
+
 1. ⏳ **Integrate compliance check into creative submission flow**
    - When publisher submits creative → automatically run compliance check
    - Store results in database
@@ -1613,6 +1684,7 @@ This phase covers integration with the AI/LLM compliance checking model that val
    - Reference: Phase 9.1 - Notification System
 
 **Files to Update:**
+
 - `lib/schema.ts` - Add compliance_status to creative_requests
 - `lib/rpc/procedures/admin/requests.ts` - Add compliance check triggers
 - `lib/rpc/procedures/admin/compliance.ts` - Re-check procedures
@@ -1624,17 +1696,20 @@ This phase covers integration with the AI/LLM compliance checking model that val
 Based on the [ACGCS Data Flow Diagram](https://www.figma.com/board/iveLxWPjyCSFJgO6CM344t/ACGCS-Data-Flow-Diagram?node-id=0-1&p=f&t=p1fMpETCU8AM8J4U-0):
 
 **Input Processing:**
+
 - PDF: Extract text → Parse rules → Structured rules list
 - Image: OCR text extraction
 - HTML: DOM extraction → Screenshot → OCR
 
 **Text Normalization:**
+
 - Merge extracted texts
 - Lowercase & strip
 - Deduplicate
 - Remove overlapping bboxes
 
 **Rule Engine:**
+
 - Exact text match (regex) - prohibited_text
 - Fuzzy text match (SequenceMatcher) - fuzzy_text_match
 - Semantic classification (Sentence Transformer + Cosine Similarity) - prohibited_semantic_claim
@@ -1642,6 +1717,7 @@ Based on the [ACGCS Data Flow Diagram](https://www.figma.com/board/iveLxWPjyCSFJ
 - Date/calendar pattern match - prohibited_calendar_reference
 
 **Output:**
+
 - Status: "pass" | "fail"
 - Violations list with details
 
@@ -1650,11 +1726,13 @@ Based on the [ACGCS Data Flow Diagram](https://www.figma.com/board/iveLxWPjyCSFJ
 ### Dependencies
 
 **Must Complete Before:**
+
 - Phase 7 (Brand Guidelines) - Need guidelines storage
 - Phase 4 (Requests/Responses) - Need creative request structure
 - Phase 8.3 (Blob Storage) - Need file storage for creatives and guidelines
 
 **Can Work In Parallel With:**
+
 - Phase 9 (Advanced Features)
 - Phase 11 (Grammar Correction)
 - Phase 13 (Testing)
@@ -1673,6 +1751,7 @@ Based on the [ACGCS Data Flow Diagram](https://www.figma.com/board/iveLxWPjyCSFJ
 Credit system tracks usage of compliance and grammar model API calls. **Separate credit pools for Publishers and Advertisers** - they are completely independent. Publishers and Advertisers can use AI tools standalone (without submissions) or tied to creative requests. Admin Portal acts as the central API gateway for all AI checks from Publisher Form, Advertiser Portal, and Admin Portal.
 
 **Key Points:**
+
 - **Publishers:** Submit creatives, use AI for submissions or standalone
 - **Advertisers:** Never submit creatives, only check forwarded creatives from admin, can use AI standalone
 - **Separate Credits:** Publisher credits and Advertiser credits are completely separate
@@ -1688,39 +1767,40 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
 **Note:** Publishers are created automatically on first AI usage (compliance or grammar check), even if they don't submit creatives.
 
 #### Tasks:
+
 1. ⏳ **Create publishers table schema**
    - Fields from Publisher Form (Step 1 & 2):
-     * `id` - Primary key (uuid)
-     * `affiliate_id` - String (required, unique) - Primary identifier from form
-     * `company_name` - String (required)
-     * `first_name` - String (required)
-     * `last_name` - String (required)
-     * `email` - String (required, unique)
-     * `telegram_id` - String (nullable, optional)
+     - `id` - Primary key (uuid)
+     - `affiliate_id` - String (required, unique) - Primary identifier from form
+     - `company_name` - String (required)
+     - `first_name` - String (required)
+     - `last_name` - String (required)
+     - `email` - String (required, unique)
+     - `telegram_id` - String (nullable, optional)
    - Tracking fields:
-     * `first_seen_at` - Timestamp (when first used credits/AI)
-     * `created_at` - Timestamp
-     * `updated_at` - Timestamp
-     * `last_activity_at` - Timestamp (last credit usage)
+     - `first_seen_at` - Timestamp (when first used credits/AI)
+     - `created_at` - Timestamp
+     - `updated_at` - Timestamp
+     - `last_activity_at` - Timestamp (last credit usage)
    - Status fields:
-     * `status` - Enum: 'active' | 'inactive' (default: 'active')
-     * `source` - Enum: 'publisher_form' | 'api' | 'manual' (default: 'publisher_form')
+     - `status` - Enum: 'active' | 'inactive' (default: 'active')
+     - `source` - Enum: 'publisher_form' | 'api' | 'manual' (default: 'publisher_form')
    - Additional:
-     * `metadata` - JSONB (nullable, for future fields)
+     - `metadata` - JSONB (nullable, for future fields)
    - Add to `lib/schema.ts`
    - Create migration (when Publisher Portal phase starts)
    - Indexes:
-     * Unique index on `affiliate_id`
-     * Unique index on `email`
-     * Index on `company_name`
-     * Index on `created_at`
-     * Index on `status`
+     - Unique index on `affiliate_id`
+     - Unique index on `email`
+     - Index on `company_name`
+     - Index on `created_at`
+     - Index on `status`
 
 2. ⏳ **Publisher matching logic**
    - Match existing publishers by:
-     * Priority 1: `affiliate_id` (most unique)
-     * Priority 2: `email` (unique identifier)
-     * Priority 3: Combination of `company_name` + `first_name` + `last_name`
+     - Priority 1: `affiliate_id` (most unique)
+     - Priority 2: `email` (unique identifier)
+     - Priority 3: Combination of `company_name` + `first_name` + `last_name`
    - If match found: Update `last_activity_at` and return existing publisher
    - If no match: Create new publisher record
 
@@ -1733,6 +1813,7 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
    - Test: Insert test publisher, verify constraints work
 
 **Files to Create/Update:**
+
 - `lib/schema.ts` - Add publishers table definition
 - `drizzle/migrations/XXXXXX_create_publishers.sql` - Migration file (auto-generated)
 - Run migration to create table in database
@@ -1750,67 +1831,68 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
 **Status:** Can Start Now
 
 #### Tasks:
+
 1. ⏳ **Create credit_accounts table schema**
    - Fields:
-     * `id` - Primary key (uuid)
-     * `account_type` - Enum: 'advertiser' | 'publisher' (required)
-     * `advertiser_id` - FK to advertisers (nullable, only if account_type = 'advertiser')
-     * `publisher_id` - FK to publishers (nullable, only if account_type = 'publisher')
-     * `total_credits` - Integer (default: 999999 for unlimited)
-     * `used_credits` - Integer (default: 0)
-     * `available_credits` - Integer (computed: total - used)
-     * `created_at` - Timestamp
-     * `updated_at` - Timestamp
+     - `id` - Primary key (uuid)
+     - `account_type` - Enum: 'advertiser' | 'publisher' (required)
+     - `advertiser_id` - FK to advertisers (nullable, only if account_type = 'advertiser')
+     - `publisher_id` - FK to publishers (nullable, only if account_type = 'publisher')
+     - `total_credits` - Integer (default: 999999 for unlimited)
+     - `used_credits` - Integer (default: 0)
+     - `available_credits` - Integer (computed: total - used)
+     - `created_at` - Timestamp
+     - `updated_at` - Timestamp
    - Constraints:
-     * Check constraint: (advertiser_id IS NOT NULL AND publisher_id IS NULL) OR (advertiser_id IS NULL AND publisher_id IS NOT NULL)
-     * Unique constraint on (account_type, advertiser_id) for advertisers
-     * Unique constraint on (account_type, publisher_id) for publishers
+     - Check constraint: (advertiser_id IS NOT NULL AND publisher_id IS NULL) OR (advertiser_id IS NULL AND publisher_id IS NOT NULL)
+     - Unique constraint on (account_type, advertiser_id) for advertisers
+     - Unique constraint on (account_type, publisher_id) for publishers
    - Add to `lib/schema.ts`
    - Create migration (when Publisher Portal phase starts)
    - Indexes:
-     * Index on `account_type`
-     * Index on `advertiser_id`
-     * Index on `publisher_id`
-     * Unique index on (account_type, advertiser_id) where advertiser_id IS NOT NULL
-     * Unique index on (account_type, publisher_id) where publisher_id IS NOT NULL
+     - Index on `account_type`
+     - Index on `advertiser_id`
+     - Index on `publisher_id`
+     - Unique index on (account_type, advertiser_id) where advertiser_id IS NOT NULL
+     - Unique index on (account_type, publisher_id) where publisher_id IS NOT NULL
 
 2. ⏳ **Create credit_transactions table schema**
    - Fields:
-     * `id` - Primary key (uuid)
-     * `credit_account_id` - FK to credit_accounts
-     * `account_type` - Enum: 'advertiser' | 'publisher' (denormalized for easy querying)
-     * `advertiser_id` - FK to advertisers (nullable, denormalized)
-     * `publisher_id` - FK to publishers (nullable, denormalized)
-     * `transaction_type` - Enum: 'allocation' | 'consumption' | 'refund' | 'adjustment' | 'expiration'
-     * `amount` - Integer (positive for allocation, negative for consumption)
-     * `compliance_result_id` - FK to compliance_results (nullable)
-     * `grammar_result_id` - FK to grammar_results (nullable)
-     * `creative_request_id` - FK to creative_requests (nullable, NULL if AI-only usage)
-     * `usage_type` - Enum: 'submission' | 'forwarded_check' | 'standalone' (NEW)
+     - `id` - Primary key (uuid)
+     - `credit_account_id` - FK to credit_accounts
+     - `account_type` - Enum: 'advertiser' | 'publisher' (denormalized for easy querying)
+     - `advertiser_id` - FK to advertisers (nullable, denormalized)
+     - `publisher_id` - FK to publishers (nullable, denormalized)
+     - `transaction_type` - Enum: 'allocation' | 'consumption' | 'refund' | 'adjustment' | 'expiration'
+     - `amount` - Integer (positive for allocation, negative for consumption)
+     - `compliance_result_id` - FK to compliance_results (nullable)
+     - `grammar_result_id` - FK to grammar_results (nullable)
+     - `creative_request_id` - FK to creative_requests (nullable, NULL if AI-only usage)
+     - `usage_type` - Enum: 'submission' | 'forwarded_check' | 'standalone' (NEW)
        - 'submission': Publisher submitted creative (tied to submission)
        - 'forwarded_check': Advertiser checked forwarded creative from admin
        - 'standalone': AI-only usage (no creative_request)
-     * `checked_by_role` - Enum: 'publisher' | 'advertiser' | 'admin' (NEW)
-     * `service_type` - Enum: 'compliance' | 'grammar' (NEW)
-     * `user_id` - FK to users (nullable, who triggered)
-     * `description` - Text (nullable)
-     * `metadata` - JSONB (nullable, additional data)
-     * `created_at` - Timestamp
+     - `checked_by_role` - Enum: 'publisher' | 'advertiser' | 'admin' (NEW)
+     - `service_type` - Enum: 'compliance' | 'grammar' (NEW)
+     - `user_id` - FK to users (nullable, who triggered)
+     - `description` - Text (nullable)
+     - `metadata` - JSONB (nullable, additional data)
+     - `created_at` - Timestamp
    - Add to `lib/schema.ts`
    - Create migration (when Publisher Portal phase starts)
    - Indexes:
-     * Index on `credit_account_id`
-     * Index on `account_type`
-     * Index on `advertiser_id`
-     * Index on `publisher_id`
-     * Index on `compliance_result_id`
-     * Index on `grammar_result_id`
-     * Index on `creative_request_id`
-     * Index on `usage_type`
-     * Index on `checked_by_role`
-     * Index on `service_type`
-     * Index on `created_at`
-     * Index on `transaction_type`
+     - Index on `credit_account_id`
+     - Index on `account_type`
+     - Index on `advertiser_id`
+     - Index on `publisher_id`
+     - Index on `compliance_result_id`
+     - Index on `grammar_result_id`
+     - Index on `creative_request_id`
+     - Index on `usage_type`
+     - Index on `checked_by_role`
+     - Index on `service_type`
+     - Index on `created_at`
+     - Index on `transaction_type`
 
 3. ⏳ **Update compliance_results table (Phase 10.1)**
    - Add `credit_account_id` - FK to credit_accounts
@@ -1837,16 +1919,17 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
    - Update compliance_results and grammar_results tables in schema
    - Generate migration: `pnpm drizzle-kit generate` or `npx drizzle-kit generate`
    - Review migration files in `drizzle/migrations/`:
-     * `XXXXXX_create_credit_accounts.sql`
-     * `XXXXXX_create_credit_transactions.sql`
-     * `XXXXXX_update_compliance_results.sql`
-     * `XXXXXX_update_grammar_results.sql`
+     - `XXXXXX_create_credit_accounts.sql`
+     - `XXXXXX_create_credit_transactions.sql`
+     - `XXXXXX_update_compliance_results.sql`
+     - `XXXXXX_update_grammar_results.sql`
    - Run migrations: `pnpm drizzle-kit migrate` or `npx drizzle-kit migrate`
    - Verify all tables created in NeonDB
    - Test: Create test credit accounts, verify constraints work
    - Test: Create test transactions, verify foreign keys work
 
 **Files to Create/Update:**
+
 - `lib/schema.ts` - Add credit tables and update compliance/grammar results
 - `drizzle/migrations/XXXXXX_create_credit_accounts.sql` - Migration file (auto-generated)
 - `drizzle/migrations/XXXXXX_create_credit_transactions.sql` - Migration file (auto-generated)
@@ -1862,17 +1945,18 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
 **Status:** Can Start Now
 
 #### Tasks:
+
 1. ⏳ **Create publisher service**
    - Create `lib/services/publisher.service.ts`
    - Methods:
-     * `createOrGetPublisher(formData)` - Create or get publisher, match by affiliate_id, email, or name combination
-     * `getPublisher(publisherId)` - Get publisher by ID
-     * `updatePublisher(publisherId, data)` - Update publisher details
-     * `findExistingPublisher(affiliateId, email, companyName, firstName, lastName)` - Find existing publisher with matching logic
+     - `createOrGetPublisher(formData)` - Create or get publisher, match by affiliate_id, email, or name combination
+     - `getPublisher(publisherId)` - Get publisher by ID
+     - `updatePublisher(publisherId, data)` - Update publisher details
+     - `findExistingPublisher(affiliateId, email, companyName, firstName, lastName)` - Find existing publisher with matching logic
    - Matching priority:
-     * Priority 1: `affiliate_id` (most unique)
-     * Priority 2: `email` (unique identifier)
-     * Priority 3: Combination of `company_name` + `first_name` + `last_name`
+     - Priority 1: `affiliate_id` (most unique)
+     - Priority 2: `email` (unique identifier)
+     - Priority 3: Combination of `company_name` + `first_name` + `last_name`
    - If match found: Update `last_activity_at` and return existing
    - If no match: Create new publisher record
 
@@ -1880,19 +1964,20 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
    - Create `lib/utils/request-identification.ts`
    - Function: `identifyAccountType(request: Request): 'publisher' | 'advertiser'`
    - Logic:
-     * Check `origin` header for 'publisher-form' or 'publisher-form-nu.vercel.app' → 'publisher'
-     * Check `referer` header for 'publisher-form' → 'publisher'
-     * Check `origin`/`referer` for 'advertiser' → 'advertiser'
-     * Check `X-Portal-Type` header → 'publisher' | 'advertiser'
-     * Default: Check authenticated user role (if no user → 'publisher')
+     - Check `origin` header for 'publisher-form' or 'publisher-form-nu.vercel.app' → 'publisher'
+     - Check `referer` header for 'publisher-form' → 'publisher'
+     - Check `origin`/`referer` for 'advertiser' → 'advertiser'
+     - Check `X-Portal-Type` header → 'publisher' | 'advertiser'
+     - Default: Check authenticated user role (if no user → 'publisher')
 
 3. ⏳ **Implement publisher form data extraction**
    - Function: `extractPublisherFormData(request: Request): PublisherFormData`
    - Extract from request body:
-     * `affiliateId`, `companyName`, `firstName`, `lastName`, `email`, `telegramId`
+     - `affiliateId`, `companyName`, `firstName`, `lastName`, `email`, `telegramId`
    - Handle both form submission and API request formats
 
 **Files to Create:**
+
 - `lib/services/publisher.service.ts` - Publisher management service
 - `lib/utils/request-identification.ts` - Request identification utilities
 
@@ -1904,20 +1989,21 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
 **Status:** Can Start Now
 
 #### Tasks:
+
 1. ⏳ **Create credit service wrapper**
    - Create `lib/services/credit.service.ts`
    - Implement with feature flag support:
-     * `COMPLIANCE_CREDITS_ENABLED` - Enable/disable credit system
-     * `COMPLIANCE_CREDITS_UNLIMITED_MODE` - Unlimited mode (default: true)
+     - `COMPLIANCE_CREDITS_ENABLED` - Enable/disable credit system
+     - `COMPLIANCE_CREDITS_UNLIMITED_MODE` - Unlimited mode (default: true)
    - Methods:
-     * `checkCreditsAvailable(accountOwnerId, accountType, amount)` - Check if credits available (always true in unlimited mode)
-     * `consumeCredits(creditAccountId, accountType, accountOwnerId, publisherId, advertiserId, amount, resultId, creativeRequestId, userId, usageType, checkedByRole, serviceType)` - Consume credits (track only in unlimited mode)
-     * `refundCredits(resultId, reason, serviceType)` - Refund credits on API failure
-     * `getAccountBalance(accountOwnerId, accountType)` - Get balance and usage stats
-     * `allocateCredits(accountOwnerId, accountType, amount, allocatedBy, description)` - Admin allocation (separate for publisher/advertiser)
-     * `getTransactionHistory(accountOwnerId, accountType, filters)` - Transaction history
-     * `getOrCreatePublisherCreditAccount(publisherId)` - Get or create publisher credit account
-     * `getOrCreateAdvertiserCreditAccount(advertiserId)` - Get or create advertiser credit account
+     - `checkCreditsAvailable(accountOwnerId, accountType, amount)` - Check if credits available (always true in unlimited mode)
+     - `consumeCredits(creditAccountId, accountType, accountOwnerId, publisherId, advertiserId, amount, resultId, creativeRequestId, userId, usageType, checkedByRole, serviceType)` - Consume credits (track only in unlimited mode)
+     - `refundCredits(resultId, reason, serviceType)` - Refund credits on API failure
+     - `getAccountBalance(accountOwnerId, accountType)` - Get balance and usage stats
+     - `allocateCredits(accountOwnerId, accountType, amount, allocatedBy, description)` - Admin allocation (separate for publisher/advertiser)
+     - `getTransactionHistory(accountOwnerId, accountType, filters)` - Transaction history
+     - `getOrCreatePublisherCreditAccount(publisherId)` - Get or create publisher credit account
+     - `getOrCreateAdvertiserCreditAccount(advertiserId)` - Get or create advertiser credit account
 
 2. ⏳ **Add environment variables to env.js**
    - `COMPLIANCE_CREDITS_ENABLED` (default: true)
@@ -1940,6 +2026,7 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
    - Track checked_by_role: 'publisher', 'advertiser', 'admin'
 
 **Files to Create:**
+
 - `lib/services/credit.service.ts` - Credit management service
 - `env.js` - Add credit system environment variables
 
@@ -1951,33 +2038,34 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
 **Status:** Can Start Now
 
 #### Tasks:
+
 1. ⏳ **Create credit allocation RPC procedures (admin only)**
    - Procedure: `admin.credits.allocateAdvertiser`
-     * Input: `advertiserId`, `amount`, `description`
-     * Allocate credits to advertiser account
+     - Input: `advertiserId`, `amount`, `description`
+     - Allocate credits to advertiser account
    - Procedure: `admin.credits.allocatePublisher`
-     * Input: `publisherId`, `amount`, `description`
-     * Allocate credits to publisher account
+     - Input: `publisherId`, `amount`, `description`
+     - Allocate credits to publisher account
    - Admin only authorization
    - Separate endpoints for advertiser and publisher
 
 2. ⏳ **Create credit balance query RPC procedures**
    - Procedure: `admin.credits.getAdvertiserBalance`
-     * Input: `advertiserId`
-     * Returns: balance, used, available credits
-     * Accessible by admin and advertiser (own account)
+     - Input: `advertiserId`
+     - Returns: balance, used, available credits
+     - Accessible by admin and advertiser (own account)
    - Procedure: `admin.credits.getPublisherBalance`
-     * Input: `publisherId`
-     * Returns: balance, used, available credits
-     * Accessible by admin only (publishers don't have accounts yet)
+     - Input: `publisherId`
+     - Returns: balance, used, available credits
+     - Accessible by admin only (publishers don't have accounts yet)
 
 3. ⏳ **Create credit transaction history RPC procedures**
    - Procedure: `admin.credits.getAdvertiserTransactions`
-     * Input: `advertiserId`, `startDate`, `endDate`, `limit`, `offset`, `usageType`, `serviceType`
-     * Returns: transaction history for advertiser
+     - Input: `advertiserId`, `startDate`, `endDate`, `limit`, `offset`, `usageType`, `serviceType`
+     - Returns: transaction history for advertiser
    - Procedure: `admin.credits.getPublisherTransactions`
-     * Input: `publisherId`, `startDate`, `endDate`, `limit`, `offset`, `usageType`, `serviceType`
-     * Returns: transaction history for publisher
+     - Input: `publisherId`, `startDate`, `endDate`, `limit`, `offset`, `usageType`, `serviceType`
+     - Returns: transaction history for publisher
    - Filter by usage_type (submission, forwarded_check, standalone)
    - Filter by service_type (compliance, grammar)
 
@@ -1989,16 +2077,17 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
 
 5. ⏳ **Create publisher management RPC procedures**
    - Procedure: `admin.publishers.getAll`
-     * Input: `filters`, `pagination`
-     * Returns: List of publishers with credit usage stats
+     - Input: `filters`, `pagination`
+     - Returns: List of publishers with credit usage stats
    - Procedure: `admin.publishers.getById`
-     * Input: `publisherId`
-     * Returns: Publisher details with credit account and transaction history
+     - Input: `publisherId`
+     - Returns: Publisher details with credit account and transaction history
    - Procedure: `admin.publishers.getByAffiliateId`
-     * Input: `affiliateId`
-     * Returns: Publisher by affiliate ID
+     - Input: `affiliateId`
+     - Returns: Publisher by affiliate ID
 
 **Files to Create:**
+
 - `lib/rpc/procedures/admin/credits.ts` - Credit management RPC procedures
 - `lib/rpc/procedures/admin/publishers.ts` - Publisher management RPC procedures
 
@@ -2010,26 +2099,27 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
 **Status:** After Phase 10.4 (Model API Integration)
 
 #### Tasks:
+
 1. ⏳ **Identify account type from request source**
    - Use `identifyAccountType(request)` to determine 'publisher' or 'advertiser'
    - Based on origin/referer headers or X-Portal-Type header
 
 2. ⏳ **Handle publisher compliance check**
    - Extract publisher form data from request body:
-     * `affiliateId`, `companyName`, `firstName`, `lastName`, `email`, `telegramId`
+     - `affiliateId`, `companyName`, `firstName`, `lastName`, `email`, `telegramId`
    - Create or get publisher using `createOrGetPublisher()`
    - Get or create publisher credit account
    - Determine usage_type:
-     * If `creativeRequestId` provided → 'submission'
-     * If no `creativeRequestId` → 'standalone'
+     - If `creativeRequestId` provided → 'submission'
+     - If no `creativeRequestId` → 'standalone'
    - Set `checked_by_role: 'publisher'`
 
 3. ⏳ **Handle advertiser compliance check**
    - Get advertiser from authenticated user
    - Get advertiser credit account
    - Determine usage_type:
-     * If `creativeRequestId` provided and forwarded to advertiser → 'forwarded_check'
-     * If no `creativeRequestId` → 'standalone'
+     - If `creativeRequestId` provided and forwarded to advertiser → 'forwarded_check'
+     - If no `creativeRequestId` → 'standalone'
    - Set `checked_by_role: 'advertiser'`
    - **Note:** Advertisers never submit creatives, they only check forwarded creatives
 
@@ -2042,10 +2132,10 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
 5. ⏳ **Add credit consumption after successful check**
    - Consume credits after successful compliance check
    - Link to compliance_result with all tracking fields:
-     * `publisher_id` or `advertiser_id`
-     * `usage_type` (submission, forwarded_check, standalone)
-     * `checked_by_role` (publisher, advertiser, admin)
-     * `creative_request_id` (nullable)
+     - `publisher_id` or `advertiser_id`
+     - `usage_type` (submission, forwarded_check, standalone)
+     - `checked_by_role` (publisher, advertiser, admin)
+     - `creative_request_id` (nullable)
    - Log transaction with all metadata
 
 6. ⏳ **Add credit refund on model API failure**
@@ -2059,6 +2149,7 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
    - Status code: 402 Payment Required
 
 **Files to Update:**
+
 - `lib/rpc/procedures/admin/compliance.ts` - Add credit checks, publisher creation, usage type tracking
 - `lib/services/compliance.service.ts` - Integrate credit service and publisher service
 
@@ -2070,6 +2161,7 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
 **Status:** After Phase 11.3 (Grammar RPC Procedures)
 
 #### Tasks:
+
 1. ⏳ **Integrate publisher creation into grammar check**
    - Same logic as compliance check
    - Identify account type from request
@@ -2088,6 +2180,7 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
    - Same refund logic as compliance
 
 **Files to Update:**
+
 - `lib/rpc/procedures/admin/grammar.ts` - Add credit checks, publisher creation, usage type tracking
 - `lib/services/grammar.service.ts` - Integrate credit service and publisher service
 
@@ -2099,6 +2192,7 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
 **Status:** When Publisher Portal Phase Starts
 
 #### Tasks:
+
 1. ⏳ **Create credit account seed script**
    - Create credit accounts for all existing advertisers
    - Initial allocation: 999999 credits (effectively unlimited)
@@ -2107,6 +2201,7 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
    - Note: Publishers will get credit accounts created automatically on first AI usage
 
 **Files to Create:**
+
 - `seed-scripts/seed-credits.ts` - Credit account seed script
 
 ---
@@ -2114,6 +2209,7 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
 #### Credit System Business Rules
 
 **Current Mode (Unlimited):**
+
 - All advertisers get 999999 credits (effectively unlimited)
 - All publishers get 999999 credits (effectively unlimited, created on first AI usage)
 - All credit consumption is tracked but not enforced
@@ -2121,6 +2217,7 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
 - Full analytics available
 
 **Future Mode (When Publisher Portal v2 Launches):**
+
 - Enable credit enforcement (flip feature flag)
 - Set real credit limits (separate for advertisers and publishers)
 - Enable credit blocking
@@ -2128,27 +2225,32 @@ Credit system tracks usage of compliance and grammar model API calls. **Separate
 - Separate credit allocation for advertisers and publishers
 
 **Credit Costs:**
+
 - Compliance check: 1 credit (base)
 - Different costs per input type (configurable)
 - Grammar check: 0.5 credits
 
 **Usage Types:**
+
 - `submission`: Publisher submitted creative (tied to creative_request)
 - `forwarded_check`: Advertiser checked forwarded creative from admin (tied to creative_request)
 - `standalone`: AI-only usage (no creative_request, can be publisher or advertiser)
 
 **Account Types:**
+
 - `advertiser`: Advertiser credit account (separate pool)
 - `publisher`: Publisher credit account (separate pool)
 - Completely independent - no mixing
 
 **Publisher Creation:**
+
 - Created automatically on first AI usage (compliance or grammar check)
 - Even if no creative submission
 - Matched by: affiliate_id → email → company_name + first_name + last_name
 - Tracked in analytics even if never submits
 
 **Advertiser Workflow:**
+
 - Advertisers never submit creatives
 - They only check/review creatives forwarded by admin
 - They can use AI standalone (testing, checking guidelines)
@@ -2169,6 +2271,7 @@ This phase covers integration with the Grammar Correction Model API that correct
 **Model Status:** Deployed and ready - Can start integration immediately
 
 **Key Features:**
+
 - Supports: images (.jpg, .png), HTML (.html, .htm), ZIP archives, text
 - OCR: extracts text from images using EasyOCR
 - HTML processing: preserves structure, highlights corrections
@@ -2184,37 +2287,38 @@ This phase covers integration with the Grammar Correction Model API that correct
 **Status:** Can Start Now
 
 #### Tasks:
+
 1. ⏳ **Create grammar_results table schema**
    - Fields:
-     * `id` - Primary key (uuid)
-     * `creative_request_id` - FK to creative_requests (nullable, NULL if AI-only usage)
-     * `publisher_id` - FK to publishers (nullable, track publisher even without submission)
-     * `advertiser_id` - FK to advertisers (nullable, track advertiser even without submission)
-     * `input_type` - Enum: 'image' | 'html' | 'zip' | 'text'
-     * `original_file_url` - URL to original file (blob storage)
-     * `corrected_file_url` - URL to corrected file (blob storage, nullable)
-     * `preview_id` - Preview ID from grammar API (nullable, 1-hour TTL)
-     * `task_id` - Task ID from grammar API (for async tracking)
-     * `status` - Enum: 'pending' | 'processing' | 'completed' | 'failed'
-     * `corrections_count` - Integer (nullable)
-     * `format` - Enum: 'json' | 'html'
-     * `usage_type` - Enum: 'submission' | 'forwarded_check' | 'standalone' (NEW)
-     * `checked_by_role` - Enum: 'publisher' | 'advertiser' | 'admin' (NEW)
-     * `credit_account_id` - FK to credit_accounts (nullable)
-     * `credits_consumed` - Integer (default: 0.5)
-     * `credit_transaction_id` - FK to credit_transactions (nullable)
-     * `created_at` - Timestamp
-     * `completed_at` - Timestamp (nullable)
-     * `error_message` - Text (nullable)
+     - `id` - Primary key (uuid)
+     - `creative_request_id` - FK to creative_requests (nullable, NULL if AI-only usage)
+     - `publisher_id` - FK to publishers (nullable, track publisher even without submission)
+     - `advertiser_id` - FK to advertisers (nullable, track advertiser even without submission)
+     - `input_type` - Enum: 'image' | 'html' | 'zip' | 'text'
+     - `original_file_url` - URL to original file (blob storage)
+     - `corrected_file_url` - URL to corrected file (blob storage, nullable)
+     - `preview_id` - Preview ID from grammar API (nullable, 1-hour TTL)
+     - `task_id` - Task ID from grammar API (for async tracking)
+     - `status` - Enum: 'pending' | 'processing' | 'completed' | 'failed'
+     - `corrections_count` - Integer (nullable)
+     - `format` - Enum: 'json' | 'html'
+     - `usage_type` - Enum: 'submission' | 'forwarded_check' | 'standalone' (NEW)
+     - `checked_by_role` - Enum: 'publisher' | 'advertiser' | 'admin' (NEW)
+     - `credit_account_id` - FK to credit_accounts (nullable)
+     - `credits_consumed` - Integer (default: 0.5)
+     - `credit_transaction_id` - FK to credit_transactions (nullable)
+     - `created_at` - Timestamp
+     - `completed_at` - Timestamp (nullable)
+     - `error_message` - Text (nullable)
    - Add to `lib/schema.ts`
    - Create migration
    - Indexes:
-     * Index on `creative_request_id`
-     * Index on `publisher_id`
-     * Index on `advertiser_id`
-     * Index on `task_id`
-     * Index on `status`
-     * Index on `usage_type`
+     - Index on `creative_request_id`
+     - Index on `publisher_id`
+     - Index on `advertiser_id`
+     - Index on `task_id`
+     - Index on `status`
+     - Index on `usage_type`
 
 2. ⏳ **Create grammar_corrections table (optional - normalized)**
    - Fields: `id`, `grammar_result_id` (FK), `original_text`, `corrected_text`, `correction_type` (nullable), `position` (JSONB, nullable), `confidence` (nullable), `created_at`
@@ -2231,6 +2335,7 @@ This phase covers integration with the Grammar Correction Model API that correct
    - Test: Insert test grammar result, verify constraints work
 
 **Files to Create/Update:**
+
 - `lib/schema.ts` - Add grammar tables with all fields
 - `drizzle/migrations/XXXXXX_create_grammar_results.sql` - Migration file (auto-generated)
 - `drizzle/migrations/XXXXXX_create_grammar_corrections.sql` - Migration file (auto-generated, if normalized)
@@ -2238,42 +2343,39 @@ This phase covers integration with the Grammar Correction Model API that correct
 
 ---
 
-### 11.2 Grammar Service Wrapper
+### 11.2 Grammar Service Wrapper ✅
 
 **Priority:** HIGH  
-**Status:** Can Start Now
+**Status:** ✅ **COMPLETED**
 
 #### Tasks:
-1. ⏳ **Create grammar service wrapper**
-   - Create `lib/services/grammar.service.ts`
-   - Methods: `checkGrammar()`, `getTaskStatus()`, `downloadCorrectedFile()`, `checkHealth()`
-   - Handle async processing (task polling)
-   - Error handling & retry logic
-   - File upload/download handling
 
-2. ⏳ **Add environment variables to env.js**
-   - `GRAMMAR_API_URL` (default: "https://grammar-correction-1-5tha.onrender.com")
-   - `GRAMMAR_API_KEY` (optional)
-   - `GRAMMAR_API_TIMEOUT_MS` (default: 30000)
+1. ✅ **Create grammar service wrapper**
+   - Created `lib/services/grammar.service.ts`
+   - Integrated OpenAI for enhanced marketing suggestions and quality scoring
+   - Methods: `submitForAnalysis()`, `processImageWithAI()`, `callOpenAI()`
+   - Handles extraction of images from HTML
+   - Merges results from custom Grammar API and OpenAI
+
+2. ✅ **Add environment variables to env.js**
+   - `GRAMMAR_API_URL`
+   - `Open_AI` (for OpenAI integration)
+   - `GRAMMAR_AI_URL`
    - `GRAMMAR_API_ENABLED` (default: true)
-   - `GRAMMAR_PREVIEW_TTL_HOURS` (default: 1)
-   - `GRAMMAR_CREDIT_COST` (default: 0.5)
 
-3. ⏳ **Implement async task polling**
-   - Poll grammar API for task status
-   - Handle task completion/failure
-   - Timeout handling
+3. ✅ **Implement async task polling**
+   - Implemented in `services/grammar.service.ts`
+   - Handles timeouts and retries for AI services
 
-4. ⏳ **Implement file handling**
-   - Download file from blob storage
-   - Upload to grammar API
-   - Download corrected file from grammar API
-   - Upload corrected file to blob storage
-   - Handle file size limits (10MB single, 50MB ZIP)
+4. ✅ **Implement file handling**
+   - `extractImagesFromHtml` utility
+   - Base64 image processing
+   - HTML content updates with corrections
 
-**Files to Create:**
-- `lib/services/grammar.service.ts` - Grammar service wrapper
-- `env.js` - Add grammar API environment variables
+**Files Created:**
+
+- `lib/services/grammar.service.ts` - Grammar service with OpenAI integration
+- `env.js` - Updated with necessary keys
 
 ---
 
@@ -2283,12 +2385,13 @@ This phase covers integration with the Grammar Correction Model API that correct
 **Status:** Can Start Now
 
 #### Tasks:
+
 1. ⏳ **Create grammar check RPC procedure**
    - Procedure: `admin.grammar.check`
    - Input:
-     * Publisher form data (if from publisher form, optional):
+     - Publisher form data (if from publisher form, optional):
        - `affiliateId`, `companyName`, `firstName`, `lastName`, `email`, `telegramId`
-     * Grammar check data:
+     - Grammar check data:
        - `creativeRequestId` (optional, NULL if AI-only usage)
        - `fileUrl`, `inputType`, `format`
    - Output: `{ taskId, grammarResultId, status }`
@@ -2315,6 +2418,7 @@ This phase covers integration with the Grammar Correction Model API that correct
    - Output: Grammar API health status
 
 **Files to Create:**
+
 - `lib/rpc/procedures/admin/grammar.ts` - Grammar RPC procedures
 - Note: Publisher creation and credit integration handled in Phase 10.6.7
 
@@ -2326,6 +2430,7 @@ This phase covers integration with the Grammar Correction Model API that correct
 **Status:** After Phase 4 (Requests/Responses) and Phase 11.3
 
 #### Tasks:
+
 1. ⏳ **Integrate grammar check into creative submission flow**
    - Optional grammar check in Publisher Form
    - Show grammar corrections before submission
@@ -2346,6 +2451,7 @@ This phase covers integration with the Grammar Correction Model API that correct
    - Link to grammar_result
 
 **Files to Update:**
+
 - `lib/schema.ts` - Add grammar_status to creative_requests
 - `lib/rpc/procedures/admin/requests.ts` - Add grammar check triggers
 
@@ -2357,6 +2463,7 @@ This phase covers integration with the Grammar Correction Model API that correct
 **Status:** After Phase 10.6.7 (Credit Integration with Grammar)
 
 #### Tasks:
+
 1. ⏳ **Credit integration already handled in Phase 10.6.7**
    - Publisher creation on grammar check
    - Credit consumption (0.5 credits per check)
@@ -2375,6 +2482,7 @@ This phase covers integration with the Grammar Correction Model API that correct
 **Status:** After All Backend Phases
 
 #### Tasks:
+
 1. ⏳ **Grammar check UI in Publisher Form**
 2. ⏳ **Grammar check UI in Admin Portal**
 3. ⏳ **Grammar check UI in Advertiser Portal**
@@ -2402,6 +2510,7 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 **Status:** After Phase 3 (Dashboard Stats API)
 
 #### Tasks:
+
 1. ⏳ **Build dashboard statistics cards**
    - Total requests, pending, approved, rejected
    - Active advertisers, active publishers
@@ -2419,6 +2528,7 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
    - Polling fallback
 
 **Files to Create:**
+
 - `app/(admin)/dashboard/page.tsx` - Dashboard page
 - `components/admin/dashboard/StatsCards.tsx` - Statistics cards
 - `components/admin/dashboard/PerformanceCharts.tsx` - Performance charts
@@ -2431,6 +2541,7 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 **Status:** After Phase 10.6 (Credit System)
 
 #### Tasks:
+
 1. ⏳ **Build credit usage overview dashboard**
    - Total credits allocated/consumed (both advertiser and publisher)
    - Credits consumed per time period
@@ -2479,18 +2590,19 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 6. ⏳ **Build publisher management UI**
    - Publisher list with credit usage stats
    - Publisher details view:
-     * Publisher information (affiliate ID, company name, email, etc.)
-     * Credit account balance
-     * Credit transaction history
-     * AI usage breakdown (submission vs standalone)
-     * Service usage breakdown (compliance vs grammar)
+     - Publisher information (affiliate ID, company name, email, etc.)
+     - Credit account balance
+     - Credit transaction history
+     - AI usage breakdown (submission vs standalone)
+     - Service usage breakdown (compliance vs grammar)
    - Filter publishers:
-     * By status (active/inactive)
-     * By credit usage (high/low)
-     * By usage type (with submissions, AI-only)
+     - By status (active/inactive)
+     - By credit usage (high/low)
+     - By usage type (with submissions, AI-only)
    - Search by affiliate ID, company name, email
 
 **Files to Create:**
+
 - `app/(admin)/credits/page.tsx` - Credit management page
 - `app/(admin)/credits/advertisers/page.tsx` - Advertiser credit analytics
 - `app/(admin)/credits/publishers/page.tsx` - Publisher credit analytics
@@ -2512,6 +2624,7 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 **Status:** After Phase 10 (Compliance Model)
 
 #### Tasks:
+
 1. ⏳ **Build compliance statistics dashboard**
    - Pass/fail rates
    - Violations by type
@@ -2528,6 +2641,7 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
    - Compare compliance across time periods
 
 **Files to Create:**
+
 - `app/(admin)/compliance/page.tsx` - Compliance analytics page
 - `components/admin/compliance/ComplianceStats.tsx` - Compliance statistics
 - `components/admin/compliance/ViolationViewer.tsx` - Violation details
@@ -2540,6 +2654,7 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 **Status:** After Phase 11 (Grammar Correction)
 
 #### Tasks:
+
 1. ⏳ **Build grammar statistics dashboard**
    - Grammar checks performed
    - Average corrections per check
@@ -2553,6 +2668,7 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
    - Preview HTML corrections
 
 **Files to Create:**
+
 - `app/(admin)/grammar/page.tsx` - Grammar analytics page
 - `components/admin/grammar/GrammarStats.tsx` - Grammar statistics
 - `components/admin/grammar/CorrectionViewer.tsx` - Correction viewer
@@ -2565,6 +2681,7 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 **Status:** After Phase 4 (Requests/Responses)
 
 #### Tasks:
+
 1. ⏳ **Build request analytics dashboard**
    - Request volume trends
    - Status distribution
@@ -2582,6 +2699,7 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
    - History timeline
 
 **Files to Create:**
+
 - `app/(admin)/requests/page.tsx` - Requests list page
 - `app/(admin)/requests/[id]/page.tsx` - Request detail page
 - `components/admin/requests/RequestFilters.tsx` - Filter component
@@ -2595,6 +2713,7 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 **Status:** Throughout Phase 12
 
 #### Tasks:
+
 1. ⏳ **Build date range picker**
    - Custom date range
    - Preset ranges (today, week, month, year)
@@ -2614,6 +2733,7 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
    - Desktop optimization
 
 **Files to Create:**
+
 - `components/admin/analytics/DateRangePicker.tsx` - Date picker
 - `components/admin/analytics/ExportButton.tsx` - Export functionality
 - `components/admin/analytics/ChartWrapper.tsx` - Chart wrapper
@@ -2629,6 +2749,7 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 **Status:** Not Started
 
 #### Tasks:
+
 1. ⏳ **Unit tests for business logic**
    - Status transition validation
    - Statistics calculations
@@ -2652,6 +2773,7 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 **Status:** Not Started
 
 #### Tasks:
+
 1. ⏳ **Remove mock data files**
    - `features/admin/models/request.model.ts`
    - `features/admin/models/response.model.ts`
@@ -2673,6 +2795,7 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 ## Summary Statistics
 
 ### By Status:
+
 - **Done:** 35+ tasks (Sprint 1 + Phase 3.1-3.9 + Phase 4.1 completed)
   - Phase 3.1: Admin Dashboard & Stats ✅
   - Phase 3.2: Requests & Responses APIs ✅
@@ -2690,12 +2813,14 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 - **Security Issues (Priority 1):** 4 tasks (Input validation, Admin seed endpoint, Client/server boundary, Input sanitization)
 
 ### By Priority:
+
 - **CRITICAL:** 8 tasks (Database schema, Auth, Core APIs)
 - **HIGH:** 20+ tasks (Dashboard, Requests, Offers)
 - **MEDIUM:** 15+ tasks (Advertisers, Publishers, Notifications)
 - **LOW:** 5+ tasks (Real-time, Advanced features)
 
 ### By Phase:
+
 - **Phase 1 (Foundation):** 7 tasks (2 ✅ Done, 5 ⏳ Remaining)
 - **Phase 2 (Auth/RPC):** 3 tasks (5 ✅ Done, 1 ⏳ Remaining)
 - **Phase 3 (Dashboard & Core APIs):** 9 tasks (9 ✅ Done - Phase 3.1-3.9)
@@ -2773,6 +2898,7 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 ## References
 
 ### Documentation Files:
+
 - `docs/START_HERE.md` - Project overview
 - `docs/Backend_Implementation_TODOs.md` - Complete API specifications (2457 lines)
 - `docs/BACKEND_TODOS_SUMMARY.md` - Quick reference (496 lines)
@@ -2781,12 +2907,14 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 - `docs/PERSONALIZATION_BACKEND_TODOS.md` - Color customization
 
 ### Key Code Files:
+
 - `lib/schema.ts` - Database schema (currently: users, sessions, accounts)
 - `lib/rpc/router.ts` - RPC router (currently: health only)
 - `features/admin/services/*.service.ts` - Service layer (all have TODOs)
 - `features/admin/types/admin.types.ts` - Type definitions with SQL schema (lines 29-110)
 
 ### Notion Tasks:
+
 - Sprint 1: 12 tasks (all Done)
 - Sprint 2: Multiple tasks in Backlog
 - See Notion for full task details and assignments
@@ -2803,12 +2931,14 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 ### ✅ Completed Phases:
 
 **Phase 3.1: Admin Dashboard & Stats** ✅
+
 - Dashboard statistics API implemented
 - Real-time stats with trends
 - Service: `features/admin/services/dashboard.service.ts`
 - API: `app/api/admin/dashboard/stats/route.ts`
 
 **Phase 3.2: Requests & Responses APIs** ✅
+
 - GET /api/admin/requests (with pagination, filtering, search)
 - GET /api/admin/requests/[id]
 - POST /api/admin/requests/[id]/approve
@@ -2816,47 +2946,55 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 - Full CRUD operations for creative requests
 
 **Phase 3.3: Advertiser Response APIs** ✅
+
 - GET /api/advertiser/responses
 - POST /api/advertiser/responses/[id]/approve
 - POST /api/advertiser/responses/[id]/send-back
 - Ownership enforcement (advertisers can only access their own requests)
 
 **Phase 3.4: Notifications** ✅
+
 - Workflow event notifications
 - Slack/Discord webhook integration
 - Service: `features/notifications/notification.service.ts`
 
 **Phase 3.5: Audit History** ✅
+
 - request_status_history table
 - Status change logging
 - GET /api/admin/requests/[id]/history
 - Service: `features/admin/services/statusHistory.service.ts`
 
 **Phase 3.6: Offers CRUD** ✅
+
 - Full CRUD operations for offers
 - GET, POST, PUT, DELETE endpoints
 - Soft delete implementation
 - Service: `features/admin/services/offer.service.ts`
 
 **Phase 3.7: Advertisers CRUD** ✅
+
 - Full CRUD operations for advertisers
 - Distinct advertisers table
 - Soft delete implementation
 - Service: `features/admin/services/advertiser.service.ts`
 
 **Phase 3.8: Publishers CRUD** ✅
+
 - Full CRUD operations for publishers
 - Distinct publishers table
 - Soft delete implementation
 - Service: `features/admin/services/publisher.service.ts`
 
 **Phase 3.9: Brand Guidelines Linking** ✅
+
 - POST /api/admin/offers/[id]/brand-guidelines (attach)
 - DELETE /api/admin/offers/[id]/brand-guidelines (detach)
 - File validation (only "clean" files can be attached)
 - Service: `features/admin/services/brandGuidelines.service.ts`
 
 **Phase 4.1: Client/Server Boundary Fixed** ✅
+
 - ViewModels refactored to use client adapters
 - Client adapters created for all entities
 - Clean separation of concerns
@@ -2864,4 +3002,3 @@ This phase covers building the analytics dashboard frontend for the Admin Portal
 ### ⚠️ Security Issues Identified:
 
 See **Phase 8.2: Security & Validation** section for detailed security tasks added from Admin Architecture Test Report.
-
