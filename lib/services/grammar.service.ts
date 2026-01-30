@@ -8,6 +8,8 @@ const AI_BASE_URL = process.env.GRAMMAR_AI_URL;
 const AI_TIMEOUT_MS = 300000; // 5 minutes for image processing (24/7 plan - no cold starts)
 const MAX_RETRIES = 3; // Retries for temporary issues (reduced since 24/7 plan)
 const RETRY_DELAY_MS = 15000; // 15 seconds between retries (reduced for 24/7 plan)
+const OPENAI_API_KEY = process.env.Open_AI;
+const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 
 interface ExtractedImage {
   url: string;
@@ -94,6 +96,48 @@ async function extractImagesFromHtml(
   }
 
   return images;
+}
+
+async function callOpenAI(
+  content:
+    | string
+    | Array<{ type: string; text?: string; image_url?: { url: string } }>
+): Promise<Record<string, unknown>> {
+  console.warn(
+    "[OpenAI] callOpenAI function invoked, API key present:",
+    !!OPENAI_API_KEY
+  );
+  if (!OPENAI_API_KEY) return {};
+
+  try {
+    const messages = Array.isArray(content)
+      ? [{ role: "user", content }]
+      : [{ role: "user", content }];
+
+    const response = await fetch(OPENAI_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const messageContent = data.choices?.[0]?.message?.content;
+    return messageContent ? JSON.parse(messageContent) : {};
+  } catch (err) {
+    console.error("OpenAI API failed:", err);
+    return {};
+  }
 }
 
 async function processImageWithAI(
@@ -829,6 +873,60 @@ export const GrammarService = {
               if (finalHtml) {
                 resultData.output_content = finalHtml;
                 resultData.marked_html = finalHtml;
+              }
+
+              // Call OpenAI for suggestions and quality scores
+              console.warn(
+                "[OpenAI] Starting analysis for suggestions and quality scores..."
+              );
+              try {
+                const openAiPrompt = `Analyze the following HTML content for marketing effectiveness. Return JSON with:
+{
+  "suggestions": [
+    { "type": "improvement" | "conversion", "description": "suggestion text" }
+  ],
+  "qualityScore": {
+    "grammar": 0-100,
+    "readability": 0-100,
+    "conversion": 0-100,
+    "brandAlignment": 0-100
+  }
+}
+Focus on marketing impact, NOT grammar (that's handled separately).`;
+
+                const htmlTextForOpenAI =
+                  modifiedHtmlContent || originalHtmlText || "";
+                console.warn(
+                  `[OpenAI] Sending ${htmlTextForOpenAI.length} chars to OpenAI...`
+                );
+                const aiResult = await callOpenAI(
+                  openAiPrompt + "\n\nHTML Content:\n" + htmlTextForOpenAI
+                );
+
+                console.warn(
+                  "[OpenAI] Response received:",
+                  JSON.stringify(aiResult, null, 2)
+                );
+
+                if (aiResult.suggestions) {
+                  const suggestionsArray = Array.isArray(aiResult.suggestions)
+                    ? aiResult.suggestions
+                    : [];
+                  console.warn(
+                    `[OpenAI] Adding ${suggestionsArray.length} suggestions`
+                  );
+                  resultData.suggestions = aiResult.suggestions;
+                }
+                if (aiResult.qualityScore) {
+                  console.warn(
+                    "[OpenAI] Adding quality scores:",
+                    aiResult.qualityScore
+                  );
+                  resultData.qualityScore = aiResult.qualityScore;
+                }
+              } catch (err) {
+                console.error("OpenAI integration failed:", err);
+                // Continue with external grammar service results even if OpenAI fails
               }
             }
 
