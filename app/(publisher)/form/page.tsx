@@ -21,8 +21,6 @@ export default function FormPage() {
           style={{ width: "auto", height: "auto" }}
         />
       </div>
-
-      <h1 className="text-2xl font-bold">Test from me</h1>
       <PublisherForm />
     </div>
   );

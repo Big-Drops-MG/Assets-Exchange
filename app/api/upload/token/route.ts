@@ -25,7 +25,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             "text/html",
             "application/zip",
             "application/x-zip-compressed",
-            "application/octet-stream",
+            // "application/octet-stream",
           ],
           tokenPayload: JSON.stringify({
             // optional, sent to your server on upload completion
