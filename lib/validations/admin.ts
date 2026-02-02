@@ -51,3 +51,37 @@ export const bulkUpdateOffersSchema = z.object({
     visibility: z.enum(["Public", "Internal", "Hidden"]).optional(),
     status: z.enum(["Active", "Inactive"]).optional(),
 });
+
+const cuidSchema = z.string().min(1, "ID cannot be empty").max(100, "ID is too long");
+
+const isoDateStringSchema = z.string().refine(
+    (val) => {
+        const date = new Date(val);
+        return !isNaN(date.getTime());
+    },
+    { message: "Invalid date format. Expected ISO 8601 date string." }
+);
+
+export const auditLogsQuerySchema = z.object({
+    adminId: cuidSchema.optional(),
+    actionType: z.enum(["APPROVE", "REJECT"], {
+        errorMap: () => ({ message: "actionType must be APPROVE or REJECT" }),
+    }).optional(),
+    startDate: isoDateStringSchema.optional(),
+    endDate: isoDateStringSchema.optional(),
+    page: z.coerce.number().int().min(1, "Page must be at least 1").default(1),
+    limit: z.coerce.number().int().min(1, "Limit must be at least 1").max(100, "Limit cannot exceed 100").default(20),
+}).refine(
+    (data) => {
+        if (data.startDate && data.endDate) {
+            const start = new Date(data.startDate);
+            const end = new Date(data.endDate);
+            return start <= end;
+        }
+        return true;
+    },
+    {
+        message: "startDate must be less than or equal to endDate",
+        path: ["startDate"],
+    }
+);

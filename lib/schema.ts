@@ -582,10 +582,17 @@ export const creatives = pgTable(
     }>(),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at"),
+    statusUpdatedAt: timestamp("status_updated_at").notNull().defaultNow(),
+    scanAttempts: integer("scan_attempts").notNull().default(0),
+    lastScanError: text("last_scan_error"),
   },
   (table) => ({
     requestIdIdx: index("idx_creatives_request_id").on(table.requestId),
     statusIdx: index("idx_creatives_status").on(table.status),
+    statusUpdatedAtIdx: index("idx_creatives_status_updated_at").on(
+      table.status,
+      table.statusUpdatedAt
+    ),
     createdAtIdx: index("idx_creatives_created_at").on(table.createdAt),
   })
 );
@@ -614,6 +621,20 @@ export const externalTasks = pgTable(
 
     status: text("status").notNull().default("pending"),
     result: jsonb("result"),
+    grammarFeedback: jsonb("grammar_feedback").$type<
+      Array<{
+        category?: string;
+        message: string;
+        severity?: "info" | "warning" | "error";
+        originalText?: string;
+        suggestedText?: string;
+        location?: {
+          line?: number;
+          column?: number;
+          offset?: number;
+        };
+      }>
+    >(),
 
     startedAt: timestamp("started_at").defaultNow(),
     finishedAt: timestamp("finished_at"),

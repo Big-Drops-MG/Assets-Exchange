@@ -120,6 +120,7 @@ export async function POST(req: NextRequest) {
       .returning({ id: creativeRequests.id });
 
     if (data.files && data.files.length > 0) {
+      const now = new Date();
       const creativeRecords = data.files.map((file) => ({
         id: createId(),
         requestId: request.id,
@@ -134,8 +135,10 @@ export async function POST(req: NextRequest) {
             : "other",
         status: "pending",
         metadata: file.metadata || {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: now,
+        updatedAt: now,
+        statusUpdatedAt: now,
+        scanAttempts: 0,
       }));
 
       await db.insert(creatives).values(creativeRecords);
