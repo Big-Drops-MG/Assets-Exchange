@@ -407,15 +407,30 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileUrl: newBlob.url }),
       });
-      const scanData = (await scanRes.json()) as {
+      let scanData: {
         scanStatus?: "clean" | "infected" | "error" | "skipped";
         scanInfo?: string;
       };
+      try {
+        scanData = (await scanRes.json()) as typeof scanData;
+      } catch {
+        alert("Security scan failed (invalid response). Please try again.");
+        return;
+      }
+      if (!scanRes.ok) {
+        alert(scanData.scanInfo ?? "Security scan failed. Please try again.");
+        return;
+      }
       if (scanData.scanStatus === "infected") {
         alert(
           `File was not added: security scan detected a threat. ${scanData.scanInfo ?? ""}`
         );
         return;
+      }
+      if (scanData.scanStatus === "error") {
+        alert(
+          `Security scan could not complete (${scanData.scanInfo ?? "scanner unavailable"}). File was added anyway; you can re-upload later to scan again.`
+        );
       }
 
       const previewUrl = await makeThumb(file);
