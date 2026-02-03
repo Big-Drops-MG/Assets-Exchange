@@ -147,6 +147,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
   const [isInitialMount, setIsInitialMount] = useState(true);
 
   const [_uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedCreative, setSelectedCreative] =
     useState<UploadedFileMeta | null>(null);
   const [selectedCreatives, setSelectedCreatives] = useState<
@@ -327,9 +328,14 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
         file.name.toLowerCase().endsWith(".zip")
       ) {
         // Upload ZIP directly to Blob
+        setUploadProgress(0);
         const newBlob = await upload(file.name, file, {
           access: "public",
           handleUploadUrl: "/api/upload/token",
+          onUploadProgress: (e) =>
+            setUploadProgress(
+              typeof e.percentage === "number" ? e.percentage : 0
+            ),
         });
 
         // Call process-zip endpoint
@@ -382,9 +388,14 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
       }
 
       // 2. Handle Single File -> Direct Client Upload
+      setUploadProgress(0);
       const newBlob = await upload(file.name, file, {
         access: "public",
         handleUploadUrl: "/api/upload/token",
+        onUploadProgress: (e) =>
+          setUploadProgress(
+            typeof e.percentage === "number" ? e.percentage : 0
+          ),
       });
 
       const previewUrl = await makeThumb(file);
@@ -412,6 +423,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
       alert(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -480,9 +492,14 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
       setUploading(true);
 
       // Upload ZIP directly
+      setUploadProgress(0);
       const newBlob = await upload(file.name, file, {
         access: "public",
         handleUploadUrl: "/api/upload/token",
+        onUploadProgress: (e) =>
+          setUploadProgress(
+            typeof e.percentage === "number" ? e.percentage : 0
+          ),
       });
 
       // Process properly
@@ -501,6 +518,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
       alert(e instanceof Error ? e.message : "ZIP extraction failed");
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -1101,6 +1119,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
               ? handleSingleFileUpload
               : handleMultipleFileUpload
           }
+          uploadProgress={uploadProgress}
         />
 
         <FromSubjectLinesModal

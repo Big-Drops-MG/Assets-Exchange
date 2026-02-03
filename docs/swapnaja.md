@@ -222,3 +222,59 @@ PUT handler: first parameter Request changed to NextRequest.
 PUT body: const validation = await validateRequest(req, brandGuidelinesSchema); if "response" in validation return validation.response; else const data = validation.data.
 Service call: attachOfferBrandGuidelines(id, { ...data, type: data.type ?? "text" }, session.user.id) so type is never null.
 Note: POST in this file still uses manual if (!body.fileId) and does not use Zod for the POST body.
+
+---
+
+# 03-02-2026
+
+### 1. Build / ESLint / TypeScript fixes
+
+- **app/(publisher)/recent-activity/route.ts:** `import type` for NextRequest; import order; session ownership check using `(session.user as { publisherId?: string }).publisherId` and conditional for publisher-only data.
+- **app/api/admin/creatives/reset-stuck-scanning/route.ts:** Import order (`@/lib/logger`, `@/lib/schema`); all `console.log` replaced with `logger.info`.
+- **lib/services/creative-status.service.ts:** Blank line between `drizzle-orm` and `@/lib` import groups (import/order).
+- **lib/services/grammar.service.ts:** `object-shorthand` fixes: `grammarFeedback: grammarFeedback` changed to `grammarFeedback`.
+- **lib/validations/admin.ts:** `z.enum` usage updated for Zod 4: `errorMap` replaced with `message`.
+- **app/api/admin/offers/[id]/brand-guidelines/route.ts** and **app/api/admin/advertisers/[id]/brand-guidelines/route.ts:** Handlers use `NextRequest`; `validateRequest`; brand-guidelines payload passed with `type: data.type ?? "text"` so service receives non-null type.
+
+### 2. Verify grammar-feedback migration script
+
+- **scripts/verify-grammar-feedback-migration.ts:**
+  - Replaced `eq(externalTasks.grammarFeedback, null)` with `isNull(externalTasks.grammarFeedback)` and added `isNull` import from `drizzle-orm` (Drizzle does not accept `null` in `eq()` for this JSON column).
+  - Added file-level `/* eslint-disable no-console */` so the CLI script can use `console.log` without violating `no-console` (hook runs at commit; script is intended to print to stdout).
+
+### 3. My Recent Activity (publisher)
+
+- **Endpoint:** `GET /recent-activity?publisherId=<id>` at `app/(publisher)/recent-activity/route.ts`.
+- **Service:** `features/publisher/services/recentActivity.services.ts` – fetches last 10 activities by joining `creativeRequestHistory` and `creativeRequests` filtered by `publisherId`; returns human-readable messages (e.g. "Request X was Rejected").
+- **Route:** Optional ownership check using session and `publisherId`; uses logger and typed session.
+
+---
+
+## Real-time upload progress bar
+
+### 1. useFileUpload hook (`hooks/useFileUpload.ts`)
+
+- **Exposes:** `uploadProgress` (0–100) in addition to `uploadFiles` and `isUploading`.
+- **State:** `uploadProgress` state; reset to 0 at start of upload and in `finally`.
+- **Progress updates:** `onUploadProgress` passed to Vercel Blob `upload()`; callback uses `event.percentage` and divides by `files.length` when uploading multiple files so aggregate progress stays 0–100.
+- **Return:** `return { uploadFiles, isUploading, uploadProgress }` (fixed earlier typo where return used non-existent `progress`).
+
+### 2. CreativeDetails (`features/publisher/components/form/_steps/CreativeDetails.tsx`)
+
+- **State:** Added `uploadProgress` state (0–100).
+- **Upload progress wiring:** All three `upload()` calls (single-file ZIP path, single-file non-ZIP path, multiple-file ZIP path) now pass `onUploadProgress: (e) => setUploadProgress(typeof e.percentage === "number" ? e.percentage : 0)` so progress reflects the actual Blob upload.
+- **Reset:** `setUploadProgress(0)` in the `finally` block of both `handleSingleFileUpload` and `handleMultipleFileUpload`.
+- **Modal:** Passes `uploadProgress={uploadProgress}` to `FileUploadModal`.
+
+### 3. FileUploadModal (`features/publisher/components/form/_modals/FileUploadModal.tsx`)
+
+- **Removed:** Module-level `useFileUpload()` call (invalid React hook usage; hooks must run inside a component). Removed `useFileUpload` import.
+- **New prop:** `uploadProgress?: number` (default 0), supplied by parent (CreativeDetails) so the bar reflects the upload that the parent performs when the user selects a file.
+- **UI when uploading:** When `uploadStatus === "uploading"`, shows Shadcn `<Progress value={uploadProgress} />` and text "Uploading… {Math.round(uploadProgress)}%" in addition to the existing spinner and helper text.
+- **Import:** `Progress` from `@/components/ui/progress`.
+
+### 4. Task completion summary
+
+- **useFileUpload:** Exposes `uploadProgress` (0–100) for consumers (e.g. admin flows).
+- **FileUploadModal:** Progress bar and percentage are driven by the parent’s `uploadProgress` prop, which is updated by CreativeDetails’ `onUploadProgress` during the modal-triggered upload (single or 50MB ZIP).
+- **Shadcn Progress:** Used with `value={uploadProgress}`; no changes to `components/ui/progress.tsx`.
