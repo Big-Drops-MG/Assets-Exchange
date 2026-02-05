@@ -157,8 +157,14 @@ const shouldShowActionButtons = (
     return true;
   }
 
-  // Show buttons for pending requests with admin (Pending Approvals tab - 2+ days old)
+  // Show buttons for pending requests with admin (
+  //  tab - 2+ days old)
   if (normalizedStatus === "pending" && normalizedStage === "admin") {
+    return true;
+  }
+
+  // Show buttons for revised requests (resubmitted by publisher after being sent back)
+  if (normalizedStatus === "revised" && normalizedStage === "admin") {
     return true;
   }
 
