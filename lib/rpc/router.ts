@@ -1,17 +1,5 @@
 import { os } from "@orpc/server";
-import {
-  eq,
-  and,
-  sql,
-  inArray,
-  gte,
-  lte,
-  or,
-  like,
-  desc,
-  asc,
-  count,
-} from "drizzle-orm";
+import { eq, and, sql, inArray, or, like, desc, asc, count } from "drizzle-orm";
 import { headers } from "next/headers";
 import { z } from "zod";
 
@@ -194,53 +182,86 @@ const dashboardStats = os
   .handler(async () => {
     try {
       await requireRpcAdmin();
-      const now = new Date();
-      const todayStart = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        0,
-        0,
-        0,
-        0
-      );
-      const yesterdayStart = new Date(todayStart);
-      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-      const yesterdayEnd = new Date(todayStart);
-      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
+      // PST timezone helpers
+      const now = new Date();
+      const getTodayPST = (): string => {
+        return now.toLocaleDateString("en-CA", {
+          timeZone: "America/Los_Angeles",
+        });
+      };
+      const getYesterdayPST = (): string => {
+        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        return yesterday.toLocaleDateString("en-CA", {
+          timeZone: "America/Los_Angeles",
+        });
+      };
+      const getCurrentMonthStartPST = (): string => {
+        const pstString = now.toLocaleString("en-US", {
+          timeZone: "America/Los_Angeles",
+        });
+        const pstDate = new Date(pstString);
+        return `${pstDate.getFullYear()}-${String(pstDate.getMonth() + 1).padStart(2, "0")}-01`;
+      };
+      const getLastMonthRangePST = (): { start: string; end: string } => {
+        const pstString = now.toLocaleString("en-US", {
+          timeZone: "America/Los_Angeles",
+        });
+        const pstDate = new Date(pstString);
+        const lastMonth = new Date(
+          pstDate.getFullYear(),
+          pstDate.getMonth() - 1,
+          1
+        );
+        const lastMonthEnd = new Date(
+          pstDate.getFullYear(),
+          pstDate.getMonth(),
+          0
+        );
+        return {
+          start: `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, "0")}-01`,
+          end: `${lastMonthEnd.getFullYear()}-${String(lastMonthEnd.getMonth() + 1).padStart(2, "0")}-${String(lastMonthEnd.getDate()).padStart(2, "0")}`,
+        };
+      };
+
+      const todayPST = getTodayPST();
+      const yesterdayPST = getYesterdayPST();
+      const currentMonthStartPST = getCurrentMonthStartPST();
+      const lastMonthRange = getLastMonthRangePST();
+
+      // Total Assets queries with PST timezone
       const totalAssetsToday = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(creativeRequests)
-        .where(gte(creativeRequests.submittedAt, todayStart));
+        .where(
+          sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') = ${todayPST}`
+        );
 
       const totalAssetsYesterday = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(creativeRequests)
         .where(
-          and(
-            gte(creativeRequests.submittedAt, yesterdayStart),
-            lte(creativeRequests.submittedAt, yesterdayEnd)
-          )
+          sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') = ${yesterdayPST}`
         );
 
       const totalAssetsCurrentMonth = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(creativeRequests)
-        .where(gte(creativeRequests.submittedAt, currentMonthStart));
+        .where(
+          sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') >= ${currentMonthStartPST}`
+        );
 
       const totalAssetsLastMonth = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(creativeRequests)
         .where(
           and(
-            gte(creativeRequests.submittedAt, lastMonthStart),
-            lte(creativeRequests.submittedAt, lastMonthEnd)
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') >= ${lastMonthRange.start}`,
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') <= ${lastMonthRange.end}`
           )
         );
 
+      // New Requests queries with PST timezone
       const newRequestsToday = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(creativeRequests)
@@ -248,7 +269,7 @@ const dashboardStats = os
           and(
             eq(creativeRequests.status, "new"),
             eq(creativeRequests.approvalStage, "admin"),
-            gte(creativeRequests.submittedAt, todayStart)
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') = ${todayPST}`
           )
         );
 
@@ -259,8 +280,7 @@ const dashboardStats = os
           and(
             eq(creativeRequests.status, "new"),
             eq(creativeRequests.approvalStage, "admin"),
-            gte(creativeRequests.submittedAt, yesterdayStart),
-            lte(creativeRequests.submittedAt, yesterdayEnd)
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') = ${yesterdayPST}`
           )
         );
 
@@ -271,7 +291,7 @@ const dashboardStats = os
           and(
             eq(creativeRequests.status, "new"),
             eq(creativeRequests.approvalStage, "admin"),
-            gte(creativeRequests.submittedAt, currentMonthStart)
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') >= ${currentMonthStartPST}`
           )
         );
 
@@ -282,18 +302,19 @@ const dashboardStats = os
           and(
             eq(creativeRequests.status, "new"),
             eq(creativeRequests.approvalStage, "admin"),
-            gte(creativeRequests.submittedAt, lastMonthStart),
-            lte(creativeRequests.submittedAt, lastMonthEnd)
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') >= ${lastMonthRange.start}`,
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') <= ${lastMonthRange.end}`
           )
         );
 
+      // Approved queries with PST timezone (using adminApprovedAt)
       const approvedToday = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(creativeRequests)
         .where(
           and(
             eq(creativeRequests.status, "approved"),
-            gte(creativeRequests.adminApprovedAt, todayStart)
+            sql`DATE(${creativeRequests.adminApprovedAt} AT TIME ZONE 'America/Los_Angeles') = ${todayPST}`
           )
         );
 
@@ -303,8 +324,7 @@ const dashboardStats = os
         .where(
           and(
             eq(creativeRequests.status, "approved"),
-            gte(creativeRequests.adminApprovedAt, yesterdayStart),
-            lte(creativeRequests.adminApprovedAt, yesterdayEnd)
+            sql`DATE(${creativeRequests.adminApprovedAt} AT TIME ZONE 'America/Los_Angeles') = ${yesterdayPST}`
           )
         );
 
@@ -314,7 +334,7 @@ const dashboardStats = os
         .where(
           and(
             eq(creativeRequests.status, "approved"),
-            gte(creativeRequests.adminApprovedAt, currentMonthStart)
+            sql`DATE(${creativeRequests.adminApprovedAt} AT TIME ZONE 'America/Los_Angeles') >= ${currentMonthStartPST}`
           )
         );
 
@@ -324,18 +344,19 @@ const dashboardStats = os
         .where(
           and(
             eq(creativeRequests.status, "approved"),
-            gte(creativeRequests.adminApprovedAt, lastMonthStart),
-            lte(creativeRequests.adminApprovedAt, lastMonthEnd)
+            sql`DATE(${creativeRequests.adminApprovedAt} AT TIME ZONE 'America/Los_Angeles') >= ${lastMonthRange.start}`,
+            sql`DATE(${creativeRequests.adminApprovedAt} AT TIME ZONE 'America/Los_Angeles') <= ${lastMonthRange.end}`
           )
         );
 
+      // Rejected queries with PST timezone
       const rejectedToday = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(creativeRequests)
         .where(
           and(
             eq(creativeRequests.status, "rejected"),
-            gte(creativeRequests.submittedAt, todayStart)
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') = ${todayPST}`
           )
         );
 
@@ -345,8 +366,7 @@ const dashboardStats = os
         .where(
           and(
             eq(creativeRequests.status, "rejected"),
-            gte(creativeRequests.submittedAt, yesterdayStart),
-            lte(creativeRequests.submittedAt, yesterdayEnd)
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') = ${yesterdayPST}`
           )
         );
 
@@ -356,7 +376,7 @@ const dashboardStats = os
         .where(
           and(
             eq(creativeRequests.status, "rejected"),
-            gte(creativeRequests.submittedAt, currentMonthStart)
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') >= ${currentMonthStartPST}`
           )
         );
 
@@ -366,18 +386,19 @@ const dashboardStats = os
         .where(
           and(
             eq(creativeRequests.status, "rejected"),
-            gte(creativeRequests.submittedAt, lastMonthStart),
-            lte(creativeRequests.submittedAt, lastMonthEnd)
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') >= ${lastMonthRange.start}`,
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') <= ${lastMonthRange.end}`
           )
         );
 
+      // Pending queries with PST timezone
       const pendingToday = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(creativeRequests)
         .where(
           and(
             inArray(creativeRequests.status, ["new", "pending"]),
-            gte(creativeRequests.submittedAt, todayStart)
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') = ${todayPST}`
           )
         );
 
@@ -387,8 +408,7 @@ const dashboardStats = os
         .where(
           and(
             inArray(creativeRequests.status, ["new", "pending"]),
-            gte(creativeRequests.submittedAt, yesterdayStart),
-            lte(creativeRequests.submittedAt, yesterdayEnd)
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') = ${yesterdayPST}`
           )
         );
 
@@ -398,7 +418,7 @@ const dashboardStats = os
         .where(
           and(
             inArray(creativeRequests.status, ["new", "pending"]),
-            gte(creativeRequests.submittedAt, currentMonthStart)
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') >= ${currentMonthStartPST}`
           )
         );
 
@@ -408,8 +428,8 @@ const dashboardStats = os
         .where(
           and(
             inArray(creativeRequests.status, ["new", "pending"]),
-            gte(creativeRequests.submittedAt, lastMonthStart),
-            lte(creativeRequests.submittedAt, lastMonthEnd)
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') >= ${lastMonthRange.start}`,
+            sql`DATE(${creativeRequests.submittedAt} AT TIME ZONE 'America/Los_Angeles') <= ${lastMonthRange.end}`
           )
         );
 
