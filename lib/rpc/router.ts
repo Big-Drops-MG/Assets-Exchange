@@ -1,5 +1,17 @@
 import { os } from "@orpc/server";
-import { eq, and, sql, inArray, gte, lte, or, like, desc, asc, count } from "drizzle-orm";
+import {
+  eq,
+  and,
+  sql,
+  inArray,
+  gte,
+  lte,
+  or,
+  like,
+  desc,
+  asc,
+  count,
+} from "drizzle-orm";
 import { headers } from "next/headers";
 import { z } from "zod";
 
@@ -10,7 +22,6 @@ import { creativeRequests, creativeRequestHistory, offers } from "@/lib/schema";
 import { getEverflowService } from "@/lib/services/everflow.service";
 
 import { requireRpcAdmin } from "./auth";
-
 
 export const health = os
   .output(
@@ -25,18 +36,22 @@ export const health = os
       status: "ok",
       timestamp: new Date().toISOString(),
     };
-    logger.rpc.success(`Health check completed - status: ${response.status}, timestamp: ${response.timestamp}`);
+    logger.rpc.success(
+      `Health check completed - status: ${response.status}, timestamp: ${response.timestamp}`
+    );
     return response;
   });
 
 const currentUser = os
   .output(
-    z.object({
-      id: z.string(),
-      email: z.string(),
-      name: z.string().nullable(),
-      role: z.enum(["admin", "advertiser", "administrator"]),
-    }).nullable()
+    z
+      .object({
+        id: z.string(),
+        email: z.string(),
+        name: z.string().nullable(),
+        role: z.enum(["admin", "advertiser", "administrator"]),
+      })
+      .nullable()
   )
   .handler(async () => {
     try {
@@ -55,15 +70,15 @@ const currentUser = os
         role: session.user.role as "admin" | "advertiser" | "administrator",
       };
     } catch (error) {
-      logger.rpc.error(`Failed to get current user: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to get current user: ${error instanceof Error ? error.message : String(error)}`
+      );
       return null;
     }
   });
 
 const currentRole = os
-  .output(
-    z.enum(["admin", "advertiser", "administrator"]).nullable()
-  )
+  .output(z.enum(["admin", "advertiser", "administrator"]).nullable())
   .handler(async () => {
     try {
       const session = await auth.api.getSession({
@@ -76,7 +91,9 @@ const currentRole = os
 
       return session.user.role as "admin" | "advertiser" | "administrator";
     } catch (error) {
-      logger.rpc.error(`Failed to get current role: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to get current role: ${error instanceof Error ? error.message : String(error)}`
+      );
       return null;
     }
   });
@@ -99,7 +116,10 @@ const checkPermission = os
         return false;
       }
 
-      const role = session.user.role as "admin" | "advertiser" | "administrator";
+      const role = session.user.role as
+        | "admin"
+        | "advertiser"
+        | "administrator";
 
       const ROLE_PERMISSIONS: Record<string, Record<string, string[]>> = {
         admin: {
@@ -135,7 +155,9 @@ const checkPermission = os
 
       return resourcePermissions.includes(input.action);
     } catch (error) {
-      logger.rpc.error(`Failed to check permission: ${error instanceof Error ? error.message : String(error)}, input: ${JSON.stringify(input)}`);
+      logger.rpc.error(
+        `Failed to check permission: ${error instanceof Error ? error.message : String(error)}, input: ${JSON.stringify(input)}`
+      );
       return false;
     }
   });
@@ -173,7 +195,15 @@ const dashboardStats = os
     try {
       await requireRpcAdmin();
       const now = new Date();
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const todayStart = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        0,
+        0,
+        0,
+        0
+      );
       const yesterdayStart = new Date(todayStart);
       yesterdayStart.setDate(yesterdayStart.getDate() - 1);
       const yesterdayEnd = new Date(todayStart);
@@ -263,8 +293,7 @@ const dashboardStats = os
         .where(
           and(
             eq(creativeRequests.status, "approved"),
-            eq(creativeRequests.approvalStage, "completed"),
-            gte(creativeRequests.submittedAt, todayStart)
+            gte(creativeRequests.adminApprovedAt, todayStart)
           )
         );
 
@@ -274,9 +303,8 @@ const dashboardStats = os
         .where(
           and(
             eq(creativeRequests.status, "approved"),
-            eq(creativeRequests.approvalStage, "completed"),
-            gte(creativeRequests.submittedAt, yesterdayStart),
-            lte(creativeRequests.submittedAt, yesterdayEnd)
+            gte(creativeRequests.adminApprovedAt, yesterdayStart),
+            lte(creativeRequests.adminApprovedAt, yesterdayEnd)
           )
         );
 
@@ -286,8 +314,7 @@ const dashboardStats = os
         .where(
           and(
             eq(creativeRequests.status, "approved"),
-            eq(creativeRequests.approvalStage, "completed"),
-            gte(creativeRequests.submittedAt, currentMonthStart)
+            gte(creativeRequests.adminApprovedAt, currentMonthStart)
           )
         );
 
@@ -297,9 +324,8 @@ const dashboardStats = os
         .where(
           and(
             eq(creativeRequests.status, "approved"),
-            eq(creativeRequests.approvalStage, "completed"),
-            gte(creativeRequests.submittedAt, lastMonthStart),
-            lte(creativeRequests.submittedAt, lastMonthEnd)
+            gte(creativeRequests.adminApprovedAt, lastMonthStart),
+            lte(creativeRequests.adminApprovedAt, lastMonthEnd)
           )
         );
 
@@ -392,14 +418,16 @@ const dashboardStats = os
           return {
             trendTextValue: "Today",
             textValue: today > 0 ? "100%" : "0%",
-            trendIconValue: today > 0 ? ("trending-up" as const) : ("trending-down" as const),
+            trendIconValue:
+              today > 0 ? ("trending-up" as const) : ("trending-down" as const),
           };
         }
         const change = ((today - yesterday) / yesterday) * 100;
         return {
           trendTextValue: "Today",
           textValue: `${Math.abs(Math.round(change))}%`,
-          trendIconValue: change >= 0 ? ("trending-up" as const) : ("trending-down" as const),
+          trendIconValue:
+            change >= 0 ? ("trending-up" as const) : ("trending-down" as const),
         };
       };
 
@@ -419,9 +447,18 @@ const dashboardStats = os
             totalAssetsYesterday[0]?.count ?? 0
           ),
           historicalData: [
-            { label: "Yesterday", value: formatNumber(totalAssetsYesterday[0]?.count ?? 0) },
-            { label: "Current Month", value: formatNumber(totalAssetsCurrentMonth[0]?.count ?? 0) },
-            { label: "Last Month", value: formatNumber(totalAssetsLastMonth[0]?.count ?? 0) },
+            {
+              label: "Yesterday",
+              value: formatNumber(totalAssetsYesterday[0]?.count ?? 0),
+            },
+            {
+              label: "Current Month",
+              value: formatNumber(totalAssetsCurrentMonth[0]?.count ?? 0),
+            },
+            {
+              label: "Last Month",
+              value: formatNumber(totalAssetsLastMonth[0]?.count ?? 0),
+            },
           ],
         },
         {
@@ -432,9 +469,18 @@ const dashboardStats = os
             newRequestsYesterday[0]?.count ?? 0
           ),
           historicalData: [
-            { label: "Yesterday", value: formatNumber(newRequestsYesterday[0]?.count ?? 0) },
-            { label: "Current Month", value: formatNumber(newRequestsCurrentMonth[0]?.count ?? 0) },
-            { label: "Last Month", value: formatNumber(newRequestsLastMonth[0]?.count ?? 0) },
+            {
+              label: "Yesterday",
+              value: formatNumber(newRequestsYesterday[0]?.count ?? 0),
+            },
+            {
+              label: "Current Month",
+              value: formatNumber(newRequestsCurrentMonth[0]?.count ?? 0),
+            },
+            {
+              label: "Last Month",
+              value: formatNumber(newRequestsLastMonth[0]?.count ?? 0),
+            },
           ],
         },
         {
@@ -445,9 +491,18 @@ const dashboardStats = os
             approvedYesterday[0]?.count ?? 0
           ),
           historicalData: [
-            { label: "Yesterday", value: formatNumber(approvedYesterday[0]?.count ?? 0) },
-            { label: "Current Month", value: formatNumber(approvedCurrentMonth[0]?.count ?? 0) },
-            { label: "Last Month", value: formatNumber(approvedLastMonth[0]?.count ?? 0) },
+            {
+              label: "Yesterday",
+              value: formatNumber(approvedYesterday[0]?.count ?? 0),
+            },
+            {
+              label: "Current Month",
+              value: formatNumber(approvedCurrentMonth[0]?.count ?? 0),
+            },
+            {
+              label: "Last Month",
+              value: formatNumber(approvedLastMonth[0]?.count ?? 0),
+            },
           ],
         },
         {
@@ -458,9 +513,18 @@ const dashboardStats = os
             rejectedYesterday[0]?.count ?? 0
           ),
           historicalData: [
-            { label: "Yesterday", value: formatNumber(rejectedYesterday[0]?.count ?? 0) },
-            { label: "Current Month", value: formatNumber(rejectedCurrentMonth[0]?.count ?? 0) },
-            { label: "Last Month", value: formatNumber(rejectedLastMonth[0]?.count ?? 0) },
+            {
+              label: "Yesterday",
+              value: formatNumber(rejectedYesterday[0]?.count ?? 0),
+            },
+            {
+              label: "Current Month",
+              value: formatNumber(rejectedCurrentMonth[0]?.count ?? 0),
+            },
+            {
+              label: "Last Month",
+              value: formatNumber(rejectedLastMonth[0]?.count ?? 0),
+            },
           ],
         },
         {
@@ -471,9 +535,18 @@ const dashboardStats = os
             pendingYesterday[0]?.count ?? 0
           ),
           historicalData: [
-            { label: "Yesterday", value: formatNumber(pendingYesterday[0]?.count ?? 0) },
-            { label: "Current Month", value: formatNumber(pendingCurrentMonth[0]?.count ?? 0) },
-            { label: "Last Month", value: formatNumber(pendingLastMonth[0]?.count ?? 0) },
+            {
+              label: "Yesterday",
+              value: formatNumber(pendingYesterday[0]?.count ?? 0),
+            },
+            {
+              label: "Current Month",
+              value: formatNumber(pendingCurrentMonth[0]?.count ?? 0),
+            },
+            {
+              label: "Last Month",
+              value: formatNumber(pendingLastMonth[0]?.count ?? 0),
+            },
           ],
         },
       ];
@@ -483,7 +556,9 @@ const dashboardStats = os
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      logger.rpc.error(`Failed to get dashboard stats: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to get dashboard stats: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -497,13 +572,16 @@ const dashboardPerformance = os
         "Current Week vs Last Week",
         "Current Month vs Last Month",
       ]),
-      metric: z.enum([
-        "Total Assets",
-        "New Requests",
-        "Approved Assets",
-        "Rejected Assets",
-        "Pending Approval",
-      ]).optional().default("Total Assets"),
+      metric: z
+        .enum([
+          "Total Assets",
+          "New Requests",
+          "Approved Assets",
+          "Rejected Assets",
+          "Pending Approval",
+        ])
+        .optional()
+        .default("Total Assets"),
     })
   )
   .output(
@@ -535,10 +613,7 @@ const dashboardPerformance = os
               eq(creativeRequests.approvalStage, "admin")
             );
           case "Approved Assets":
-            return and(
-              eq(creativeRequests.status, "approved"),
-              eq(creativeRequests.approvalStage, "completed")
-            );
+            return eq(creativeRequests.status, "approved");
           case "Rejected Assets":
             return eq(creativeRequests.status, "rejected");
           case "Pending Approval":
@@ -551,7 +626,20 @@ const dashboardPerformance = os
 
       const metricWhereClause = getMetricWhereClause();
 
-      let data: Array<{ label: string; current: number; previous: number }> = [];
+      // Determine which date field to use based on metric
+      const getDateField = () => {
+        switch (metric) {
+          case "Approved Assets":
+            return creativeRequests.adminApprovedAt;
+          default:
+            return creativeRequests.submittedAt;
+        }
+      };
+
+      const dateField = getDateField();
+
+      let data: Array<{ label: string; current: number; previous: number }> =
+        [];
       let xAxisLabel = "Time";
 
       if (
@@ -574,8 +662,8 @@ const dashboardPerformance = os
         const todayEnd = new Date(now);
 
         const whereConditions = [
-          gte(creativeRequests.submittedAt, comparisonStart),
-          lte(creativeRequests.submittedAt, todayEnd),
+          gte(dateField, comparisonStart),
+          lte(dateField, todayEnd),
         ];
         if (metricWhereClause) {
           whereConditions.push(metricWhereClause);
@@ -584,28 +672,25 @@ const dashboardPerformance = os
         // Optimize query by using indexed column and limiting date range
         const query = await db
           .select({
-            hour: sql<number>`EXTRACT(HOUR FROM ${creativeRequests.submittedAt})::int`,
-            date: sql<string>`DATE(${creativeRequests.submittedAt})::text`,
+            hour: sql<number>`EXTRACT(HOUR FROM ${dateField})::int`,
+            date: sql<string>`DATE(${dateField})::text`,
             count: sql<number>`COUNT(*)::int`,
           })
           .from(creativeRequests)
           .where(and(...whereConditions))
           .groupBy(
-            sql`DATE(${creativeRequests.submittedAt})`,
-            sql`EXTRACT(HOUR FROM ${creativeRequests.submittedAt})`
+            sql`DATE(${dateField})`,
+            sql`EXTRACT(HOUR FROM ${dateField})`
           )
           .orderBy(
-            sql`DATE(${creativeRequests.submittedAt})`,
-            sql`EXTRACT(HOUR FROM ${creativeRequests.submittedAt})`
+            sql`DATE(${dateField})`,
+            sql`EXTRACT(HOUR FROM ${dateField})`
           );
 
         const todayKey = todayStart.toISOString().split("T")[0];
         const comparisonKey = comparisonStart.toISOString().split("T")[0];
 
-        const hourlyData: Record<
-          string,
-          Record<number, number>
-        > = {};
+        const hourlyData: Record<string, Record<number, number>> = {};
 
         query.forEach((row) => {
           if (!hourlyData[row.date]) {
@@ -637,8 +722,8 @@ const dashboardPerformance = os
         lastWeekEnd.setMilliseconds(-1);
 
         const weekWhereConditions = [
-          gte(creativeRequests.submittedAt, lastWeekStart),
-          lte(creativeRequests.submittedAt, now),
+          gte(dateField, lastWeekStart),
+          lte(dateField, now),
         ];
         if (metricWhereClause) {
           weekWhereConditions.push(metricWhereClause);
@@ -646,22 +731,22 @@ const dashboardPerformance = os
 
         const query = await db
           .select({
-            dayOfWeek: sql<number>`EXTRACT(DOW FROM ${creativeRequests.submittedAt})::int`,
-            week: sql<number>`EXTRACT(WEEK FROM ${creativeRequests.submittedAt})::int`,
-            year: sql<number>`EXTRACT(YEAR FROM ${creativeRequests.submittedAt})::int`,
+            dayOfWeek: sql<number>`EXTRACT(DOW FROM ${dateField})::int`,
+            week: sql<number>`EXTRACT(WEEK FROM ${dateField})::int`,
+            year: sql<number>`EXTRACT(YEAR FROM ${dateField})::int`,
             count: sql<number>`COUNT(*)::int`,
           })
           .from(creativeRequests)
           .where(and(...weekWhereConditions))
           .groupBy(
-            sql`EXTRACT(YEAR FROM ${creativeRequests.submittedAt})`,
-            sql`EXTRACT(WEEK FROM ${creativeRequests.submittedAt})`,
-            sql`EXTRACT(DOW FROM ${creativeRequests.submittedAt})`
+            sql`EXTRACT(YEAR FROM ${dateField})`,
+            sql`EXTRACT(WEEK FROM ${dateField})`,
+            sql`EXTRACT(DOW FROM ${dateField})`
           )
           .orderBy(
-            sql`EXTRACT(YEAR FROM ${creativeRequests.submittedAt})`,
-            sql`EXTRACT(WEEK FROM ${creativeRequests.submittedAt})`,
-            sql`EXTRACT(DOW FROM ${creativeRequests.submittedAt})`
+            sql`EXTRACT(YEAR FROM ${dateField})`,
+            sql`EXTRACT(WEEK FROM ${dateField})`,
+            sql`EXTRACT(DOW FROM ${dateField})`
           );
 
         const currentWeek = getWeekNumber(now);
@@ -672,10 +757,7 @@ const dashboardPerformance = os
             ? lastWeekStart.getFullYear()
             : currentYear;
 
-        const weeklyData: Record<
-          number,
-          Record<number, number>
-        > = {};
+        const weeklyData: Record<number, Record<number, number>> = {};
 
         query.forEach((row) => {
           const weekKey = row.year === currentYear ? currentWeek : lastWeek;
@@ -694,7 +776,11 @@ const dashboardPerformance = os
 
         xAxisLabel = "Day";
       } else if (comparisonType === "Current Month vs Last Month") {
-        const _currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const _currentMonthStart = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          1
+        );
         const lastMonthStart = new Date(
           now.getFullYear(),
           now.getMonth() - 1,
@@ -711,8 +797,8 @@ const dashboardPerformance = os
         );
 
         const monthWhereConditions = [
-          gte(creativeRequests.submittedAt, lastMonthStart),
-          lte(creativeRequests.submittedAt, now),
+          gte(dateField, lastMonthStart),
+          lte(dateField, now),
         ];
         if (metricWhereClause) {
           monthWhereConditions.push(metricWhereClause);
@@ -720,22 +806,22 @@ const dashboardPerformance = os
 
         const query = await db
           .select({
-            dayOfMonth: sql<number>`EXTRACT(DAY FROM ${creativeRequests.submittedAt})::int`,
-            month: sql<number>`EXTRACT(MONTH FROM ${creativeRequests.submittedAt})::int`,
-            year: sql<number>`EXTRACT(YEAR FROM ${creativeRequests.submittedAt})::int`,
+            dayOfMonth: sql<number>`EXTRACT(DAY FROM ${dateField})::int`,
+            month: sql<number>`EXTRACT(MONTH FROM ${dateField})::int`,
+            year: sql<number>`EXTRACT(YEAR FROM ${dateField})::int`,
             count: sql<number>`COUNT(*)::int`,
           })
           .from(creativeRequests)
           .where(and(...monthWhereConditions))
           .groupBy(
-            sql`EXTRACT(YEAR FROM ${creativeRequests.submittedAt})`,
-            sql`EXTRACT(MONTH FROM ${creativeRequests.submittedAt})`,
-            sql`EXTRACT(DAY FROM ${creativeRequests.submittedAt})`
+            sql`EXTRACT(YEAR FROM ${dateField})`,
+            sql`EXTRACT(MONTH FROM ${dateField})`,
+            sql`EXTRACT(DAY FROM ${dateField})`
           )
           .orderBy(
-            sql`EXTRACT(YEAR FROM ${creativeRequests.submittedAt})`,
-            sql`EXTRACT(MONTH FROM ${creativeRequests.submittedAt})`,
-            sql`EXTRACT(DAY FROM ${creativeRequests.submittedAt})`
+            sql`EXTRACT(YEAR FROM ${dateField})`,
+            sql`EXTRACT(MONTH FROM ${dateField})`,
+            sql`EXTRACT(DAY FROM ${dateField})`
           );
 
         const currentMonthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
@@ -767,7 +853,9 @@ const dashboardPerformance = os
         xAxisLabel = "Date";
       }
 
-      logger.rpc.success(`Dashboard performance data fetched - comparisonType: ${comparisonType}, dataPoints: ${data.length}`);
+      logger.rpc.success(
+        `Dashboard performance data fetched - comparisonType: ${comparisonType}, dataPoints: ${data.length}`
+      );
 
       return {
         comparisonType,
@@ -776,13 +864,17 @@ const dashboardPerformance = os
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      logger.rpc.error(`Failed to get dashboard performance: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to get dashboard performance: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
 
 function getWeekNumber(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+  );
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
@@ -794,9 +886,15 @@ const getAllRequests = os
     z.object({
       page: z.number().int().min(1).default(1),
       limit: z.number().int().min(1).max(100).default(20),
-      status: z.array(z.enum(["new", "pending", "approved", "rejected", "sent-back"])).optional(),
-      approvalStage: z.array(z.enum(["admin", "advertiser", "completed"])).optional(),
-      priority: z.array(z.enum(["High Priority", "Medium Priority"])).optional(),
+      status: z
+        .array(z.enum(["new", "pending", "approved", "rejected", "sent-back"]))
+        .optional(),
+      approvalStage: z
+        .array(z.enum(["admin", "advertiser", "completed"]))
+        .optional(),
+      priority: z
+        .array(z.enum(["High Priority", "Medium Priority"]))
+        .optional(),
       search: z.string().optional(),
       sortBy: z.enum(["date", "priority", "advertiserName"]).default("date"),
       sortOrder: z.enum(["asc", "desc"]).default("desc"),
@@ -816,7 +914,16 @@ const getAllRequests = os
   .handler(async ({ input }) => {
     try {
       await requireRpcAdmin();
-      const { page, limit, status, approvalStage, priority, search, sortBy, sortOrder } = input;
+      const {
+        page,
+        limit,
+        status,
+        approvalStage,
+        priority,
+        search,
+        sortBy,
+        sortOrder,
+      } = input;
       const offset = (page - 1) * limit;
 
       const conditions = [];
@@ -845,7 +952,8 @@ const getAllRequests = os
         );
       }
 
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      const whereClause =
+        conditions.length > 0 ? and(...conditions) : undefined;
 
       const totalResult = await db
         .select({ count: count() })
@@ -856,11 +964,20 @@ const getAllRequests = os
 
       let orderByClause;
       if (sortBy === "date") {
-        orderByClause = sortOrder === "desc" ? desc(creativeRequests.submittedAt) : asc(creativeRequests.submittedAt);
+        orderByClause =
+          sortOrder === "desc"
+            ? desc(creativeRequests.submittedAt)
+            : asc(creativeRequests.submittedAt);
       } else if (sortBy === "priority") {
-        orderByClause = sortOrder === "desc" ? desc(creativeRequests.priority) : asc(creativeRequests.priority);
+        orderByClause =
+          sortOrder === "desc"
+            ? desc(creativeRequests.priority)
+            : asc(creativeRequests.priority);
       } else {
-        orderByClause = sortOrder === "desc" ? desc(creativeRequests.advertiserName) : asc(creativeRequests.advertiserName);
+        orderByClause =
+          sortOrder === "desc"
+            ? desc(creativeRequests.advertiserName)
+            : asc(creativeRequests.advertiserName);
       }
 
       const data = await db
@@ -881,7 +998,9 @@ const getAllRequests = os
         },
       };
     } catch (error) {
-      logger.rpc.error(`Failed to get all requests: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to get all requests: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -906,7 +1025,9 @@ const getRecentRequests = os
 
       return data;
     } catch (error) {
-      logger.rpc.error(`Failed to get recent requests: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to get recent requests: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -944,7 +1065,9 @@ const getRequestById = os
         history,
       };
     } catch (error) {
-      logger.rpc.error(`Failed to get request by ID ${input.id}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to get request by ID ${input.id}: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -954,9 +1077,15 @@ const getAllResponses = os
     z.object({
       page: z.number().int().min(1).default(1),
       limit: z.number().int().min(1).max(100).default(20),
-      status: z.array(z.enum(["new", "pending", "approved", "rejected", "sent-back"])).optional(),
-      approvalStage: z.array(z.enum(["admin", "advertiser", "completed"])).optional(),
-      priority: z.array(z.enum(["High Priority", "Medium Priority"])).optional(),
+      status: z
+        .array(z.enum(["new", "pending", "approved", "rejected", "sent-back"]))
+        .optional(),
+      approvalStage: z
+        .array(z.enum(["admin", "advertiser", "completed"]))
+        .optional(),
+      priority: z
+        .array(z.enum(["High Priority", "Medium Priority"]))
+        .optional(),
       search: z.string().optional(),
       sortBy: z.enum(["date", "priority", "advertiserName"]).default("date"),
       sortOrder: z.enum(["asc", "desc"]).default("desc"),
@@ -976,7 +1105,16 @@ const getAllResponses = os
   .handler(async ({ input }) => {
     try {
       await requireRpcAdmin();
-      const { page, limit, status, approvalStage, priority, search, sortBy, sortOrder } = input;
+      const {
+        page,
+        limit,
+        status,
+        approvalStage,
+        priority,
+        search,
+        sortBy,
+        sortOrder,
+      } = input;
       const offset = (page - 1) * limit;
 
       const conditions = [];
@@ -1012,7 +1150,8 @@ const getAllResponses = os
         );
       }
 
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      const whereClause =
+        conditions.length > 0 ? and(...conditions) : undefined;
 
       const totalResult = await db
         .select({ count: count() })
@@ -1023,11 +1162,20 @@ const getAllResponses = os
 
       let orderByClause;
       if (sortBy === "date") {
-        orderByClause = sortOrder === "desc" ? desc(creativeRequests.submittedAt) : asc(creativeRequests.submittedAt);
+        orderByClause =
+          sortOrder === "desc"
+            ? desc(creativeRequests.submittedAt)
+            : asc(creativeRequests.submittedAt);
       } else if (sortBy === "priority") {
-        orderByClause = sortOrder === "desc" ? desc(creativeRequests.priority) : asc(creativeRequests.priority);
+        orderByClause =
+          sortOrder === "desc"
+            ? desc(creativeRequests.priority)
+            : asc(creativeRequests.priority);
       } else {
-        orderByClause = sortOrder === "desc" ? desc(creativeRequests.advertiserName) : asc(creativeRequests.advertiserName);
+        orderByClause =
+          sortOrder === "desc"
+            ? desc(creativeRequests.advertiserName)
+            : asc(creativeRequests.advertiserName);
       }
 
       const data = await db
@@ -1048,7 +1196,9 @@ const getAllResponses = os
         },
       };
     } catch (error) {
-      logger.rpc.error(`Failed to get all responses: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to get all responses: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -1079,7 +1229,9 @@ const getRecentResponses = os
 
       return data;
     } catch (error) {
-      logger.rpc.error(`Failed to get recent responses: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to get recent responses: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -1117,7 +1269,9 @@ const getResponseById = os
         history,
       };
     } catch (error) {
-      logger.rpc.error(`Failed to get response by ID ${input.id}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to get response by ID ${input.id}: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -1142,7 +1296,8 @@ const approveAndForward = os
 
       const { id, comments } = input;
       const actionBy = session.user.id;
-      const actionRole = session.user.role === "admin" ? "admin" : "administrator";
+      const actionRole =
+        session.user.role === "admin" ? "admin" : "administrator";
 
       const [request] = await db
         .select()
@@ -1196,7 +1351,9 @@ const approveAndForward = os
         .where(eq(creativeRequests.id, id))
         .limit(1);
 
-      logger.rpc.success(`Request approved and forwarded - requestId: ${id}, actionBy: ${actionBy}`);
+      logger.rpc.success(
+        `Request approved and forwarded - requestId: ${id}, actionBy: ${actionBy}`
+      );
 
       return {
         success: true,
@@ -1206,7 +1363,9 @@ const approveAndForward = os
         message: "Request approved and forwarded to advertiser",
       };
     } catch (error) {
-      logger.rpc.error(`Failed to approve and forward request ${input.id}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to approve and forward request ${input.id}: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -1231,7 +1390,8 @@ const rejectAndSendBack = os
 
       const { id, comments } = input;
       const actionBy = session.user.id;
-      const actionRole = session.user.role === "admin" ? "admin" : "administrator";
+      const actionRole =
+        session.user.role === "admin" ? "admin" : "administrator";
 
       const [request] = await db
         .select()
@@ -1284,7 +1444,9 @@ const rejectAndSendBack = os
         .where(eq(creativeRequests.id, id))
         .limit(1);
 
-      logger.rpc.success(`Request rejected - requestId: ${id}, actionBy: ${actionBy}`);
+      logger.rpc.success(
+        `Request rejected - requestId: ${id}, actionBy: ${actionBy}`
+      );
 
       return {
         success: true,
@@ -1294,7 +1456,9 @@ const rejectAndSendBack = os
         message: "Request rejected and sent back to publisher",
       };
     } catch (error) {
-      logger.rpc.error(`Failed to reject request ${input.id}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to reject request ${input.id}: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -1319,7 +1483,8 @@ const rejectResponseAndSendBack = os
 
       const { id, comments } = input;
       const actionBy = session.user.id;
-      const actionRole = session.user.role === "admin" ? "admin" : "administrator";
+      const actionRole =
+        session.user.role === "admin" ? "admin" : "administrator";
 
       const [request] = await db
         .select()
@@ -1372,7 +1537,9 @@ const rejectResponseAndSendBack = os
         .where(eq(creativeRequests.id, id))
         .limit(1);
 
-      logger.rpc.success(`Response sent back - requestId: ${id}, actionBy: ${actionBy}`);
+      logger.rpc.success(
+        `Response sent back - requestId: ${id}, actionBy: ${actionBy}`
+      );
 
       return {
         success: true,
@@ -1382,7 +1549,9 @@ const rejectResponseAndSendBack = os
         message: "Response sent back to advertiser",
       };
     } catch (error) {
-      logger.rpc.error(`Failed to send back response ${input.id}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to send back response ${input.id}: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -1396,7 +1565,9 @@ const getAllOffers = os
       visibility: z.array(z.enum(["Public", "Internal", "Hidden"])).optional(),
       createdMethod: z.array(z.enum(["Manually", "API"])).optional(),
       search: z.string().optional(),
-      sortBy: z.enum(["id", "offerName", "advertiserName", "status", "createdAt"]).default("createdAt"),
+      sortBy: z
+        .enum(["id", "offerName", "advertiserName", "status", "createdAt"])
+        .default("createdAt"),
       sortOrder: z.enum(["asc", "desc"]).default("desc"),
     })
   )
@@ -1414,7 +1585,16 @@ const getAllOffers = os
   .handler(async ({ input }) => {
     try {
       await requireRpcAdmin();
-      const { page, limit, status, visibility, createdMethod, search, sortBy, sortOrder } = input;
+      const {
+        page,
+        limit,
+        status,
+        visibility,
+        createdMethod,
+        search,
+        sortBy,
+        sortOrder,
+      } = input;
       const offset = (page - 1) * limit;
 
       const conditions = [];
@@ -1442,7 +1622,8 @@ const getAllOffers = os
         );
       }
 
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      const whereClause =
+        conditions.length > 0 ? and(...conditions) : undefined;
 
       const totalResult = await db
         .select({ count: count() })
@@ -1455,14 +1636,20 @@ const getAllOffers = os
       if (sortBy === "id") {
         orderByClause = sortOrder === "desc" ? desc(offers.id) : asc(offers.id);
       } else if (sortBy === "offerName") {
-        orderByClause = sortOrder === "desc" ? desc(offers.offerName) : asc(offers.offerName);
+        orderByClause =
+          sortOrder === "desc" ? desc(offers.offerName) : asc(offers.offerName);
       } else if (sortBy === "advertiserName") {
-        orderByClause = sortOrder === "desc" ? desc(offers.advertiserName) : asc(offers.advertiserName);
+        orderByClause =
+          sortOrder === "desc"
+            ? desc(offers.advertiserName)
+            : asc(offers.advertiserName);
       } else if (sortBy === "status") {
-        orderByClause = sortOrder === "desc" ? desc(offers.status) : asc(offers.status);
+        orderByClause =
+          sortOrder === "desc" ? desc(offers.status) : asc(offers.status);
       } else {
         // Use created_at from schema (snake_case)
-        orderByClause = sortOrder === "desc" ? desc(offers.createdAt) : asc(offers.createdAt);
+        orderByClause =
+          sortOrder === "desc" ? desc(offers.createdAt) : asc(offers.createdAt);
       }
 
       const data = await db
@@ -1483,7 +1670,9 @@ const getAllOffers = os
         },
       };
     } catch (error) {
-      logger.rpc.error(`Failed to get all offers: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to get all offers: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -1511,7 +1700,9 @@ const getOfferById = os
 
       return offer;
     } catch (error) {
-      logger.rpc.error(`Failed to get offer by ID ${input.id}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to get offer by ID ${input.id}: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -1568,7 +1759,9 @@ const createOffer = os
         message: "Offer created successfully",
       };
     } catch (error) {
-      logger.rpc.error(`Failed to create offer: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to create offer: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -1641,7 +1834,9 @@ const updateOffer = os
         message: "Offer updated successfully",
       };
     } catch (error) {
-      logger.rpc.error(`Failed to update offer ${input.id}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to update offer ${input.id}: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -1692,7 +1887,9 @@ const deleteOffer = os
         message: "Offer deleted successfully",
       };
     } catch (error) {
-      logger.rpc.error(`Failed to delete offer ${input.id}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to delete offer ${input.id}: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -1737,7 +1934,9 @@ const updateOfferStatus = os
         message: "Offer status updated successfully",
       };
     } catch (error) {
-      logger.rpc.error(`Failed to update offer status ${input.id}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to update offer status ${input.id}: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -1775,14 +1974,18 @@ const updateOfferVisibility = os
         throw new Error("Offer not found");
       }
 
-      logger.rpc.success(`Offer visibility updated - id: ${id}, visibility: ${visibility}`);
+      logger.rpc.success(
+        `Offer visibility updated - id: ${id}, visibility: ${visibility}`
+      );
       return {
         success: true,
         data: updatedOffer,
         message: "Offer visibility updated successfully",
       };
     } catch (error) {
-      logger.rpc.error(`Failed to update offer visibility ${input.id}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to update offer visibility ${input.id}: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -1836,7 +2039,8 @@ const bulkUpdateOffers = os
       }
 
       const successful: string[] = [];
-      const failed: Array<{ offerId: string; error: string; reason: string }> = [];
+      const failed: Array<{ offerId: string; error: string; reason: string }> =
+        [];
 
       const updateValues: Record<string, unknown> = {
         updatedBy: session.user.id,
@@ -1868,14 +2072,18 @@ const bulkUpdateOffers = os
             continue;
           }
 
-          await db.update(offers).set(updateValues).where(eq(offers.id, offerId));
+          await db
+            .update(offers)
+            .set(updateValues)
+            .where(eq(offers.id, offerId));
 
           successful.push(offerId);
         } catch (error) {
           failed.push({
             offerId,
             error: error instanceof Error ? error.message : "Unknown error",
-            reason: error instanceof Error ? error.message : "Unknown error occurred",
+            reason:
+              error instanceof Error ? error.message : "Unknown error occurred",
           });
         }
       }
@@ -1883,7 +2091,9 @@ const bulkUpdateOffers = os
       const updated = successful.length;
       const failedCount = failed.length;
 
-      logger.rpc.success(`Bulk update completed - total: ${offerIds.length}, updated: ${updated}, failed: ${failedCount}`);
+      logger.rpc.success(
+        `Bulk update completed - total: ${offerIds.length}, updated: ${updated}, failed: ${failedCount}`
+      );
 
       return {
         success: failedCount === 0,
@@ -1899,7 +2109,9 @@ const bulkUpdateOffers = os
             : `Updated ${updated} offer(s), ${failedCount} failed`,
       };
     } catch (error) {
-      logger.rpc.error(`Failed to bulk update offers: ${error instanceof Error ? error.message : String(error)}`);
+      logger.rpc.error(
+        `Failed to bulk update offers: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   });
@@ -1948,7 +2160,9 @@ export const adminRouter = {
         const service = getEverflowService();
         const config = service.getConfig();
 
-        logger.everflow.info(`Everflow config retrieved - userId: ${session.user.id}`);
+        logger.everflow.info(
+          `Everflow config retrieved - userId: ${session.user.id}`
+        );
 
         return {
           apiKey: config.apiKey ? "***" : undefined,
@@ -2007,16 +2221,21 @@ export const adminRouter = {
         if (input.apiKey) {
           const connectionTest = await service.testConnection();
           if (!connectionTest) {
-            logger.everflow.warn(`Everflow connection test failed after config update - userId: ${session.user.id}`);
+            logger.everflow.warn(
+              `Everflow connection test failed after config update - userId: ${session.user.id}`
+            );
             return {
               success: false,
-              message: "Configuration updated but connection test failed. Please verify your API credentials.",
+              message:
+                "Configuration updated but connection test failed. Please verify your API credentials.",
               configured: true,
             };
           }
         }
 
-        logger.everflow.success(`Everflow config updated - userId: ${session.user.id}`);
+        logger.everflow.success(
+          `Everflow config updated - userId: ${session.user.id}`
+        );
 
         return {
           success: true,
@@ -2039,12 +2258,15 @@ export const adminRouter = {
         const service = getEverflowService();
         const config = service.getConfig();
 
-        logger.everflow.info(`Testing Everflow connection - userId: ${session.user.id}, baseUrl: ${config.baseUrl}, hasApiKey: ${!!config.apiKey}, hasNetworkId: ${!!config.networkId}`);
+        logger.everflow.info(
+          `Testing Everflow connection - userId: ${session.user.id}, baseUrl: ${config.baseUrl}, hasApiKey: ${!!config.apiKey}, hasNetworkId: ${!!config.networkId}`
+        );
 
         if (!config.apiKey) {
           return {
             success: false,
-            message: "API key not configured. Please set EVERFLOW_API_KEY in your environment variables.",
+            message:
+              "API key not configured. Please set EVERFLOW_API_KEY in your environment variables.",
             error: "API key missing",
           };
         }
@@ -2053,16 +2275,21 @@ export const adminRouter = {
           const isConnected = await service.testConnection();
 
           if (isConnected) {
-            logger.everflow.success(`Everflow connection test passed - userId: ${session.user.id}`);
+            logger.everflow.success(
+              `Everflow connection test passed - userId: ${session.user.id}`
+            );
             return {
               success: true,
               message: "Connection successful",
             };
           } else {
-            logger.everflow.error(`Everflow connection test failed - userId: ${session.user.id}`);
+            logger.everflow.error(
+              `Everflow connection test failed - userId: ${session.user.id}`
+            );
             return {
               success: false,
-              message: "Connection failed. Please check your API credentials and endpoint.",
+              message:
+                "Connection failed. Please check your API credentials and endpoint.",
               error: "Connection test returned false",
               details: {
                 baseUrl: config.baseUrl,
@@ -2072,8 +2299,11 @@ export const adminRouter = {
             };
           }
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          logger.everflow.error(`Everflow connection test error - userId: ${session.user.id}, error: ${errorMessage}, baseUrl: ${config.baseUrl}`);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          logger.everflow.error(
+            `Everflow connection test error - userId: ${session.user.id}, error: ${errorMessage}, baseUrl: ${config.baseUrl}`
+          );
           return {
             success: false,
             message: `Connection failed: ${errorMessage}`,
@@ -2090,7 +2320,10 @@ export const adminRouter = {
     syncOffers: os
       .input(
         z.object({
-          conflictResolution: z.enum(["skip", "update", "merge"]).optional().default("update"),
+          conflictResolution: z
+            .enum(["skip", "update", "merge"])
+            .optional()
+            .default("update"),
           filters: z
             .object({
               status: z.string().optional(),
@@ -2123,9 +2356,12 @@ export const adminRouter = {
       )
       .handler(async ({ input }) => {
         const session = await requireRpcAdmin();
-        const { syncOffersFromEverflow } = await import("@/lib/services/everflow-sync.service");
+        const { syncOffersFromEverflow } =
+          await import("@/lib/services/everflow-sync.service");
 
-        logger.everflow.info(`Starting offers sync - userId: ${session.user.id}, options: ${JSON.stringify(input)}`);
+        logger.everflow.info(
+          `Starting offers sync - userId: ${session.user.id}, options: ${JSON.stringify(input)}`
+        );
 
         try {
           const result = await syncOffersFromEverflow(session.user.id, {
@@ -2151,8 +2387,11 @@ export const adminRouter = {
                 : `Sync failed: ${result.errors[0]?.error || "Unknown error"}`,
           };
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          logger.everflow.error(`Offers sync error - userId: ${session.user.id}, error: ${errorMessage}`);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          logger.everflow.error(
+            `Offers sync error - userId: ${session.user.id}, error: ${errorMessage}`
+          );
 
           return {
             success: false,
@@ -2173,7 +2412,10 @@ export const adminRouter = {
     syncAdvertisers: os
       .input(
         z.object({
-          conflictResolution: z.enum(["skip", "update", "merge"]).optional().default("update"),
+          conflictResolution: z
+            .enum(["skip", "update", "merge"])
+            .optional()
+            .default("update"),
           filters: z
             .object({
               status: z.string().optional(),
@@ -2205,9 +2447,12 @@ export const adminRouter = {
       )
       .handler(async ({ input }) => {
         const session = await requireRpcAdmin();
-        const { syncAdvertisersFromEverflow } = await import("@/lib/services/everflow-sync.service");
+        const { syncAdvertisersFromEverflow } =
+          await import("@/lib/services/everflow-sync.service");
 
-        logger.everflow.info(`Starting advertisers sync - userId: ${session.user.id}, options: ${JSON.stringify(input)}`);
+        logger.everflow.info(
+          `Starting advertisers sync - userId: ${session.user.id}, options: ${JSON.stringify(input)}`
+        );
 
         try {
           const result = await syncAdvertisersFromEverflow(session.user.id, {
@@ -2233,8 +2478,11 @@ export const adminRouter = {
                 : `Sync failed: ${result.errors[0]?.error || "Unknown error"}`,
           };
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          logger.everflow.error(`Advertisers sync error - userId: ${session.user.id}, error: ${errorMessage}`);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          logger.everflow.error(
+            `Advertisers sync error - userId: ${session.user.id}, error: ${errorMessage}`
+          );
 
           return {
             success: false,
@@ -2281,7 +2529,8 @@ export const adminRouter = {
       )
       .handler(async ({ input }) => {
         await requireRpcAdmin();
-        const { getSyncHistory } = await import("@/lib/services/everflow-sync.service");
+        const { getSyncHistory } =
+          await import("@/lib/services/everflow-sync.service");
 
         return getSyncHistory(input.syncType, input.limit);
       }),
@@ -2328,7 +2577,9 @@ export const adminRouter = {
             .select({ count: sql<number>`count(*)::int` })
             .from(creativeRequests);
 
-          logger.rpc.success(`Dummy data cleared - userId: ${session.user.id}, deletedOffers: ${initialOffersCount}, deletedCreativeRequests: ${initialRequestsCount}`);
+          logger.rpc.success(
+            `Dummy data cleared - userId: ${session.user.id}, deletedOffers: ${initialOffersCount}, deletedCreativeRequests: ${initialRequestsCount}`
+          );
 
           return {
             success: true,
@@ -2337,8 +2588,11 @@ export const adminRouter = {
             deletedCreativeRequests: initialRequestsCount,
           };
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          logger.rpc.error(`Error clearing dummy data - userId: ${session.user.id}, error: ${errorMessage}`);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          logger.rpc.error(
+            `Error clearing dummy data - userId: ${session.user.id}, error: ${errorMessage}`
+          );
 
           return {
             success: false,
