@@ -1147,16 +1147,26 @@ function mapStatusToTracker(
     },
   ];
 
-  // If approved by admin, show the approval flow
+  // If approved by admin, show the approval flow with Completed
   if (isApproved && normalizedStage === "admin") {
-    baseStatuses.push({
-      id: 4,
-      title: "Approved by Admin",
-      description: "Admin approved",
-      icon: FileCheck,
-      status: "active" as "active" | "pending",
-      color: "green" as "blue" | "gray" | "amber" | "cyan" | "green" | "red",
-    });
+    baseStatuses.push(
+      {
+        id: 4,
+        title: "Approved by Admin",
+        description: "Admin approved",
+        icon: FileCheck,
+        status: "active" as "active" | "pending",
+        color: "green" as "blue" | "gray" | "amber" | "cyan" | "green" | "red",
+      },
+      {
+        id: 5,
+        title: "Completed",
+        description: "Case closed",
+        icon: FileCheck,
+        status: "active" as "active" | "pending",
+        color: "green" as "blue" | "gray" | "amber" | "cyan" | "green" | "red",
+      }
+    );
   }
 
   // If rejected, show rejection status
@@ -1213,21 +1223,9 @@ function mapStatusToTracker(
     );
   }
 
-  // Add remaining statuses only if not rejected
-  if (!isRejected) {
-    const nextId = isRevised ? 7 : isSentBack ? 5 : isApproved ? 5 : 4;
-    
-    // Only show Final Review if approved by admin (going to advertiser) or fully approved
-    if (isApproved && normalizedStage === "admin") {
-      baseStatuses.push({
-        id: nextId,
-        title: "Final Review",
-        description: "Advertiser review",
-        icon: UserCheck,
-        status: "pending" as "active" | "pending",
-        color: "gray" as "blue" | "gray" | "amber" | "cyan" | "green" | "red",
-      });
-    }
+  // Add remaining statuses only if not rejected or approved by admin
+  if (!isRejected && !(isApproved && normalizedStage === "admin")) {
+    const nextId = isRevised ? 7 : isSentBack ? 5 : 4;
 
     // Show completed if fully approved
     if (isApproved && normalizedStage === "completed") {
