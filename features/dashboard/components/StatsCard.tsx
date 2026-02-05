@@ -38,6 +38,30 @@ function formatNumberShorthand(num: number): string {
   return `${millions % 1 === 0 ? millions.toFixed(0) : millions.toFixed(1)}M`;
 }
 
+// Helper function to parse formatted values
+function parseFormattedValue(value: string): number {
+  const cleanedValue = value.trim().toLowerCase();
+
+  // Handle "k" suffix (thousands)
+  if (cleanedValue.endsWith("k")) {
+    const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
+    return isNaN(numValue) ? 0 : numValue * 1000;
+  }
+  // Handle "l" suffix (lakhs)
+  if (cleanedValue.endsWith("l")) {
+    const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
+    return isNaN(numValue) ? 0 : numValue * 100000;
+  }
+  // Handle "m" suffix (millions)
+  if (cleanedValue.endsWith("m")) {
+    const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
+    return isNaN(numValue) ? 0 : numValue * 10000000;
+  }
+  // Handle regular numbers
+  const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
+  return isNaN(numValue) ? 0 : numValue;
+}
+
 export function StatsCard({
   title,
   value,
@@ -126,34 +150,10 @@ export function StatsCard({
     };
   }, [value, historicalData, trend, title]);
 
-  // Helper function to parse formatted values
-  function parseFormattedValue(value: string): number {
-    const cleanedValue = value.trim().toLowerCase();
-
-    // Handle "k" suffix (thousands)
-    if (cleanedValue.endsWith("k")) {
-      const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
-      return isNaN(numValue) ? 0 : numValue * 1000;
-    }
-    // Handle "l" suffix (lakhs)
-    if (cleanedValue.endsWith("l")) {
-      const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
-      return isNaN(numValue) ? 0 : numValue * 100000;
-    }
-    // Handle "m" suffix (millions)
-    if (cleanedValue.endsWith("m")) {
-      const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
-      return isNaN(numValue) ? 0 : numValue * 10000000;
-    }
-    // Handle regular numbers
-    const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
-    return isNaN(numValue) ? 0 : numValue;
-  }
-
   const TrendIcon = calculatedTrend?.trendIconValue;
   const isPositive = TrendIcon === TrendingUp;
 
-  // Filter and order historical data: remove "Today", order as Yesterday, Current Month, Last Month
+  // Filter and order historical data: remove "Today", order as Yesterday, Current Month, Last Month, then add Total
   const filteredAndOrderedHistoricalData = useMemo(() => {
     if (!historicalData) return null;
 
@@ -170,8 +170,34 @@ export function StatsCard({
       .map((label) => filtered.find((item) => item.label === label))
       .filter((item) => item !== undefined);
 
-    return ordered.length > 0 ? ordered : null;
-  }, [historicalData]);
+    if (ordered.length === 0) return null;
+
+    // Calculate total: Today (value) + sum of all historical data
+    let totalValue = value; // Start with today's value
+    
+    // Add all historical values
+    historicalData.forEach((item) => {
+      let itemValue = 0;
+      if (typeof item.value === "number") {
+        itemValue = item.value;
+      } else if (typeof item.value === "string") {
+        itemValue = parseFormattedValue(item.value);
+      }
+      
+      // Only add if not "Today" (we already added it)
+      if (item.label !== "Today") {
+        totalValue += itemValue;
+      }
+    });
+
+    // Add Total row
+    ordered.push({
+      label: "Total",
+      value: formatNumberShorthand(totalValue),
+    });
+
+    return ordered;
+  }, [historicalData, value]);
 
   const getBackgroundColor = () => {
     switch (title) {
@@ -226,6 +252,7 @@ export function StatsCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-6 md:space-y-6.5">
+        {/* Main value represents today's count */}
         <div className="flex items-center justify-between">
           <div
             className="text-4xl xl:text-[2.5rem] font-medium font-inter"
@@ -270,29 +297,35 @@ export function StatsCard({
 
         {filteredAndOrderedHistoricalData && (
           <div className="space-y-2 ">
-            {filteredAndOrderedHistoricalData.map((item, index) => (
-              <React.Fragment key={index}>
-                <div className="flex items-center justify-between">
-                  <span
-                    className="text-sm font-inter"
-                    style={{
-                      color: variables.colors.statsCardHistoricalDataLabelColor,
-                    }}
-                  >
-                    {item.label}
-                  </span>
-                  <span
-                    className="text-base font-inter font-medium"
-                    style={{
-                      color: variables.colors.statsCardHistoricalDataValueColor,
-                    }}
-                  >
-                    {item.value}
-                  </span>
-                </div>
-                {index < filteredAndOrderedHistoricalData.length - 1 && <Separator />}
-              </React.Fragment>
-            ))}
+            {filteredAndOrderedHistoricalData.map((item, index) => {
+              const isTotal = item.label === "Total";
+              const isLastNonTotal = !isTotal && index === filteredAndOrderedHistoricalData.length - 2;
+              
+              return (
+                <React.Fragment key={index}>
+                  {isTotal && <Separator />}
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-sm font-inter ${isTotal ? "font-semibold" : ""}`}
+                      style={{
+                        color: variables.colors.statsCardHistoricalDataLabelColor,
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                    <span
+                      className={`text-base font-inter ${isTotal ? "font-semibold" : "font-medium"}`}
+                      style={{
+                        color: variables.colors.statsCardHistoricalDataValueColor,
+                      }}
+                    >
+                      {item.value}
+                    </span>
+                  </div>
+                  {!isTotal && !isLastNonTotal && <Separator />}
+                </React.Fragment>
+              );
+            })}
           </div>
         )}
       </CardContent>
