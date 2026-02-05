@@ -7,6 +7,7 @@ import {
   MessageSquare,
   UserCheck,
   FileCheck,
+  CheckCircle2,
   Minimize2,
   ZoomIn,
   ZoomOut,
@@ -1162,7 +1163,7 @@ function mapStatusToTracker(
         id: 5,
         title: "Completed",
         description: "Case closed",
-        icon: FileCheck,
+        icon: CheckCircle2,
         status: "active" as "active" | "pending",
         color: "green" as "blue" | "gray" | "amber" | "cyan" | "green" | "red",
       }
@@ -1252,7 +1253,7 @@ function mapStatusToTracker(
           id: 6,
           title: "Completed",
           description: "Case closed",
-          icon: FileCheck,
+          icon: CheckCircle2,
           status: "active" as "active" | "pending",
           color: "green" as "blue" | "gray" | "amber" | "cyan" | "green" | "red",
         }
@@ -1271,7 +1272,7 @@ function mapStatusToTracker(
           id: nextId + 1,
           title: "Completed",
           description: "Case closed",
-          icon: FileCheck,
+          icon: CheckCircle2,
           status: "pending" as "active" | "pending",
           color: "gray" as "blue" | "gray" | "amber" | "cyan" | "green" | "red",
         }
