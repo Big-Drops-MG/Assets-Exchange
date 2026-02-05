@@ -13,11 +13,16 @@ export async function fetchAdminRequests(params: {
     }
   });
 
+  // Add cache-busting timestamp
+  q.set("_t", Date.now().toString());
+
   // Ensure query params are properly encoded
   const queryString = q.toString();
   const url = `/api/admin/requests${queryString ? `?${queryString}` : ""}`;
 
-  const res = await fetch(url);
+  const res = await fetch(url, {
+    cache: "no-store",
+  });
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({}));
     throw new Error(errorBody.error || "Failed to fetch requests");

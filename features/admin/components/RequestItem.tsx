@@ -88,7 +88,11 @@ const getStatusBadgeClass = (status: string) => {
   }
 };
 
-const getStatusLabel = (status: string, approvalStage: string, isAdvertiserView: boolean = false) => {
+const getStatusLabel = (
+  status: string,
+  approvalStage: string,
+  isAdvertiserView: boolean = false
+) => {
   const normalizedStatus = status.toLowerCase();
   const normalizedStage = approvalStage.toLowerCase();
 
@@ -400,7 +404,11 @@ export function RequestItem({
               variant="outline"
               className={getStatusBadgeClass(request.status)}
             >
-              {getStatusLabel(request.status, request.approvalStage, isAdvertiserView)}
+              {getStatusLabel(
+                request.status,
+                request.approvalStage,
+                isAdvertiserView
+              )}
             </Badge>
           </div>
 
@@ -673,6 +681,10 @@ export function RequestItem({
                               description:
                                 "The request has been successfully approved.",
                             });
+                            // Wait a moment for database to update before refreshing
+                            await new Promise((resolve) =>
+                              setTimeout(resolve, 300)
+                            );
                             onRefresh?.();
                           } catch (err) {
                             const errorMessage =
@@ -719,6 +731,10 @@ export function RequestItem({
                               description:
                                 "The request has been forwarded for advertiser review.",
                             });
+                            // Wait a moment for database to update before refreshing
+                            await new Promise((resolve) =>
+                              setTimeout(resolve, 300)
+                            );
                             onRefresh?.();
                           } catch (err) {
                             const errorMessage =
@@ -859,6 +875,10 @@ export function RequestItem({
                                 "The request has been rejected successfully.",
                             });
                             setRejectComments("");
+                            // Wait a moment for database to update before refreshing
+                            await new Promise((resolve) =>
+                              setTimeout(resolve, 300)
+                            );
                             onRefresh?.();
                           } catch (err) {
                             const errorMessage =
@@ -902,6 +922,10 @@ export function RequestItem({
                                 "The request has been sent back to the publisher for revision.",
                             });
                             setRejectComments("");
+                            // Wait a moment for database to update before refreshing
+                            await new Promise((resolve) =>
+                              setTimeout(resolve, 300)
+                            );
                             onRefresh?.();
                           } catch (err) {
                             const errorMessage =
@@ -1164,6 +1188,10 @@ export function RequestItem({
                                 "The request has been rejected successfully.",
                             });
                             setSendBackComments("");
+                            // Wait a moment for database to update before refreshing
+                            await new Promise((resolve) =>
+                              setTimeout(resolve, 300)
+                            );
                             onRefresh?.();
                           } catch (err) {
                             const errorMessage =
@@ -1208,6 +1236,10 @@ export function RequestItem({
                                 "The request has been sent back to the publisher for revision.",
                             });
                             setSendBackComments("");
+                            // Wait a moment for database to update before refreshing
+                            await new Promise((resolve) =>
+                              setTimeout(resolve, 300)
+                            );
                             onRefresh?.();
                           } catch (err) {
                             const errorMessage =
