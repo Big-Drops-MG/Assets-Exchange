@@ -3,7 +3,8 @@ export type RequestStatus =
   | "pending"
   | "approved"
   | "rejected"
-  | "sent-back";
+  | "sent-back"
+  | "revised";
 
 export type ApprovalStage = "admin" | "advertiser" | "completed";
 

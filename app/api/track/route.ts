@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
-import { creativeRequests } from "@/lib/schema";
+import { creativeRequests, creatives } from "@/lib/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +21,13 @@ export async function GET(req: NextRequest) {
     const request = await db.query.creativeRequests.findFirst({
       where: eq(creativeRequests.trackingCode, code.toUpperCase()),
       with: {
-        creatives: true,
+        creatives: {
+          where: ne(creatives.status, "superseded"),
+        },
       },
       columns: {
         id: true,
+        offerId: true,
         offerName: true,
         status: true,
         approvalStage: true,
@@ -32,6 +35,13 @@ export async function GET(req: NextRequest) {
         adminComments: true,
         submittedAt: true,
         trackingCode: true,
+        creativeType: true,
+        fromLinesCount: true,
+        subjectLinesCount: true,
+        priority: true,
+        fromLines: true,
+        subjectLines: true,
+        additionalNotes: true,
       },
     });
 

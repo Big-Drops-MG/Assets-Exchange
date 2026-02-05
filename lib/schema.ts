@@ -72,6 +72,7 @@ export const requestStatusEnum = pgEnum("request_status", [
   "approved",
   "rejected",
   "sent-back",
+  "revised",
 ]);
 
 export const approvalStageEnum = pgEnum("approval_stage", [

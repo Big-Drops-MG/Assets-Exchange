@@ -200,6 +200,13 @@ export function ManageRequestsPage() {
             request.status === "approved" &&
             request.approvalStage?.toLowerCase() === "admin"
         );
+      } else if (activeTab === "revised") {
+        // Revised by publisher - resubmitted after being sent back
+        filtered = filtered.filter(
+          (request) =>
+            request.status === "revised" &&
+            request.approvalStage?.toLowerCase() === "admin"
+        );
       } else {
         // Other statuses - filter by status
         filtered = filtered.filter((request) => request.status === activeTab);
@@ -598,12 +605,12 @@ export function ManageRequestsPage() {
             </Popover>
 
             <TabsList
-              className="flex-1 grid grid-cols-6 h-auto p-1 gap-1"
+              className="flex-1 grid grid-cols-7 h-auto p-1 gap-1"
               style={{ backgroundColor: variables.colors.inputBackgroundColor }}
             >
               <TabsTrigger
                 value="all"
-                className="h-10 px-4 rounded-md font-medium transition-all cursor-pointer"
+                className="h-10 px-2 rounded-md font-medium transition-all cursor-pointer text-sm"
                 style={{
                   backgroundColor:
                     activeTab === "all"
@@ -629,7 +636,7 @@ export function ManageRequestsPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="new"
-                className="h-10 px-4 rounded-md font-medium transition-all cursor-pointer"
+                className="h-10 px-2 rounded-md font-medium transition-all cursor-pointer text-sm"
                 style={{
                   backgroundColor:
                     activeTab === "new"
@@ -655,7 +662,7 @@ export function ManageRequestsPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="pending"
-                className="h-10 px-4 rounded-md font-medium transition-all cursor-pointer"
+                className="h-10 px-2 rounded-md font-medium transition-all cursor-pointer text-sm"
                 style={{
                   backgroundColor:
                     activeTab === "pending"
@@ -677,11 +684,11 @@ export function ManageRequestsPage() {
                   }
                 }}
               >
-                Pending Approvals
+                Pending
               </TabsTrigger>
               <TabsTrigger
                 value="approved"
-                className="h-10 px-4 rounded-md font-medium transition-all cursor-pointer"
+                className="h-10 px-2 rounded-md font-medium transition-all cursor-pointer text-sm"
                 style={{
                   backgroundColor:
                     activeTab === "approved"
@@ -707,7 +714,7 @@ export function ManageRequestsPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="rejected"
-                className="h-10 px-4 rounded-md font-medium transition-all cursor-pointer"
+                className="h-10 px-2 rounded-md font-medium transition-all cursor-pointer text-sm"
                 style={{
                   backgroundColor:
                     activeTab === "rejected"
@@ -733,7 +740,7 @@ export function ManageRequestsPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="sent-back"
-                className="h-10 px-4 rounded-md font-medium transition-all cursor-pointer"
+                className="h-10 px-2 rounded-md font-medium transition-all cursor-pointer text-sm"
                 style={{
                   backgroundColor:
                     activeTab === "sent-back"
@@ -756,6 +763,32 @@ export function ManageRequestsPage() {
                 }}
               >
                 Sent Back
+              </TabsTrigger>
+              <TabsTrigger
+                value="revised"
+                className="h-10 px-2 rounded-md font-medium transition-all cursor-pointer text-sm"
+                style={{
+                  backgroundColor:
+                    activeTab === "revised"
+                      ? variables.colors.buttonDefaultBackgroundColor
+                      : "#FFFFFF",
+                  color:
+                    activeTab === "revised"
+                      ? variables.colors.buttonDefaultTextColor
+                      : variables.colors.inputTextColor,
+                }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== "revised") {
+                    e.currentTarget.style.backgroundColor = "#F3F4F6";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== "revised") {
+                    e.currentTarget.style.backgroundColor = "#FFFFFF";
+                  }
+                }}
+              >
+                Revised
               </TabsTrigger>
             </TabsList>
 

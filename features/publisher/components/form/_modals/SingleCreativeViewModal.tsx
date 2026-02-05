@@ -81,6 +81,12 @@ interface SingleCreativeViewModalProps {
   showAdditionalNotes?: boolean;
   creativeType?: string;
   siblingCreatives?: Creative[];
+  viewOnly?: boolean;
+  onSaveAndSubmit?: (metadata: {
+    fromLines: string;
+    subjectLines: string;
+    additionalNotes: string;
+  }) => Promise<void>;
 }
 
 const getFileType = (fileName: string): "image" | "html" | "other" => {
@@ -104,6 +110,8 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
   showAdditionalNotes = false,
   creativeType = "email",
   siblingCreatives = [],
+  viewOnly = false,
+  onSaveAndSubmit,
 }) => {
   const viewModel = useSingleCreativeViewModal({
     isOpen,
@@ -114,7 +122,27 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
     showAdditionalNotes,
     creativeType,
     siblingCreatives,
+    viewOnly,
   });
+
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const handleSaveAndSubmit = async () => {
+    if (onSaveAndSubmit) {
+      setIsSubmitting(true);
+      try {
+        await onSaveAndSubmit({
+          fromLines: viewModel.fromLines,
+          subjectLines: viewModel.subjectLines,
+          additionalNotes: viewModel.additionalNotes,
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      viewModel.handleSaveAll();
+    }
+  };
 
   const { isProofreadComplete, proofreadResult, isAnalyzing } = viewModel;
 
@@ -166,9 +194,17 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
   const isImage = fileType === "image";
   const isHtml = fileType === "html";
 
+  const handleDialogClose = () => {
+    if (onSaveAndSubmit) {
+      onClose();
+    } else {
+      viewModel.handleSaveAll();
+    }
+  };
+
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={viewModel.handleSaveAll}>
+      <Dialog open={isOpen} onOpenChange={handleDialogClose}>
         <DialogContent
           className="max-w-screen! max-h-screen! w-screen h-screen m-0 p-0 rounded-none"
           showCloseButton={false}
@@ -192,7 +228,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                   </div>
 
                   <div className="min-w-0">
-                    {viewModel.isEditing ? (
+                    {!viewOnly && viewModel.isEditing ? (
                       <div className="flex items-center gap-2 sm:gap-3">
                         <div className="flex items-center">
                           <Input
@@ -243,26 +279,28 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                         <DialogTitle className="text-xs sm:text-sm font-medium text-gray-800 truncate">
                           {viewModel.editableFileName}
                         </DialogTitle>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const lastDotIndex =
-                              viewModel.editableFileName.lastIndexOf(".");
-                            viewModel.setEditableNameOnly(
-                              lastDotIndex > 0
-                                ? viewModel.editableFileName.substring(
-                                  0,
-                                  lastDotIndex
-                                )
-                                : viewModel.editableFileName
-                            );
-                            viewModel.setIsEditing(true);
-                          }}
-                          className="h-9 w-9 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg shrink-0"
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </Button>
+                        {!viewOnly && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const lastDotIndex =
+                                viewModel.editableFileName.lastIndexOf(".");
+                              viewModel.setEditableNameOnly(
+                                lastDotIndex > 0
+                                  ? viewModel.editableFileName.substring(
+                                      0,
+                                      lastDotIndex
+                                    )
+                                  : viewModel.editableFileName
+                              );
+                              viewModel.setIsEditing(true);
+                            }}
+                            className="h-9 w-9 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg shrink-0"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -278,15 +316,29 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                 </div>
 
                 <div className="shrink-0">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={viewModel.handleSaveAll}
-                    disabled={viewModel.isSaving}
-                    className="h-9 px-3 sm:px-4 bg-blue-500 hover:bg-blue-600 text-white text-xs sm:text-sm disabled:opacity-50"
-                  >
-                    {viewModel.isSaving ? "Saving..." : "Save and Continue"}
-                  </Button>
+                  {viewOnly ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={onClose}
+                      className="h-9 px-3 sm:px-4 border-gray-300 text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Close
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleSaveAndSubmit}
+                      disabled={viewModel.isSaving || isSubmitting}
+                      className="h-9 px-3 sm:px-4 bg-blue-500 hover:bg-blue-600 text-white text-xs sm:text-sm disabled:opacity-50"
+                    >
+                      {viewModel.isSaving || isSubmitting
+                        ? "Saving..."
+                        : "Save and Continue"}
+                    </Button>
+                  )}
                 </div>
               </div>
             </DialogHeader>
@@ -295,8 +347,9 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
             <DialogBody className="max-h-screen! flex-1 flex flex-col lg:flex-row overflow-hidden p-0">
               {/* Preview Column */}
               <div
-                className={`${viewModel.isPreviewCollapsed ? "hidden lg:flex" : "flex"
-                  } lg:w-1/2 lg:border-r border-gray-200 p-4 sm:p-6 bg-gray-50 flex-col min-h-0`}
+                className={`${
+                  viewModel.isPreviewCollapsed ? "hidden lg:flex" : "flex"
+                } lg:w-1/2 lg:border-r border-gray-200 p-4 sm:p-6 bg-gray-50 flex-col min-h-0`}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-gray-200 mb-5 gap-3">
                   <div className="flex items-center gap-3">
@@ -331,10 +384,11 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                               e.stopPropagation();
                               viewModel.setShowOriginal(true);
                             }}
-                            className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${viewModel.showOriginal
+                            className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${
+                              viewModel.showOriginal
                                 ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
                                 : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
-                              }`}
+                            }`}
                           >
                             Original
                           </button>
@@ -345,10 +399,11 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                               e.stopPropagation();
                               viewModel.setShowOriginal(false);
                             }}
-                            className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${!viewModel.showOriginal
+                            className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${
+                              !viewModel.showOriginal
                                 ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
                                 : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
-                              }`}
+                            }`}
                           >
                             Marked
                           </button>
@@ -365,10 +420,11 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             e.stopPropagation();
                             viewModel.setShowOriginal(true);
                           }}
-                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${viewModel.showOriginal
+                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${
+                            viewModel.showOriginal
                               ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
                               : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
-                            }`}
+                          }`}
                         >
                           Original
                         </button>
@@ -379,10 +435,11 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             e.stopPropagation();
                             viewModel.setShowOriginal(false);
                           }}
-                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${!viewModel.showOriginal
+                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${
+                            !viewModel.showOriginal
                               ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
                               : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
-                            }`}
+                          }`}
                         >
                           Marked
                         </button>
@@ -446,7 +503,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                                 </p>
                                 {viewModel.proofreadingData.issues &&
                                   viewModel.proofreadingData.issues.length >
-                                  0 && (
+                                    0 && (
                                     <div className="mt-4 flex items-center justify-center gap-2">
                                       <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
                                         <X className="h-3 w-3" />
@@ -508,7 +565,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                                 </p>
                                 {viewModel.proofreadingData.issues &&
                                   viewModel.proofreadingData.issues.length >
-                                  0 && (
+                                    0 && (
                                     <div className="mt-4 flex items-center justify-center gap-2">
                                       <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
                                         <X className="h-3 w-3" />
@@ -565,8 +622,9 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
 
               {/* Features Column */}
               <div
-                className={`${viewModel.isPreviewCollapsed ? "w-full" : "lg:w-1/2"
-                  } p-4 sm:p-6 overflow-y-auto bg-gray-50 border-t lg:border-t-0 border-gray-200`}
+                className={`${
+                  viewModel.isPreviewCollapsed ? "w-full" : "lg:w-1/2"
+                } p-4 sm:p-6 overflow-y-auto bg-gray-50 border-t lg:border-t-0 border-gray-200`}
               >
                 <div className="space-y-5">
                   <div className="flex items-center justify-between pb-3 border-b border-gray-200">
@@ -677,30 +735,32 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             </h3>
                           </div>
 
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={viewModel.handleGenerateContent}
-                            disabled={viewModel.isGeneratingContent}
-                            className="flex items-center gap-2 w-full sm:w-auto h-9 disabled:opacity-50 bg-green-50 border-green-300 text-green-700 hover:bg-green-100 hover:text-green-800 hover:border-green-400 font-medium shadow-sm"
-                          >
-                            {viewModel.isGeneratingContent ? (
-                              <>
-                                <div className="w-4 h-4 border-2 border-green-700 border-t-transparent rounded-full animate-spin" />
-                                <span>Generating...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles className="h-4 w-4" />
-                                <span className="hidden sm:inline">
-                                  Generate From & Subject Lines
-                                </span>
-                                <span className="sm:hidden">
-                                  Generate Content
-                                </span>
-                              </>
-                            )}
-                          </Button>
+                          {!viewOnly && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={viewModel.handleGenerateContent}
+                              disabled={viewModel.isGeneratingContent}
+                              className="flex items-center gap-2 w-full sm:w-auto h-9 disabled:opacity-50 bg-green-50 border-green-300 text-green-700 hover:bg-green-100 hover:text-green-800 hover:border-green-400 font-medium shadow-sm"
+                            >
+                              {viewModel.isGeneratingContent ? (
+                                <>
+                                  <div className="w-4 h-4 border-2 border-green-700 border-t-transparent rounded-full animate-spin" />
+                                  <span>Generating...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="h-4 w-4" />
+                                  <span className="hidden sm:inline">
+                                    Generate From & Subject Lines
+                                  </span>
+                                  <span className="sm:hidden">
+                                    Generate Content
+                                  </span>
+                                </>
+                              )}
+                            </Button>
+                          )}
                         </div>
 
                         <div className="space-y-4">
@@ -708,36 +768,54 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 block">
                               From Lines
                             </Label>
-                            <Textarea
-                              value={viewModel.fromLines}
-                              onChange={(e) =>
-                                viewModel.setFromLines(e.target.value)
-                              }
-                              placeholder="Enter from lines (one per line)"
-                              rows={3}
-                              className="w-full resize-none text-xs sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500/20"
-                            />
-                            <p className="text-xs text-gray-500 mt-2">
-                              Enter email from lines, one per line
-                            </p>
+                            {viewOnly ? (
+                              <div className="w-full p-3 text-xs sm:text-sm bg-gray-50 rounded-md border border-gray-200 text-gray-700 whitespace-pre-wrap min-h-[76px]">
+                                {viewModel.fromLines ||
+                                  "No from lines provided"}
+                              </div>
+                            ) : (
+                              <>
+                                <Textarea
+                                  value={viewModel.fromLines}
+                                  onChange={(e) =>
+                                    viewModel.setFromLines(e.target.value)
+                                  }
+                                  placeholder="Enter from lines (one per line)"
+                                  rows={3}
+                                  className="w-full resize-none text-xs sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500/20"
+                                />
+                                <p className="text-xs text-gray-500 mt-2">
+                                  Enter email from lines, one per line
+                                </p>
+                              </>
+                            )}
                           </div>
 
                           <div>
                             <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 block">
                               Subject Lines
                             </Label>
-                            <Textarea
-                              value={viewModel.subjectLines}
-                              onChange={(e) =>
-                                viewModel.setSubjectLines(e.target.value)
-                              }
-                              placeholder="Enter subject lines (one per line)"
-                              rows={3}
-                              className="w-full resize-none text-xs sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500/20"
-                            />
-                            <p className="text-xs text-gray-500 mt-2">
-                              Enter email subject lines, one per line
-                            </p>
+                            {viewOnly ? (
+                              <div className="w-full p-3 text-xs sm:text-sm bg-gray-50 rounded-md border border-gray-200 text-gray-700 whitespace-pre-wrap min-h-[76px]">
+                                {viewModel.subjectLines ||
+                                  "No subject lines provided"}
+                              </div>
+                            ) : (
+                              <>
+                                <Textarea
+                                  value={viewModel.subjectLines}
+                                  onChange={(e) =>
+                                    viewModel.setSubjectLines(e.target.value)
+                                  }
+                                  placeholder="Enter subject lines (one per line)"
+                                  rows={3}
+                                  className="w-full resize-none text-xs sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500/20"
+                                />
+                                <p className="text-xs text-gray-500 mt-2">
+                                  Enter email subject lines, one per line
+                                </p>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -755,28 +833,30 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                           </h3>
                         </div>
 
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={viewModel.handleRegenerateAnalysis}
-                          disabled={viewModel.isAnalyzing}
-                          className="flex items-center gap-2 w-full sm:w-auto h-9 disabled:opacity-50 bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100 hover:text-amber-800 hover:border-amber-400 font-medium shadow-sm"
-                        >
-                          {viewModel.isAnalyzing ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-amber-700 border-t-transparent rounded-full animate-spin" />
-                              <span>Analyzing...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="h-4 w-4" />
-                              <span className="hidden sm:inline">
-                                Analyze Creative
-                              </span>
-                              <span className="sm:hidden">Analyze</span>
-                            </>
-                          )}
-                        </Button>
+                        {!viewOnly && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={viewModel.handleRegenerateAnalysis}
+                            disabled={viewModel.isAnalyzing}
+                            className="flex items-center gap-2 w-full sm:w-auto h-9 disabled:opacity-50 bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100 hover:text-amber-800 hover:border-amber-400 font-medium shadow-sm"
+                          >
+                            {viewModel.isAnalyzing ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-amber-700 border-t-transparent rounded-full animate-spin" />
+                                <span>Analyzing...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="h-4 w-4" />
+                                <span className="hidden sm:inline">
+                                  Analyze Creative
+                                </span>
+                                <span className="sm:hidden">Analyze</span>
+                              </>
+                            )}
+                          </Button>
+                        )}
                       </div>
 
                       <div className="space-y-4">
@@ -785,14 +865,14 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             <span className="w-2 h-2 bg-red-500 rounded-full"></span>
                             Issues Found
                             {viewModel.proofreadingData?.issues &&
-                              viewModel.proofreadingData.issues.length > 0
+                            viewModel.proofreadingData.issues.length > 0
                               ? ` (${viewModel.proofreadingData.issues.length})`
                               : ""}
                           </h4>
 
                           <div className="space-y-2">
                             {viewModel.proofreadingData?.issues &&
-                              viewModel.proofreadingData.issues.length > 0 ? (
+                            viewModel.proofreadingData.issues.length > 0 ? (
                               viewModel.proofreadingData.issues.map(
                                 (issue: unknown, index: number) => {
                                   const issueData = issue as {
@@ -838,8 +918,9 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             ) : (
                               <div className="p-4 text-center text-gray-500">
                                 <p className="text-sm">
-                                  Click the &quot;Analyze Creative&quot; button
-                                  to start proofreading.
+                                  {viewOnly
+                                    ? "No proofreading analysis available."
+                                    : 'Click the "Analyze Creative" button to start proofreading.'}
                                 </p>
                               </div>
                             )}
@@ -853,13 +934,13 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                               <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
                               Suggestions
                               {viewModel.proofreadingData.suggestions &&
-                                viewModel.proofreadingData.suggestions.length > 0
+                              viewModel.proofreadingData.suggestions.length > 0
                                 ? ` (${viewModel.proofreadingData.suggestions.length})`
                                 : ""}
                             </h4>
                             <div className="space-y-2">
                               {viewModel.proofreadingData.suggestions &&
-                                viewModel.proofreadingData.suggestions.length >
+                              viewModel.proofreadingData.suggestions.length >
                                 0 ? (
                                 viewModel.proofreadingData.suggestions.map(
                                   (suggestion: unknown, index: number) => {
@@ -969,19 +1050,28 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 block">
                               Notes & Comments
                             </Label>
-                            <Textarea
-                              value={viewModel.additionalNotes}
-                              onChange={(e) =>
-                                viewModel.setAdditionalNotes(e.target.value)
-                              }
-                              placeholder="Add any additional notes, comments, or instructions for this creative..."
-                              rows={4}
-                              className="w-full resize-none text-xs sm:text-sm border-gray-300 focus:border-indigo-500 focus:ring-indigo-500/20"
-                            />
-                            <p className="text-xs text-gray-500 mt-2">
-                              Use this space to add any specific notes,
-                              instructions, or comments about this creative.
-                            </p>
+                            {viewOnly ? (
+                              <div className="w-full p-3 text-xs sm:text-sm bg-gray-50 rounded-md border border-gray-200 text-gray-700 whitespace-pre-wrap min-h-[100px]">
+                                {viewModel.additionalNotes ||
+                                  "No additional notes provided"}
+                              </div>
+                            ) : (
+                              <>
+                                <Textarea
+                                  value={viewModel.additionalNotes}
+                                  onChange={(e) =>
+                                    viewModel.setAdditionalNotes(e.target.value)
+                                  }
+                                  placeholder="Add any additional notes, comments, or instructions for this creative..."
+                                  rows={4}
+                                  className="w-full resize-none text-xs sm:text-sm border-gray-300 focus:border-indigo-500 focus:ring-indigo-500/20"
+                                />
+                                <p className="text-xs text-gray-500 mt-2">
+                                  Use this space to add any specific notes,
+                                  instructions, or comments about this creative.
+                                </p>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1052,10 +1142,11 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             e.stopPropagation();
                             viewModel.setShowOriginalFullscreen(true);
                           }}
-                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${viewModel.showOriginalFullscreen
+                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${
+                            viewModel.showOriginalFullscreen
                               ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
                               : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
-                            }`}
+                          }`}
                         >
                           Original
                         </button>
@@ -1066,10 +1157,11 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             e.stopPropagation();
                             viewModel.setShowOriginalFullscreen(false);
                           }}
-                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${!viewModel.showOriginalFullscreen
+                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${
+                            !viewModel.showOriginalFullscreen
                               ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
                               : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
-                            }`}
+                          }`}
                         >
                           Marked
                         </button>
@@ -1107,18 +1199,18 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                   <img
                     src={
                       viewModel.proofreadingData &&
-                        !viewModel.showOriginalFullscreen
+                      !viewModel.showOriginalFullscreen
                         ? (() => {
-                          const markedUrl = viewModel.getMarkedImageUrl();
-                          return (
-                            markedUrl || creative.previewUrl || creative.url
-                          );
-                        })()
+                            const markedUrl = viewModel.getMarkedImageUrl();
+                            return (
+                              markedUrl || creative.previewUrl || creative.url
+                            );
+                          })()
                         : creative.previewUrl || creative.url
                     }
                     alt={
                       viewModel.proofreadingData &&
-                        !viewModel.showOriginalFullscreen
+                      !viewModel.showOriginalFullscreen
                         ? `Marked ${creative.name}`
                         : creative.name
                     }
@@ -1168,10 +1260,11 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             e.stopPropagation();
                             viewModel.setShowOriginalHtmlFullscreen(true);
                           }}
-                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${viewModel.showOriginalHtmlFullscreen
+                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${
+                            viewModel.showOriginalHtmlFullscreen
                               ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
                               : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
-                            }`}
+                          }`}
                         >
                           Original
                         </button>
@@ -1182,10 +1275,11 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             e.stopPropagation();
                             viewModel.setShowOriginalHtmlFullscreen(false);
                           }}
-                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${!viewModel.showOriginalHtmlFullscreen
+                          className={`h-full px-4 text-xs font-medium transition-all rounded-md border-0 outline-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 flex items-center ${
+                            !viewModel.showOriginalHtmlFullscreen
                               ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
                               : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
-                            }`}
+                          }`}
                         >
                           Marked
                         </button>
@@ -1205,7 +1299,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
               </DialogHeader>
               <DialogBody className="flex-1 overflow-hidden p-0 max-w-full! max-h-full!">
                 {viewModel.proofreadingData &&
-                  !viewModel.showOriginalHtmlFullscreen ? (
+                !viewModel.showOriginalHtmlFullscreen ? (
                   // Marked view - show the marked HTML from API
                   (() => {
                     const markedHtmlContent = viewModel.getMarkedHtmlContent();

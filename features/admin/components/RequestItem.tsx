@@ -80,6 +80,8 @@ const getStatusBadgeClass = (status: string) => {
       return "rounded-[20px] border border-[#FCA5A5] bg-[#FEE2E2] h-7 px-2 text-xs xl:text-sm font-inter font-medium text-[#DC2626]";
     case "sent-back":
       return "rounded-[20px] border border-[#C4B5FD] bg-[#EDE9FE] h-7 px-2 text-xs xl:text-sm font-inter font-medium text-[#7C3AED]";
+    case "revised":
+      return "rounded-[20px] border border-[#67E8F9] bg-[#CFFAFE] h-7 px-2 text-xs xl:text-sm font-inter font-medium text-[#0891B2]";
     default:
       return "rounded-[20px] border border-[#D1D5DB] bg-[#F3F4F6] h-7 px-2 text-xs xl:text-sm font-inter font-medium text-[#6B7280]";
   }
@@ -121,6 +123,10 @@ const getStatusLabel = (status: string, approvalStage: string) => {
     return "Returned by Advertiser";
   }
 
+  if (normalizedStatus === "revised" && normalizedStage === "admin") {
+    return "Revised - Pending Review";
+  }
+
   switch (normalizedStatus) {
     case "new":
       return "New";
@@ -132,6 +138,8 @@ const getStatusLabel = (status: string, approvalStage: string) => {
       return "Rejected";
     case "sent-back":
       return "Sent Back";
+    case "revised":
+      return "Revised";
     default:
       return status;
   }
@@ -415,6 +423,26 @@ export function RequestItem({
           <span className="font-inter text-xs xl:text-sm">
             {request.offerName}
           </span>
+          <span className="font-inter text-xs xl:text-sm text-gray-400">|</span>
+          <span
+            className="font-inter text-xs xl:text-sm font-semibold"
+            style={{ color: variables.colors.requestCardTextColor }}
+          >
+            Client:
+          </span>
+          <span
+            className="font-inter text-xs xl:text-sm"
+            style={{ color: variables.colors.requestCardTextColor }}
+          >
+            {request.clientId}
+          </span>
+          <span className="font-inter text-xs xl:text-sm text-gray-400">|</span>
+          <span
+            className="font-inter text-xs xl:text-sm"
+            style={{ color: variables.colors.requestCardTextColor }}
+          >
+            {request.clientName}
+          </span>
         </div>
 
         <Button
@@ -469,28 +497,6 @@ export function RequestItem({
           }}
         >
           <div className="flex flex-col gap-6 text-xs xl:text-sm">
-            <div className="leading-relaxed font-inter flex items-center gap-2">
-              <span
-                className="font-inter text-sm font-semibold"
-                style={{ color: variables.colors.requestCardTextColor }}
-              >
-                Client:
-              </span>{" "}
-              <span
-                className="font-inter text-xs xl:text-sm "
-                style={{ color: variables.colors.requestCardTextColor }}
-              >
-                {request.clientId}
-              </span>{" "}
-              |{" "}
-              <span
-                className="font-inter text-xs xl:text-sm "
-                style={{ color: variables.colors.requestCardTextColor }}
-              >
-                {request.clientName}
-              </span>
-            </div>
-
             <div className="flex flex-wrap gap-2">
               {meta.map((m, index) => (
                 <span
@@ -1476,8 +1482,9 @@ export function RequestItem({
             setViewData(null);
           }}
           creative={viewData.creative}
-          showAdditionalNotes={false}
+          showAdditionalNotes={true}
           creativeType={viewData.creativeType}
+          viewOnly={true}
         />
       )}
 

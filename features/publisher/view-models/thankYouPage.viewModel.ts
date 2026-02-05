@@ -19,7 +19,7 @@ export interface StatusItem {
   description: string;
   icon: typeof ArrowUpCircle;
   status: "active" | "pending";
-  color: "blue" | "gray";
+  color: "blue" | "gray" | "amber" | "cyan";
 }
 
 export interface SubmissionInfo {

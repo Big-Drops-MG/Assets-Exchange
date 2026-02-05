@@ -27,6 +27,11 @@ export interface Creative {
   html?: boolean;
   uploadId?: string;
   embeddedHtml?: string;
+  metadata?: {
+    fromLines?: string;
+    subjectLines?: string;
+    additionalNotes?: string;
+  };
 }
 
 interface UseSingleCreativeViewModalProps {
@@ -45,6 +50,7 @@ interface UseSingleCreativeViewModalProps {
   showAdditionalNotes?: boolean;
   creativeType?: string;
   siblingCreatives?: Creative[];
+  viewOnly?: boolean;
 }
 
 export const useSingleCreativeViewModal = ({
@@ -56,6 +62,7 @@ export const useSingleCreativeViewModal = ({
   showAdditionalNotes: _showAdditionalNotes = false,
   creativeType: _creativeType = "email",
   siblingCreatives = [],
+  viewOnly = false,
 }: UseSingleCreativeViewModalProps) => {
   const [editableFileName, setEditableFileName] = useState(creative.name);
   const [editableNameOnly, setEditableNameOnly] = useState(() => {
@@ -65,8 +72,12 @@ export const useSingleCreativeViewModal = ({
       : creative.name;
   });
   const [isEditing, setIsEditing] = useState(false);
-  const [fromLines, setFromLines] = useState("");
-  const [subjectLines, setSubjectLines] = useState("");
+  const [fromLines, setFromLines] = useState(
+    creative.metadata?.fromLines || ""
+  );
+  const [subjectLines, setSubjectLines] = useState(
+    creative.metadata?.subjectLines || ""
+  );
   const [isHtmlEditorFullscreen, setIsHtmlEditorFullscreen] = useState(false);
   const [isImagePreviewFullscreen, setIsImagePreviewFullscreen] =
     useState(false);
@@ -85,7 +96,9 @@ export const useSingleCreativeViewModal = ({
   const [htmlContent, setHtmlContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
-  const [additionalNotes, setAdditionalNotes] = useState("");
+  const [additionalNotes, setAdditionalNotes] = useState(
+    creative.metadata?.additionalNotes || ""
+  );
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
@@ -316,8 +329,6 @@ export const useSingleCreativeViewModal = ({
         return html;
       }
 
-
-
       let processedHtml = html;
 
       // Regex to find src attributes: src="VALUE" or src='VALUE'
@@ -330,19 +341,21 @@ export const useSingleCreativeViewModal = ({
         const decodedUrl = decodeURIComponent(url);
 
         // 2. Normalize path: replace backslashes, remove leading ./
-        let normalizedTarget = decodedUrl.replace(/\\/g, '/');
-        if (normalizedTarget.startsWith('./')) {
+        let normalizedTarget = decodedUrl.replace(/\\/g, "/");
+        if (normalizedTarget.startsWith("./")) {
           normalizedTarget = normalizedTarget.substring(2);
         }
 
         // Find a sibling that matches this URL
-        const matchedSibling = siblingCreatives.find(sibling => {
+        const matchedSibling = siblingCreatives.find((sibling) => {
           // Skip if not an image/asset
-          const isAsset = sibling.type?.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(sibling.name);
+          const isAsset =
+            sibling.type?.startsWith("image/") ||
+            /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(sibling.name);
           if (!isAsset) return false;
 
           // Normalize sibling path
-          const siblingPath = sibling.name.replace(/\\/g, '/');
+          const siblingPath = sibling.name.replace(/\\/g, "/");
 
           // Case insensitive comparison
           const lowerSibling = siblingPath.toLowerCase();
@@ -352,17 +365,18 @@ export const useSingleCreativeViewModal = ({
           if (lowerSibling === lowerTarget) return true;
 
           // 2. Sibling ends with target (case insensitive) -> handles "folder/img.png" matching "img.png"
-          if (lowerSibling.endsWith('/' + lowerTarget)) return true;
+          if (lowerSibling.endsWith("/" + lowerTarget)) return true;
 
           // 3. Basename match (weakest check but needed for flattened vs nested mismatches)
-          const siblingBasename = lowerSibling.split('/').pop();
-          const targetBasename = lowerTarget.split('/').pop();
+          const siblingBasename = lowerSibling.split("/").pop();
+          const targetBasename = lowerTarget.split("/").pop();
 
           return siblingBasename === targetBasename;
         });
 
         if (matchedSibling) {
-          const replacementUrl = matchedSibling.previewUrl || matchedSibling.url;
+          const replacementUrl =
+            matchedSibling.previewUrl || matchedSibling.url;
 
           return `src="${replacementUrl}"`;
         }
@@ -428,8 +442,6 @@ export const useSingleCreativeViewModal = ({
       );
     }
   }, [isOpen, creative.name]);
-
-
 
   const fetchHtmlContent = useCallback(async () => {
     try {
@@ -879,15 +891,15 @@ export const useSingleCreativeViewModal = ({
         const rawCorrections = (resultData.corrections ||
           resultData.issues ||
           []) as Array<{
-            original_word?: string;
-            corrected_word?: string;
-            original_context?: string;
-            corrected_context?: string;
-            type?: string;
-            original?: string;
-            correction?: string;
-            note?: string;
-          }>;
+          original_word?: string;
+          corrected_word?: string;
+          original_context?: string;
+          corrected_context?: string;
+          type?: string;
+          original?: string;
+          correction?: string;
+          note?: string;
+        }>;
 
         const issues: ProofreadCreativeResponse["issues"] = rawCorrections.map(
           (c) => ({
@@ -987,15 +999,15 @@ export const useSingleCreativeViewModal = ({
               const rawCorrections = (resultData.corrections ||
                 resultData.issues ||
                 []) as Array<{
-                  original_word?: string;
-                  corrected_word?: string;
-                  original_context?: string;
-                  corrected_context?: string;
-                  type?: string;
-                  original?: string;
-                  correction?: string;
-                  note?: string;
-                }>;
+                original_word?: string;
+                corrected_word?: string;
+                original_context?: string;
+                corrected_context?: string;
+                type?: string;
+                original?: string;
+                correction?: string;
+                note?: string;
+              }>;
 
               const issues: ProofreadCreativeResponse["issues"] =
                 rawCorrections.map((c) => ({
@@ -1379,12 +1391,12 @@ export const useSingleCreativeViewModal = ({
   const isProofreadComplete = !!proofreadingData && !isAnalyzing;
   const proofreadResult = proofreadingData
     ? {
-      issues: proofreadingData.issues || [],
-      suggestions: proofreadingData.suggestions || [],
-      qualityScore: proofreadingData.qualityScore,
-      marked_image: getMarkedImageUrl(),
-      success: proofreadingData.success,
-    }
+        issues: proofreadingData.issues || [],
+        suggestions: proofreadingData.suggestions || [],
+        qualityScore: proofreadingData.qualityScore,
+        marked_image: getMarkedImageUrl(),
+        success: proofreadingData.success,
+      }
     : null;
 
   return {
@@ -1448,5 +1460,6 @@ export const useSingleCreativeViewModal = ({
     getMarkedHtmlContent,
     isProofreadComplete,
     proofreadResult,
+    viewOnly,
   };
 };

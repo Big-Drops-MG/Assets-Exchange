@@ -14,6 +14,11 @@ export interface CreativeFile {
   source?: "single" | "zip";
   uploadId?: string;
   embeddedHtml?: string;
+  metadata?: {
+    fromLines?: string;
+    subjectLines?: string;
+    additionalNotes?: string;
+  };
 }
 
 interface UseMultipleCreativesModalProps {
