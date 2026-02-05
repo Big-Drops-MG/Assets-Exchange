@@ -705,11 +705,13 @@ const dashboardPerformance = os
           )
         );
 
-        // Query with PST timezone conversion using raw SQL for timezone literal
+        // Query with PST timezone conversion using 15-minute intervals
         // Use double AT TIME ZONE because submittedAt is timestamp without timezone (stored as UTC)
+        // Round minutes to 15-minute intervals: FLOOR(EXTRACT(MINUTE ...) / 15) * 15
         const query = await db
           .select({
             hour: sql<number>`EXTRACT(HOUR FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles'))::int`,
+            minute: sql<number>`(FLOOR(EXTRACT(MINUTE FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles')) / 15) * 15)::int`,
             date: sql<string>`DATE(${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles')::text`,
             count: sql<number>`COUNT(*)::int`,
           })
@@ -717,28 +719,36 @@ const dashboardPerformance = os
           .where(metricWhereClause ? and(metricWhereClause) : sql`1=1`)
           .groupBy(
             sql`DATE(${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles')`,
-            sql`EXTRACT(HOUR FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles'))`
+            sql`EXTRACT(HOUR FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles'))`,
+            sql`FLOOR(EXTRACT(MINUTE FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles')) / 15) * 15`
           )
           .orderBy(
             sql`DATE(${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles')`,
-            sql`EXTRACT(HOUR FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles'))`
+            sql`EXTRACT(HOUR FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles'))`,
+            sql`FLOOR(EXTRACT(MINUTE FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles')) / 15) * 15`
           );
 
-        const hourlyData: Record<string, Record<number, number>> = {};
+        // Store data by date -> "HH:MM" key
+        const intervalData: Record<string, Record<string, number>> = {};
 
         query.forEach((row) => {
-          if (!hourlyData[row.date]) {
-            hourlyData[row.date] = {};
+          if (!intervalData[row.date]) {
+            intervalData[row.date] = {};
           }
-          hourlyData[row.date][row.hour] = row.count;
+          const timeKey = `${row.hour.toString().padStart(2, "0")}:${row.minute.toString().padStart(2, "0")}`;
+          intervalData[row.date][timeKey] = row.count;
         });
 
+        // Generate all 96 intervals (24 hours * 4 intervals per hour)
         for (let hour = 0; hour < 24; hour++) {
-          data.push({
-            label: hour.toString().padStart(2, "0") + ":00",
-            current: hourlyData[todayKey]?.[hour] || 0,
-            previous: hourlyData[comparisonKey]?.[hour] || 0,
-          });
+          for (let minute = 0; minute < 60; minute += 15) {
+            const timeKey = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+            data.push({
+              label: timeKey,
+              current: intervalData[todayKey]?.[timeKey] || 0,
+              previous: intervalData[comparisonKey]?.[timeKey] || 0,
+            });
+          }
         }
 
         xAxisLabel = "Time";
