@@ -770,6 +770,7 @@ export function ManageResponsesPage() {
                 requests={paginatedResponses}
                 startIndex={startIndex}
                 viewButtonText="View Response"
+                isAdvertiserView={true}
               />
               {totalPages > 1 && (
                 <div

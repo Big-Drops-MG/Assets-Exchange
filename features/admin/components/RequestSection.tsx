@@ -12,6 +12,7 @@ interface RequestSectionProps {
   viewButtonText?: string;
   showDownloadButton?: boolean;
   onRefresh?: () => void;
+  isAdvertiserView?: boolean;
 }
 
 export function RequestSection({
@@ -20,6 +21,7 @@ export function RequestSection({
   viewButtonText,
   showDownloadButton,
   onRefresh,
+  isAdvertiserView = false,
 }: RequestSectionProps) {
   return (
     <Accordion.Root type="single" collapsible className="space-y-4">
@@ -34,6 +36,7 @@ export function RequestSection({
             viewButtonText={viewButtonText}
             showDownloadButton={showDownloadButton}
             onRefresh={onRefresh}
+            isAdvertiserView={isAdvertiserView}
           />
         );
       })}

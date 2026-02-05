@@ -55,6 +55,7 @@ interface RequestItemProps {
   viewButtonText?: string;
   showDownloadButton?: boolean;
   onRefresh?: () => void;
+  isAdvertiserView?: boolean;
 }
 
 const getPriorityBadgeClass = (priority: string) => {
@@ -87,7 +88,7 @@ const getStatusBadgeClass = (status: string) => {
   }
 };
 
-const getStatusLabel = (status: string, approvalStage: string) => {
+const getStatusLabel = (status: string, approvalStage: string, isAdvertiserView: boolean = false) => {
   const normalizedStatus = status.toLowerCase();
   const normalizedStage = approvalStage.toLowerCase();
 
@@ -104,7 +105,8 @@ const getStatusLabel = (status: string, approvalStage: string) => {
   }
 
   if (normalizedStatus === "pending" && normalizedStage === "advertiser") {
-    return "Forwarded to Advertiser";
+    // Show "Pending" for advertiser view, "Forwarded to Advertiser" for admin view
+    return isAdvertiserView ? "Pending" : "Forwarded to Advertiser";
   }
 
   if (normalizedStatus === "rejected" && normalizedStage === "admin") {
@@ -228,6 +230,7 @@ export function RequestItem({
   viewButtonText = "View Request",
   showDownloadButton = false,
   onRefresh,
+  isAdvertiserView = false,
 }: RequestItemProps) {
   const variables = getVariables();
   const accordionColors = getAccordionColors(colorVariant, variables.colors);
@@ -397,7 +400,7 @@ export function RequestItem({
               variant="outline"
               className={getStatusBadgeClass(request.status)}
             >
-              {getStatusLabel(request.status, request.approvalStage)}
+              {getStatusLabel(request.status, request.approvalStage, isAdvertiserView)}
             </Badge>
           </div>
 
