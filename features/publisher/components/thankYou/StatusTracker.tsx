@@ -28,10 +28,10 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({ statuses }) => {
   // We want the line to extend from 0 to the active icon position
   // When only first status is active (index 0), show a partial line to indicate progress
   const progressWidth =
-    activeIndex >= 0 
-      ? activeIndex === 0 
+    activeIndex >= 0
+      ? activeIndex === 0
         ? 5 // Show 5% progress for first status to make it visible
-        : (activeIndex / (statuses.length - 1)) * 100 
+        : (activeIndex / (statuses.length - 1)) * 100
       : 0;
 
   // Check if the current active status is amber, cyan, green, or red colored
@@ -54,14 +54,14 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({ statuses }) => {
               <div
                 className={`h-full rounded-full transition-all duration-1000 shadow-sm origin-left ${
                   isAmberActive
-                    ? "bg-gradient-to-r from-blue-500 via-blue-600 to-amber-500"
+                    ? "bg-amber-500"
                     : isCyanActive
-                      ? "bg-gradient-to-r from-blue-500 via-blue-600 to-cyan-500"
+                      ? "bg-cyan-500"
                       : isGreenActive
-                        ? "bg-gradient-to-r from-blue-500 via-teal-500 to-emerald-500"
+                        ? "bg-emerald-500"
                         : isRedActive
-                          ? "bg-gradient-to-r from-blue-500 via-pink-500 to-red-500"
-                          : "bg-gradient-to-r from-blue-500 to-blue-600"
+                          ? "bg-red-500"
+                          : "bg-blue-500"
                 }`}
                 style={{
                   width:
