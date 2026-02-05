@@ -52,32 +52,54 @@ export function StatsCard({
     return formatNumberShorthand(value);
   }, [value]);
 
-  // Calculate percentage change from yesterday
+  // Calculate percentage change based on card type
   const calculatedTrend = useMemo(() => {
     if (!historicalData || !trend) return trend;
 
-    // Find yesterday's value from historicalData
-    const yesterdayData = historicalData.find(
-      (item) => item.label === "Yesterday"
-    );
+    // For Total Assets, compare Current Month vs Last Month
+    // For all other cards, compare Today (value) vs Yesterday
+    const isTotalAssets = title === "Total Assets";
 
-    if (!yesterdayData) return trend;
+    let previousValue = 0;
+    let currentValue = value; // Default to the main value (represents Today)
 
-    // Parse yesterday's value (handle both string and number, including formatted values like "25k", "10.8k")
-    let yesterdayValue = 0;
-    if (typeof yesterdayData.value === "number") {
-      yesterdayValue = yesterdayData.value;
-    } else if (typeof yesterdayData.value === "string") {
-      const cleanedValue = yesterdayData.value.trim().toLowerCase();
+    if (isTotalAssets) {
+      // Find Current Month and Last Month from historicalData
+      const currentMonthData = historicalData.find(
+        (item) => item.label === "Current Month"
+      );
+      const lastMonthData = historicalData.find(
+        (item) => item.label === "Last Month"
+      );
 
-      // Handle "k" suffix (thousands)
-      if (cleanedValue.endsWith("k")) {
-        const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
-        yesterdayValue = isNaN(numValue) ? 0 : numValue * 1000;
-      } else {
-        // Handle regular numbers
-        const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
-        yesterdayValue = isNaN(numValue) ? 0 : numValue;
+      if (!currentMonthData || !lastMonthData) return trend;
+
+      // Parse current month value
+      if (typeof currentMonthData.value === "number") {
+        currentValue = currentMonthData.value;
+      } else if (typeof currentMonthData.value === "string") {
+        currentValue = parseFormattedValue(currentMonthData.value);
+      }
+
+      // Parse last month value
+      if (typeof lastMonthData.value === "number") {
+        previousValue = lastMonthData.value;
+      } else if (typeof lastMonthData.value === "string") {
+        previousValue = parseFormattedValue(lastMonthData.value);
+      }
+    } else {
+      // For other cards, compare Today vs Yesterday
+      const yesterdayData = historicalData.find(
+        (item) => item.label === "Yesterday"
+      );
+
+      if (!yesterdayData) return trend;
+
+      // Parse yesterday's value
+      if (typeof yesterdayData.value === "number") {
+        previousValue = yesterdayData.value;
+      } else if (typeof yesterdayData.value === "string") {
+        previousValue = parseFormattedValue(yesterdayData.value);
       }
     }
 
@@ -85,12 +107,12 @@ export function StatsCard({
     let percentageChange = 0;
     let isPositive = true;
 
-    if (yesterdayValue === 0) {
-      // If yesterday was 0, show 100% increase if today > 0, otherwise 0%
-      percentageChange = value > 0 ? 100 : 0;
-      isPositive = value > 0;
+    if (previousValue === 0) {
+      // If previous was 0, show 100% increase if current > 0, otherwise 0%
+      percentageChange = currentValue > 0 ? 100 : 0;
+      isPositive = currentValue > 0;
     } else {
-      percentageChange = ((value - yesterdayValue) / yesterdayValue) * 100;
+      percentageChange = ((currentValue - previousValue) / previousValue) * 100;
       isPositive = percentageChange >= 0;
     }
 
@@ -102,7 +124,31 @@ export function StatsCard({
       textValue: `${roundedPercentage}%`,
       trendIconValue: isPositive ? TrendingUp : TrendingDown,
     };
-  }, [value, historicalData, trend]);
+  }, [value, historicalData, trend, title]);
+
+  // Helper function to parse formatted values
+  function parseFormattedValue(value: string): number {
+    const cleanedValue = value.trim().toLowerCase();
+
+    // Handle "k" suffix (thousands)
+    if (cleanedValue.endsWith("k")) {
+      const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
+      return isNaN(numValue) ? 0 : numValue * 1000;
+    }
+    // Handle "l" suffix (lakhs)
+    if (cleanedValue.endsWith("l")) {
+      const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
+      return isNaN(numValue) ? 0 : numValue * 100000;
+    }
+    // Handle "m" suffix (millions)
+    if (cleanedValue.endsWith("m")) {
+      const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
+      return isNaN(numValue) ? 0 : numValue * 10000000;
+    }
+    // Handle regular numbers
+    const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
+    return isNaN(numValue) ? 0 : numValue;
+  }
 
   const TrendIcon = calculatedTrend?.trendIconValue;
   const isPositive = TrendIcon === TrendingUp;
