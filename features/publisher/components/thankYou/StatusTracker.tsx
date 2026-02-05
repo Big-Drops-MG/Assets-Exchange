@@ -26,8 +26,13 @@ export const StatusTracker: React.FC<StatusTrackerProps> = ({ statuses }) => {
   // For precise alignment: calculate based on icon positions
   // With justify-between, icons are at 0%, 25%, 50%, 75%, 100% for 5 items
   // We want the line to extend from 0 to the active icon position
+  // When only first status is active (index 0), show a partial line to indicate progress
   const progressWidth =
-    activeIndex >= 0 ? (activeIndex / (statuses.length - 1)) * 100 : 0;
+    activeIndex >= 0 
+      ? activeIndex === 0 
+        ? 5 // Show 5% progress for first status to make it visible
+        : (activeIndex / (statuses.length - 1)) * 100 
+      : 0;
 
   // Check if the current active status is amber or cyan colored
   const currentActiveColor =
