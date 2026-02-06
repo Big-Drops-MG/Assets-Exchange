@@ -14,10 +14,10 @@ export const adminMenuConfig: SidebarMenuConfig = [
     id: "main",
     items: [
       {
-        id: "dashboard",
-        label: "Dashboard",
-        icon: "LayoutDashboard",
-        href: "/dashboard",
+        id: "ops-dashboard",
+        label: "Operations Dashboard",
+        icon: "Activity",
+        href: "/ops",
       },
       {
         id: "Creatives",
@@ -132,51 +132,16 @@ export const adminMenuConfig: SidebarMenuConfig = [
 //   },
 // ];
 
-// export const administratorMenuConfig: SidebarMenuConfig = [
-//   {
-//     id: "main",
-//     items: [
-//       {
-//         id: "dashboard",
-//         label: "Dashboard",
-//         icon: LayoutDashboard,
-//         href: "/dashboard",
-//       },
-//       {
-//         id: "users",
-//         label: "User Management",
-//         icon: Users,
-//         href: "/dashboard/users",
-//       },
-//       {
-//         id: "campaigns",
-//         label: "All Campaigns",
-//         icon: Campaign,
-//         href: "/dashboard/campaigns",
-//       },
-//       {
-//         id: "analytics",
-//         label: "Analytics",
-//         icon: BarChart3,
-//         href: "/dashboard/analytics",
-//       },
-//     ],
-//   },
-//   {
-//     id: "secondary",
-//     items: [
-//       {
-//         id: "settings",
-//         label: "System Settings",
-//         icon: Settings,
-//         href: "/dashboard/settings",
-//       },
-//       {
-//         id: "help",
-//         label: "Help & Support",
-//         icon: HelpCircle,
-//         href: "/dashboard/help",
-//       },
-//     ],
-//   },
-// ];
+export const administratorMenuConfig: SidebarMenuConfig = [
+  {
+    id: "main",
+    items: [
+      {
+        id: "ops-dashboard",
+        label: "Operations Dashboard",
+        icon: "Activity",
+        href: "/ops",
+      },
+    ],
+  },
+];

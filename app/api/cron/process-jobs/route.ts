@@ -20,6 +20,9 @@ import { type JobErrorType } from "@/types/jobError";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
+// Timeout for malware scan service (2 minutes - well below 15-minute stuck threshold)
+const SCAN_SERVICE_TIMEOUT_MS = 120000; // 2 minutes
+
 const retryPolicy: Record<JobErrorType, { delayMinutes?: number }> = {
   network: { delayMinutes: 1 },
   rate_limit: { delayMinutes: 10 },
@@ -677,18 +680,62 @@ async function performCreativeScan(
 ): Promise<{ success: boolean; result?: unknown; error?: string }> {
   try {
     if (process.env.PYTHON_SERVICE_URL) {
-      const response = await fetch(`${process.env.PYTHON_SERVICE_URL}/scan`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ file_url: url }),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(
+        () => controller.abort(),
+        SCAN_SERVICE_TIMEOUT_MS
+      );
 
-      if (!response.ok) {
-        throw new Error(`Scan service returned ${response.status}`);
+      let response: Response;
+      try {
+        const startTime = Date.now();
+        response = await fetch(`${process.env.PYTHON_SERVICE_URL}/scan`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_url: url }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+        logger.info({
+          action: "performCreativeScan",
+          creativeId,
+          message: `Scan completed in ${duration}s with status ${response.status}`,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Scan service returned ${response.status}`);
+        }
+
+        const result = await response.json();
+        return { success: true, result };
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        const fetchError = fetchErr as Error;
+
+        // Check if it's a timeout error
+        if (fetchError.name === "AbortError" || controller.signal.aborted) {
+          const timeoutError = new Error(
+            `Scan service timeout after ${SCAN_SERVICE_TIMEOUT_MS / 1000}s`
+          );
+          timeoutError.name = "TimeoutError";
+          throw timeoutError;
+        }
+
+        // Re-throw network/connection errors
+        if (
+          fetchError.message.includes("fetch failed") ||
+          fetchError.message.includes("ECONNREFUSED") ||
+          fetchError.message.includes("ENOTFOUND") ||
+          fetchError.message.includes("network")
+        ) {
+          throw new Error(`Network error: ${fetchError.message}`);
+        }
+
+        // Re-throw other errors
+        throw fetchError;
       }
-
-      const result = await response.json();
-      return { success: true, result };
     } else {
       logger.warn({
         action: "performCreativeScan",
@@ -703,11 +750,16 @@ async function performCreativeScan(
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    const isTimeout =
+      error instanceof Error &&
+      (error.name === "TimeoutError" || errorMessage.includes("timeout"));
+
     logger.error({
       action: "performCreativeScan",
       creativeId,
       error: errorMessage,
-      message: "Scan failed",
+      isTimeout,
+      message: isTimeout ? "Scan timed out" : "Scan failed",
     });
 
     return {

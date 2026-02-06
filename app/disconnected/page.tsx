@@ -29,7 +29,7 @@ export default function DisconnectedPage() {
       setIsOnline(true);
       // Small delay to ensure connection is stable
       setTimeout(() => {
-        router.push("/dashboard");
+        router.push("/ops");
         router.refresh();
       }, 500);
     };
@@ -60,7 +60,7 @@ export default function DisconnectedPage() {
       if (response.ok) {
         setIsOnline(true);
         setTimeout(() => {
-          router.push("/dashboard");
+          router.push("/ops");
           router.refresh();
         }, 500);
       } else {
@@ -74,7 +74,7 @@ export default function DisconnectedPage() {
   };
 
   const handleGoHome = () => {
-    router.push("/dashboard");
+    router.push("/ops");
   };
 
   return (
@@ -182,7 +182,7 @@ export default function DisconnectedPage() {
               }}
             >
               <Home className="h-4 w-4 mr-2" />
-              Go to Dashboard
+              Go to Operations Dashboard
             </Button>
           </div>
 

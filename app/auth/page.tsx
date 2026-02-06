@@ -1,3 +1,5 @@
+"use client";
+
 import { getVariables } from "@/components/_variables/variables";
 import { LoginForm } from "@/features/auth/components/LoginForm";
 

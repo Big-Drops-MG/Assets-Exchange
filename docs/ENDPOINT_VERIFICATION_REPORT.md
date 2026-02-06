@@ -82,7 +82,7 @@ export async function POST(_req: Request) {
 - ✅ Blocks non-admin users (advertiser, unauthenticated)
 - ✅ Allows admin users
 
-**Note:** Other admin endpoints (e.g., `app/api/admin/audit-logs/route.ts`) also allow `"administrator"` role.
+**Note:** Other admin endpoints also allow `"administrator"` role.
 
 **Status:** ✅ **FIXED** - Updated to also allow `"administrator"` role for consistency:
 

@@ -49,8 +49,8 @@ export function OfflineDetector() {
       })
         .then((response) => {
           if (response.ok && pathname === "/disconnected") {
-            // Connection restored, redirect to dashboard
-            router.push("/dashboard");
+            // Connection restored, redirect to ops dashboard
+            router.push("/ops");
             router.refresh();
           }
         })

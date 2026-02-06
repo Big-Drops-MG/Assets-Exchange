@@ -11,8 +11,10 @@ import {
   Settings2,
   FileText,
   MessageSquareReply,
-  type LucideIcon,
+  FileCheck,
+  Activity,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -48,6 +50,8 @@ const iconMap: Record<IconName, LucideIcon> = {
   Settings,
   Settings2,
   FileText,
+  FileCheck,
+  Activity,
 };
 
 interface DashboardSidebarProps {
