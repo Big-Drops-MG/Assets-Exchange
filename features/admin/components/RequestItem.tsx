@@ -39,6 +39,12 @@ import {
   getRequestViewData,
   type RequestViewData,
 } from "../actions/request.actions";
+import {
+  approveRequest,
+  forwardRequest,
+  rejectRequest,
+  returnRequest,
+} from "../services/adminRequests.client";
 import type { CreativeRequest } from "../types/request.types";
 
 const MAX_COMMENT_LENGTH = 5000;
@@ -48,6 +54,19 @@ interface RequestItemProps {
   colorVariant: "purple" | "blue";
   viewButtonText?: string;
   showDownloadButton?: boolean;
+  onRefresh?: () => void;
+  onStatusUpdate?: (
+    requestId: string,
+    newStatus:
+      | "new"
+      | "pending"
+      | "approved"
+      | "rejected"
+      | "sent-back"
+      | "revised",
+    newApprovalStage: "admin" | "advertiser" | "completed"
+  ) => void;
+  isAdvertiserView?: boolean;
 }
 
 const getPriorityBadgeClass = (priority: string) => {
@@ -73,12 +92,18 @@ const getStatusBadgeClass = (status: string) => {
       return "rounded-[20px] border border-[#FCA5A5] bg-[#FEE2E2] h-7 px-2 text-xs xl:text-sm font-inter font-medium text-[#DC2626]";
     case "sent-back":
       return "rounded-[20px] border border-[#C4B5FD] bg-[#EDE9FE] h-7 px-2 text-xs xl:text-sm font-inter font-medium text-[#7C3AED]";
+    case "revised":
+      return "rounded-[20px] border border-[#67E8F9] bg-[#CFFAFE] h-7 px-2 text-xs xl:text-sm font-inter font-medium text-[#0891B2]";
     default:
       return "rounded-[20px] border border-[#D1D5DB] bg-[#F3F4F6] h-7 px-2 text-xs xl:text-sm font-inter font-medium text-[#6B7280]";
   }
 };
 
-const getStatusLabel = (status: string, approvalStage: string) => {
+const getStatusLabel = (
+  status: string,
+  approvalStage: string,
+  isAdvertiserView: boolean = false
+) => {
   const normalizedStatus = status.toLowerCase();
   const normalizedStage = approvalStage.toLowerCase();
 
@@ -95,7 +120,8 @@ const getStatusLabel = (status: string, approvalStage: string) => {
   }
 
   if (normalizedStatus === "pending" && normalizedStage === "advertiser") {
-    return "Pending";
+    // Show "Pending" for advertiser view, "Forwarded to Advertiser" for admin view
+    return isAdvertiserView ? "Pending" : "Forwarded to Advertiser";
   }
 
   if (normalizedStatus === "rejected" && normalizedStage === "admin") {
@@ -114,6 +140,10 @@ const getStatusLabel = (status: string, approvalStage: string) => {
     return "Returned by Advertiser";
   }
 
+  if (normalizedStatus === "revised" && normalizedStage === "admin") {
+    return "Revised - Pending Review";
+  }
+
   switch (normalizedStatus) {
     case "new":
       return "New";
@@ -125,6 +155,8 @@ const getStatusLabel = (status: string, approvalStage: string) => {
       return "Rejected";
     case "sent-back":
       return "Sent Back";
+    case "revised":
+      return "Revised";
     default:
       return status;
   }
@@ -142,8 +174,14 @@ const shouldShowActionButtons = (
     return true;
   }
 
-  // Show buttons for pending requests with admin (Pending Approvals tab - 2+ days old)
+  // Show buttons for pending requests with admin (
+  //  tab - 2+ days old)
   if (normalizedStatus === "pending" && normalizedStage === "admin") {
+    return true;
+  }
+
+  // Show buttons for revised requests (resubmitted by publisher after being sent back)
+  if (normalizedStatus === "revised" && normalizedStage === "admin") {
     return true;
   }
 
@@ -206,6 +244,9 @@ export function RequestItem({
   colorVariant,
   viewButtonText = "View Request",
   showDownloadButton = false,
+  onRefresh: _onRefresh,
+  onStatusUpdate,
+  isAdvertiserView = false,
 }: RequestItemProps) {
   const variables = getVariables();
   const accordionColors = getAccordionColors(colorVariant, variables.colors);
@@ -375,7 +416,11 @@ export function RequestItem({
               variant="outline"
               className={getStatusBadgeClass(request.status)}
             >
-              {getStatusLabel(request.status, request.approvalStage)}
+              {getStatusLabel(
+                request.status,
+                request.approvalStage,
+                isAdvertiserView
+              )}
             </Badge>
           </div>
 
@@ -406,6 +451,26 @@ export function RequestItem({
           </span>
           <span className="font-inter text-xs xl:text-sm">
             {request.offerName}
+          </span>
+          <span className="font-inter text-xs xl:text-sm text-gray-400">|</span>
+          <span
+            className="font-inter text-xs xl:text-sm font-semibold"
+            style={{ color: variables.colors.requestCardTextColor }}
+          >
+            Client:
+          </span>
+          <span
+            className="font-inter text-xs xl:text-sm"
+            style={{ color: variables.colors.requestCardTextColor }}
+          >
+            {request.clientId}
+          </span>
+          <span className="font-inter text-xs xl:text-sm text-gray-400">|</span>
+          <span
+            className="font-inter text-xs xl:text-sm"
+            style={{ color: variables.colors.requestCardTextColor }}
+          >
+            {request.clientName}
           </span>
         </div>
 
@@ -461,28 +526,6 @@ export function RequestItem({
           }}
         >
           <div className="flex flex-col gap-6 text-xs xl:text-sm">
-            <div className="leading-relaxed font-inter flex items-center gap-2">
-              <span
-                className="font-inter text-sm font-semibold"
-                style={{ color: variables.colors.requestCardTextColor }}
-              >
-                Client:
-              </span>{" "}
-              <span
-                className="font-inter text-xs xl:text-sm "
-                style={{ color: variables.colors.requestCardTextColor }}
-              >
-                {request.clientId}
-              </span>{" "}
-              |{" "}
-              <span
-                className="font-inter text-xs xl:text-sm "
-                style={{ color: variables.colors.requestCardTextColor }}
-              >
-                {request.clientName}
-              </span>
-            </div>
-
             <div className="flex flex-wrap gap-2">
               {meta.map((m, index) => (
                 <span
@@ -644,72 +687,17 @@ export function RequestItem({
                           setApprovePopoverOpen(false);
                           setIsApproving(true);
                           setError(null);
-
                           try {
-                            // TODO: BACKEND - Implement Admin Approve Handler (UNIFIED MODEL)
-                            //
-                            // API Endpoint: POST /api/admin/creative-requests/:id/admin-approve
-                            //
-                            // Request Body:
-                            // {
-                            //   actionBy: string (admin user ID),
-                            //   actionType: 'approve',
-                            //   comments: string (optional)
-                            // }
-                            //
-                            // Backend Requirements:
-                            // 1. Validate user is admin and has permission
-                            // 2. Validate request status is 'new' and approvalStage is 'admin'
-                            // 3. Update creative_requests table:
-                            //    - Set status = 'approved'
-                            //    - Set approval_stage = 'admin'
-                            //    - Set admin_approved_by = actionBy
-                            //    - Set admin_approved_at = current timestamp
-                            //    - Set admin_comments = comments (if provided)
-                            // 4. Create history record in creative_request_history:
-                            //    - action_type = 'admin_approve'
-                            //    - action_by = actionBy
-                            //    - action_at = current timestamp
-                            //    - comments = comments
-                            //    - previous_status = 'new'
-                            //    - new_status = 'approved'
-                            //    - previous_approval_stage = 'admin'
-                            //    - new_approval_stage = 'admin'
-                            // 5. Send notification to publisher about approval
-                            // 6. Return updated request object
-                            //
-                            // Response Format:
-                            // {
-                            //   success: boolean,
-                            //   request: Request (updated request object),
-                            //   message: string
-                            // }
-                            //
-                            // const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-approve`, {
-                            //   method: 'POST',
-                            //   headers: {
-                            //     'Content-Type': 'application/json',
-                            //     'Authorization': `Bearer ${getAuthToken()}`
-                            //   },
-                            //   body: JSON.stringify({
-                            //     actionBy: getCurrentUserId(),
-                            //     actionType: 'approve',
-                            //     comments: ''
-                            //   })
-                            // });
-                            //
-                            // if (!response.ok) {
-                            //   const errorData = await response.json();
-                            //   throw new Error(errorData.message || 'Failed to approve request');
-                            // }
-
-                            // Optimistic update - show success immediately
+                            await approveRequest(request.id);
+                            onStatusUpdate?.(
+                              request.id,
+                              "approved",
+                              "completed"
+                            );
                             toast.success("Request approved", {
                               description:
                                 "The request has been successfully approved.",
                             });
-
-                            // await refreshRequests();
                           } catch (err) {
                             const errorMessage =
                               err instanceof Error
@@ -750,70 +738,16 @@ export function RequestItem({
                           setError(null);
 
                           try {
-                            // TODO: BACKEND - Implement Admin Forward Handler (UNIFIED MODEL)
-                            //
-                            // API Endpoint: POST /api/admin/creative-requests/:id/admin-forward
-                            //
-                            // Request Body:
-                            // {
-                            //   actionBy: string (admin user ID),
-                            //   actionType: 'forward',
-                            //   comments: string (optional)
-                            // }
-                            //
-                            // Backend Requirements:
-                            // 1. Validate user is admin and has permission
-                            // 2. Validate request status is 'new' and approvalStage is 'admin'
-                            // 3. Update creative_requests table:
-                            //    - Set status = 'pending'
-                            //    - Set approval_stage = 'advertiser'
-                            //    - Set admin_approved_by = actionBy
-                            //    - Set admin_approved_at = current timestamp
-                            //    - Set admin_comments = comments (if provided)
-                            // 4. Create history record in creative_request_history:
-                            //    - action_type = 'admin_forward'
-                            //    - action_by = actionBy
-                            //    - action_at = current timestamp
-                            //    - comments = comments
-                            //    - previous_status = 'new'
-                            //    - new_status = 'pending'
-                            //    - previous_approval_stage = 'admin'
-                            //    - new_approval_stage = 'advertiser'
-                            // 5. Send notification to advertiser about pending review
-                            // 6. Send notification to publisher about forwarding
-                            // 7. Return updated request object
-                            //
-                            // Response Format:
-                            // {
-                            //   success: boolean,
-                            //   request: Request (updated request object),
-                            //   message: string
-                            // }
-                            //
-                            // const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-forward`, {
-                            //   method: 'POST',
-                            //   headers: {
-                            //     'Content-Type': 'application/json',
-                            //     'Authorization': `Bearer ${getAuthToken()}`
-                            //   },
-                            //   body: JSON.stringify({
-                            //     actionBy: getCurrentUserId(),
-                            //     actionType: 'forward',
-                            //     comments: ''
-                            //   })
-                            // });
-                            //
-                            // if (!response.ok) {
-                            //   throw new Error('Failed to forward request');
-                            // }
-
-                            // Optimistic update
+                            await forwardRequest(request.id);
+                            onStatusUpdate?.(
+                              request.id,
+                              "pending",
+                              "advertiser"
+                            );
                             toast.success("Request forwarded to advertiser", {
                               description:
                                 "The request has been forwarded for advertiser review.",
                             });
-
-                            // await refreshRequests();
                           } catch (err) {
                             const errorMessage =
                               err instanceof Error
@@ -946,73 +880,18 @@ export function RequestItem({
                           setRejectPopoverOpen(false);
                           setIsRejecting(true);
                           setError(null);
-
                           try {
-                            // TODO: BACKEND - Implement Admin Reject Handler (UNIFIED MODEL)
-                            //
-                            // API Endpoint: POST /api/admin/creative-requests/:id/admin-reject
-                            //
-                            // Request Body:
-                            // {
-                            //   actionBy: string (admin user ID),
-                            //   actionType: 'reject',
-                            //   comments: string (optional, max 5000 chars)
-                            // }
-                            //
-                            // Backend Requirements:
-                            // 1. Validate user is admin and has permission
-                            // 2. Validate request can be rejected (status = 'new' or 'pending', approvalStage = 'admin')
-                            // 3. Validate comments length (max 5000 characters)
-                            // 4. Update creative_requests table:
-                            //    - Set status = 'rejected'
-                            //    - Set approval_stage = 'admin'
-                            //    - Set admin_rejected_by = actionBy
-                            //    - Set admin_rejected_at = current timestamp
-                            //    - Set admin_comments = comments (if provided)
-                            // 5. Create history record in creative_request_history:
-                            //    - action_type = 'admin_reject'
-                            //    - action_by = actionBy
-                            //    - action_at = current timestamp
-                            //    - comments = comments
-                            //    - previous_status = current status
-                            //    - new_status = 'rejected'
-                            //    - previous_approval_stage = current approval_stage
-                            //    - new_approval_stage = 'admin'
-                            // 6. Send notification to publisher about rejection
-                            // 7. Return updated request object
-                            //
-                            // Response Format:
-                            // {
-                            //   success: boolean,
-                            //   request: Request (updated request object),
-                            //   message: string
-                            // }
-                            //
-                            // const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-reject`, {
-                            //   method: 'POST',
-                            //   headers: {
-                            //     'Content-Type': 'application/json',
-                            //     'Authorization': `Bearer ${getAuthToken()}`
-                            //   },
-                            //   body: JSON.stringify({
-                            //     actionBy: getCurrentUserId(),
-                            //     actionType: 'reject',
-                            //     comments: rejectComments
-                            //   })
-                            // });
-                            //
-                            // if (!response.ok) {
-                            //   const errorData = await response.json();
-                            //   throw new Error(errorData.message || 'Failed to reject request');
-                            // }
-
+                            await rejectRequest(request.id, rejectComments);
+                            onStatusUpdate?.(
+                              request.id,
+                              "rejected",
+                              "completed"
+                            );
                             toast.success("Request rejected", {
                               description:
                                 "The request has been rejected successfully.",
                             });
-
                             setRejectComments("");
-                            // await refreshRequests();
                           } catch (err) {
                             const errorMessage =
                               err instanceof Error
@@ -1049,71 +928,13 @@ export function RequestItem({
                           setError(null);
 
                           try {
-                            // TODO: BACKEND - Implement Admin Send Back Handler (UNIFIED MODEL)
-                            //
-                            // API Endpoint: POST /api/admin/creative-requests/:id/admin-send-back
-                            //
-                            // Request Body:
-                            // {
-                            //   actionBy: string (admin user ID),
-                            //   actionType: 'send-back',
-                            //   comments: string (optional, max 5000 chars)
-                            // }
-                            //
-                            // Backend Requirements:
-                            // 1. Validate user is admin and has permission
-                            // 2. Validate request can be sent back (status = 'new' or 'pending', approvalStage = 'admin')
-                            // 3. Validate comments length (max 5000 characters)
-                            // 4. Update creative_requests table:
-                            //    - Set status = 'sent-back'
-                            //    - Set approval_stage = 'admin'
-                            //    - Set admin_sent_back_by = actionBy
-                            //    - Set admin_sent_back_at = current timestamp
-                            //    - Set admin_comments = comments (if provided)
-                            // 5. Create history record in creative_request_history:
-                            //    - action_type = 'admin_send_back'
-                            //    - action_by = actionBy
-                            //    - action_at = current timestamp
-                            //    - comments = comments
-                            //    - previous_status = current status
-                            //    - new_status = 'sent-back'
-                            //    - previous_approval_stage = current approval_stage
-                            //    - new_approval_stage = 'admin'
-                            // 6. Send notification to publisher about send back with comments
-                            // 7. Return updated request object
-                            //
-                            // Response Format:
-                            // {
-                            //   success: boolean,
-                            //   request: Request (updated request object),
-                            //   message: string
-                            // }
-                            //
-                            // const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-send-back`, {
-                            //   method: 'POST',
-                            //   headers: {
-                            //     'Content-Type': 'application/json',
-                            //     'Authorization': `Bearer ${getAuthToken()}`
-                            //   },
-                            //   body: JSON.stringify({
-                            //     actionBy: getCurrentUserId(),
-                            //     actionType: 'send-back',
-                            //     comments: rejectComments
-                            //   })
-                            // });
-                            //
-                            // if (!response.ok) {
-                            //   const errorData = await response.json();
-                            //   throw new Error(errorData.message || 'Failed to send back request');
-                            // }
-
+                            await returnRequest(request.id, rejectComments);
+                            onStatusUpdate?.(request.id, "sent-back", "admin");
                             toast.success("Request sent back to publisher", {
                               description:
                                 "The request has been sent back to the publisher for revision.",
                             });
-
                             setRejectComments("");
-                            // await refreshRequests();
                           } catch (err) {
                             const errorMessage =
                               err instanceof Error
@@ -1369,31 +1190,17 @@ export function RequestItem({
                           setError(null);
 
                           try {
-                            // TODO: BACKEND - Implement Admin Reject Handler (UNIFIED MODEL)
-                            // const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-reject`, {
-                            //   method: 'POST',
-                            //   headers: {
-                            //     'Content-Type': 'application/json',
-                            //     'Authorization': `Bearer ${getAuthToken()}`
-                            //   },
-                            //   body: JSON.stringify({
-                            //     actionBy: getCurrentUserId(),
-                            //     actionType: 'reject',
-                            //     comments: sendBackComments
-                            //   })
-                            // });
-                            //
-                            // if (!response.ok) {
-                            //   throw new Error('Failed to reject request');
-                            // }
-
+                            await rejectRequest(request.id, sendBackComments);
+                            onStatusUpdate?.(
+                              request.id,
+                              "rejected",
+                              "completed"
+                            );
                             toast.success("Request rejected", {
                               description:
                                 "The request has been rejected successfully.",
                             });
-
                             setSendBackComments("");
-                            // await refreshRequests();
                           } catch (err) {
                             const errorMessage =
                               err instanceof Error
@@ -1430,34 +1237,14 @@ export function RequestItem({
                           setSendBackPopoverOpen(false);
                           setIsSendingBack(true);
                           setError(null);
-
                           try {
-                            // TODO: BACKEND - Implement Admin Send Back Handler (UNIFIED MODEL)
-                            // const response = await fetch(`/api/admin/creative-requests/${request.id}/admin-send-back`, {
-                            //   method: 'POST',
-                            //   headers: {
-                            //     'Content-Type': 'application/json',
-                            //     'Authorization': `Bearer ${getAuthToken()}`
-                            //   },
-                            //   body: JSON.stringify({
-                            //     actionBy: getCurrentUserId(),
-                            //     actionType: 'send-back',
-                            //     comments: sendBackComments
-                            //   })
-                            // });
-                            //
-                            // if (!response.ok) {
-                            //   const errorData = await response.json();
-                            //   throw new Error(errorData.message || 'Failed to send back request');
-                            // }
-
+                            await returnRequest(request.id, sendBackComments);
+                            onStatusUpdate?.(request.id, "sent-back", "admin");
                             toast.success("Request sent back to publisher", {
                               description:
                                 "The request has been sent back to the publisher for revision.",
                             });
-
                             setSendBackComments("");
-                            // await refreshRequests();
                           } catch (err) {
                             const errorMessage =
                               err instanceof Error
@@ -1740,8 +1527,9 @@ export function RequestItem({
             setViewData(null);
           }}
           creative={viewData.creative}
-          showAdditionalNotes={false}
+          showAdditionalNotes={true}
           creativeType={viewData.creativeType}
+          viewOnly={true}
         />
       )}
 

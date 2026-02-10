@@ -16,7 +16,7 @@ export class ResetStuckScanningError extends Error {
 
 export async function resetStuckScanningAssets(): Promise<ResetStuckScanningResponse> {
   try {
-    const response = await fetch("/api/admin/creatives/reset-stuck-scanning", {
+    const response = await fetch("/api/ops/creatives/reset-stuck-scanning", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

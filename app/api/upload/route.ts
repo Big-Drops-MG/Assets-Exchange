@@ -132,20 +132,6 @@ export async function POST(req: NextRequest) {
     const safeName = sanitizeFilename(fileName);
     const saved = await saveBuffer(fileBuffer, safeName);
 
-    /* 🚧 SECURITY TODO: 
-       The Python Malware Service integration is disabled for now.
-       Uncomment the block below when the Checking Model is ready.
-    */
-    /*
-    if (process.env.PYTHON_SERVICE_URL) {
-        fetch(`${process.env.PYTHON_SERVICE_URL}/scan`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ file_url: saved.url }),
-        }).catch(err => console.error("Scan trigger error:", err));
-    }
-    */
-
     return NextResponse.json({
       success: true,
       file: {

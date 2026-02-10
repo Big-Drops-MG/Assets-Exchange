@@ -106,3 +106,56 @@ export const auditLogsQuerySchema = z
       path: ["startDate"],
     }
   );
+
+export const createBatchSchema = z.object({
+  batchLabel: z
+    .string()
+    .min(1, "Batch label is required")
+    .max(200, "Batch label must not exceed 200 characters")
+    .trim(),
+  description: z
+    .string()
+    .max(1000, "Description must not exceed 1000 characters")
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => val ?? undefined),
+  status: z.enum(["active", "inactive", "archived"]).default("active"),
+  createdBy: z.string().min(1, "Created by is required"),
+});
+
+export const updateBatchSchema = z.object({
+  batchLabel: z
+    .string()
+    .min(1, "Batch label is required")
+    .max(200, "Batch label must not exceed 200 characters")
+    .trim()
+    .optional(),
+  description: z
+    .string()
+    .max(1000, "Description must not exceed 1000 characters")
+    .trim()
+    .nullable()
+    .optional()
+    .transform((val) => val ?? undefined),
+  status: z.enum(["active", "inactive", "archived"]).optional(),
+});
+
+export const listBatchesQuerySchema = z.object({
+  search: z.string().optional(),
+  status: z.enum(["active", "inactive", "archived"]).optional(),
+  createdBy: z.string().optional(),
+});
+
+export const removeAssetFromBatchSchema = z.object({
+  assetId: z.string().min(1, "Asset ID is required"),
+});
+
+export const moveAssetBetweenBatchesSchema = z.object({
+  assetId: z.string().min(1, "Asset ID is required"),
+  toBatchId: z.string().min(1, "Destination batch ID is required"),
+});
+
+export const batchAnalyticsQuerySchema = z.object({
+  batchIds: z.string().optional(),
+});

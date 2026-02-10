@@ -90,6 +90,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
   formData,
   onDataChange,
   validation,
+  initialFiles,
 }) => {
   const variables = getVariables();
   const [offerSearchTerm, setOfferSearchTerm] = useState("");
@@ -154,7 +155,6 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
     UploadedFileMeta[]
   >([]);
 
-  // Load and restore saved files state on mount
   useEffect(() => {
     const savedFilesState = loadFilesState();
     if (savedFilesState && savedFilesState.files.length > 0) {
@@ -163,13 +163,38 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
       setHasUploadedFiles(true);
       validation.updateFileUploadState(true);
     }
-    // Mark initial mount as complete after a brief delay to allow state to settle
-    const timer = setTimeout(() => {
-      setIsInitialMount(false);
-    }, 200);
+    const timer = setTimeout(() => setIsInitialMount(false), 200);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount
+  }, []);
+
+  const appliedInitialFilesRef = useRef(false);
+  useEffect(() => {
+    if (!initialFiles || initialFiles.length === 0) {
+      appliedInitialFilesRef.current = false;
+      return;
+    }
+    if (appliedInitialFilesRef.current) return;
+    appliedInitialFilesRef.current = true;
+    const mapped: UploadedFileMeta[] = initialFiles.map((f) => ({
+      id: f.id,
+      name: f.name,
+      url: f.url,
+      size: f.size,
+      type: f.type,
+      source: "single",
+      html: /\.html?$/i.test(f.name),
+      previewUrl: /\.(png|jpe?g|gif|webp|svg)$/i.test(f.name)
+        ? f.url
+        : undefined,
+      metadata: f.metadata,
+    }));
+    setUploadedFiles(mapped);
+    setHasUploadedFiles(true);
+    validation.updateFileUploadState(true);
+    saveFilesState(mapped, "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFiles]);
 
   // Fetch metadata for uploaded HTML creatives
   const fetchedMetadataRef = useRef<Set<string>>(new Set());
@@ -351,8 +376,15 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
         // Handle ZIP analysis (same logic as before)
         if (data.zipAnalysis) {
           if (data.zipAnalysis.isSingleCreative) {
-            // Convert single creative to array format for MultipleCreativesModal
-            const mainFile = data.zipAnalysis.mainCreative;
+            const mainFile = data.zipAnalysis.mainCreative as
+              | {
+                  id: string;
+                  name: string;
+                  url: string;
+                  size: number;
+                  type?: string;
+                }
+              | undefined;
             if (!mainFile)
               throw new Error("Single creative ZIP missing main file");
 
@@ -398,9 +430,16 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
           ),
       });
 
-      const previewUrl = await makeThumb(file);
+      let previewUrl: string | undefined;
+      try {
+        previewUrl = await makeThumb(file);
+      } catch {
+        previewUrl = /\.(png|jpe?g|gif|webp)$/i.test(file.name)
+          ? newBlob.url
+          : undefined;
+      }
       const uploadedFile: UploadedFileMeta = {
-        id: newBlob.url, // Use URL as ID for consistency or keep using blob url
+        id: newBlob.url,
         name: file.name,
         url: newBlob.url,
         size: file.size,
@@ -652,15 +691,22 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
                   </div>
                 </div>
                 {filteredOfferOptions.length > 0 ? (
-                  filteredOfferOptions.map((option) => (
-                    <SelectItem
-                      key={option.value}
-                      value={option.value}
-                      className="h-12!"
-                    >
-                      {option.label}
-                    </SelectItem>
-                  ))
+                  filteredOfferOptions
+                    /* Guard: Filter out options with empty values to prevent Radix Select error.
+                        SelectItem cannot have empty string values as Select uses "" to clear selection. */
+                    .filter(
+                      (option) =>
+                        option.value && String(option.value).trim() !== ""
+                    )
+                    .map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="h-12!"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))
                 ) : (
                   <div className="px-3 py-2 text-sm text-gray-500 text-center">
                     {offerSearchTerm
@@ -711,15 +757,22 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
                 <SelectValue placeholder="Select creative type" />
               </SelectTrigger>
               <SelectContent>
-                {creativeTypeOptions.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className="h-12!"
-                  >
-                    {option.label}
-                  </SelectItem>
-                ))}
+                {/* Guard: Filter out options with empty values to prevent Radix Select error.
+                    SelectItem cannot have empty string values as Select uses "" to clear selection. */}
+                {creativeTypeOptions
+                  .filter(
+                    (option) =>
+                      option.value && String(option.value).trim() !== ""
+                  )
+                  .map((option) => (
+                    <SelectItem
+                      key={option.value}
+                      value={option.value}
+                      className="h-12!"
+                    >
+                      {option.label}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             {validation.hasFieldError("creativeType") &&

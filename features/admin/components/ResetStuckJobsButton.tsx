@@ -22,6 +22,11 @@ export function ResetStuckJobsButton({ onSuccess }: ResetStuckJobsButtonProps) {
   const router = useRouter();
 
   const handleReset = async () => {
+    // Prevent multiple simultaneous requests
+    if (isLoading) {
+      return;
+    }
+
     const confirmed = await confirmDialog({
       title: "Reset Stuck Scanning Jobs",
       description:

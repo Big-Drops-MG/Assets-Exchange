@@ -4,8 +4,9 @@ import { NextResponse } from "next/server";
 
 import { getOffer } from "@/features/admin/services/offer.service";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { validateRequest } from "@/lib/middleware/validateRequest";
-import { creativeRequests, creatives } from "@/lib/schema";
+import { assetsTable, creativeRequests, creatives } from "@/lib/schema";
 import { generateTrackingCode } from "@/lib/utils/tracking";
 import { submitSchema } from "@/lib/validations/publisher";
 
@@ -80,6 +81,26 @@ export async function POST(req: NextRequest) {
         additionalNotes: data.additionalNotes,
       })
       .returning({ id: creativeRequests.id });
+
+    try {
+      await db.insert(assetsTable).values({
+        id: request.id,
+        publisherId,
+        status: "new",
+        createdAt: new Date(),
+        approvedAt: null,
+      });
+
+      logger.app.info(
+        { requestId: request.id, publisherId },
+        "Inserted asset into assets_table"
+      );
+    } catch (error) {
+      logger.app.error(
+        { requestId: request.id, publisherId, error },
+        "Failed to insert asset into assets_table"
+      );
+    }
 
     if (data.files?.length) {
       const now = new Date();

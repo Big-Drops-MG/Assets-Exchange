@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { CalendarIcon, Loader2, Search } from "lucide-react";
+import { CalendarIcon, Download, Loader2, Search } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 
@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils";
 interface AuditLog {
   id: string;
   admin_id: string;
-  action: "APPROVE" | "REJECT";
+  action: string;
   timestamp: string;
   entityType: string;
   entityId: string | null;
@@ -56,7 +56,7 @@ interface AuditLogsResponse {
 
 export function AuditLogsTable() {
   const [adminID, setAdminID] = useState<string>("");
-  const [actionType, setActionType] = useState<string>("All");
+  const [actionType, setActionType] = useState<string>("");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [page, setPage] = useState(1);
@@ -64,6 +64,7 @@ export function AuditLogsTable() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [meta, setMeta] = useState<AuditLogsResponse["meta"] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchAuditLogs = useCallback(
@@ -79,7 +80,7 @@ export function AuditLogsTable() {
           params.append("adminId", adminID.trim());
         }
 
-        if (actionType !== "All") {
+        if (actionType && actionType.trim() !== "") {
           params.append("action", actionType);
         }
 
@@ -95,7 +96,7 @@ export function AuditLogsTable() {
         params.append("limit", String(limit));
 
         const response = await fetch(
-          `/api/admin/audit-logs?${params.toString()}`
+          `/api/ops/audit-logs?${params.toString()}`
         );
 
         if (!response.ok) {
@@ -147,7 +148,7 @@ export function AuditLogsTable() {
 
   const handleClearFilters = () => {
     setAdminID("");
-    setActionType("All");
+    setActionType("");
     setDateFrom(undefined);
     setDateTo(undefined);
     setPage(1);
@@ -161,6 +162,58 @@ export function AuditLogsTable() {
     }
   };
 
+  const handleExport = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+
+      if (adminID.trim()) {
+        params.append("adminId", adminID.trim());
+      }
+
+      if (actionType && actionType.trim() !== "") {
+        params.append("action", actionType);
+      }
+
+      if (dateFrom) {
+        params.append("from", format(dateFrom, "yyyy-MM-dd"));
+      }
+
+      if (dateTo) {
+        params.append("to", format(dateTo, "yyyy-MM-dd"));
+      }
+
+      const response = await fetch(
+        `/api/ops/audit-logs/export?${params.toString()}`
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `audit-logs-${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success("Audit logs exported successfully");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to export audit logs";
+      toast.error("Error exporting audit logs", {
+        description: message,
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [adminID, actionType, dateFrom, dateTo]);
+
   // Load initial data on mount (with no filters)
   useEffect(() => {
     fetchAuditLogs(1);
@@ -168,14 +221,16 @@ export function AuditLogsTable() {
   }, []);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Filters Section */}
-      <div className="border rounded-lg p-4 bg-card">
-        <h3 className="text-lg font-semibold mb-4">Filter Audit Logs</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="border rounded-lg p-3 bg-card">
+        <h3 className="text-sm font-semibold mb-2">Filter Audit Logs</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Admin ID Input */}
-          <div className="space-y-2">
-            <Label htmlFor="adminID">Admin ID</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="adminID" className="text-sm">
+              Admin ID
+            </Label>
             <Input
               id="adminID"
               type="text"
@@ -191,14 +246,15 @@ export function AuditLogsTable() {
           </div>
 
           {/* Action Type Dropdown */}
-          <div className="space-y-2">
-            <Label htmlFor="actionType">Action Type</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="actionType" className="text-sm">
+              Action Type
+            </Label>
             <Select value={actionType} onValueChange={setActionType}>
               <SelectTrigger id="actionType">
-                <SelectValue placeholder="Select action type" />
+                <SelectValue placeholder="All" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="All">All</SelectItem>
                 <SelectItem value="APPROVE">Approve</SelectItem>
                 <SelectItem value="REJECT">Reject</SelectItem>
               </SelectContent>
@@ -206,8 +262,8 @@ export function AuditLogsTable() {
           </div>
 
           {/* Date From Picker */}
-          <div className="space-y-2">
-            <Label>Date From</Label>
+          <div className="space-y-1.5">
+            <Label className="text-sm">Date From</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -233,8 +289,8 @@ export function AuditLogsTable() {
           </div>
 
           {/* Date To Picker */}
-          <div className="space-y-2">
-            <Label>Date To</Label>
+          <div className="space-y-1.5">
+            <Label className="text-sm">Date To</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -260,8 +316,10 @@ export function AuditLogsTable() {
           </div>
 
           {/* Search and Clear Buttons */}
-          <div className="space-y-2">
-            <Label>&nbsp;</Label>
+          <div className="space-y-1.5">
+            <Label className="text-sm opacity-0 pointer-events-none">
+              &nbsp;
+            </Label>
             <div className="flex gap-2">
               <Button
                 onClick={handleSearch}
@@ -336,7 +394,9 @@ export function AuditLogsTable() {
                             "px-2 py-1 rounded text-xs font-medium",
                             log.action === "APPROVE"
                               ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                              : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                              : log.action === "REJECT"
+                                ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                                : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
                           )}
                         >
                           {log.action}
@@ -358,33 +418,61 @@ export function AuditLogsTable() {
               </Table>
             </div>
 
-            {/* Pagination */}
-            {meta && meta.totalPages > 1 && (
-              <div className="flex items-center justify-between p-4 border-t">
-                <div className="text-sm text-muted-foreground">
-                  Showing page {meta.page} of {meta.totalPages} ({meta.total}{" "}
-                  total results)
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(page - 1)}
-                    disabled={page === 1 || isLoading}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(page + 1)}
-                    disabled={page >= meta.totalPages || isLoading}
-                  >
-                    Next
-                  </Button>
-                </div>
+            {/* Pagination and Export */}
+            <div className="flex items-center justify-between p-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                {meta && meta.total > 0 ? (
+                  <>
+                    Showing page {meta.page} of {meta.totalPages} ({meta.total}{" "}
+                    total results)
+                  </>
+                ) : (
+                  "No results"
+                )}
               </div>
-            )}
+              <div className="flex gap-2">
+                {meta && meta.totalPages > 1 && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(page - 1)}
+                      disabled={page === 1 || isLoading}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(page + 1)}
+                      disabled={page >= meta.totalPages || isLoading}
+                    >
+                      Next
+                    </Button>
+                  </>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  disabled={
+                    isExporting || isLoading || (meta?.total ?? 0) === 0
+                  }
+                >
+                  {isExporting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Exporting...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      Export CSV
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </>
         )}
       </div>

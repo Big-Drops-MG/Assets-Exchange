@@ -38,6 +38,30 @@ function formatNumberShorthand(num: number): string {
   return `${millions % 1 === 0 ? millions.toFixed(0) : millions.toFixed(1)}M`;
 }
 
+// Helper function to parse formatted values
+function parseFormattedValue(value: string): number {
+  const cleanedValue = value.trim().toLowerCase();
+
+  // Handle "k" suffix (thousands)
+  if (cleanedValue.endsWith("k")) {
+    const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
+    return isNaN(numValue) ? 0 : numValue * 1000;
+  }
+  // Handle "l" suffix (lakhs)
+  if (cleanedValue.endsWith("l")) {
+    const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
+    return isNaN(numValue) ? 0 : numValue * 100000;
+  }
+  // Handle "m" suffix (millions)
+  if (cleanedValue.endsWith("m")) {
+    const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
+    return isNaN(numValue) ? 0 : numValue * 10000000;
+  }
+  // Handle regular numbers
+  const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
+  return isNaN(numValue) ? 0 : numValue;
+}
+
 export function StatsCard({
   title,
   value,
@@ -52,32 +76,54 @@ export function StatsCard({
     return formatNumberShorthand(value);
   }, [value]);
 
-  // Calculate percentage change from yesterday
+  // Calculate percentage change based on card type
   const calculatedTrend = useMemo(() => {
     if (!historicalData || !trend) return trend;
 
-    // Find yesterday's value from historicalData
-    const yesterdayData = historicalData.find(
-      (item) => item.label === "Yesterday"
-    );
+    // For Total Assets, compare Current Month vs Last Month
+    // For all other cards, compare Today (value) vs Yesterday
+    const isTotalAssets = title === "Total Assets";
 
-    if (!yesterdayData) return trend;
+    let previousValue = 0;
+    let currentValue = value; // Default to the main value (represents Today)
 
-    // Parse yesterday's value (handle both string and number, including formatted values like "25k", "10.8k")
-    let yesterdayValue = 0;
-    if (typeof yesterdayData.value === "number") {
-      yesterdayValue = yesterdayData.value;
-    } else if (typeof yesterdayData.value === "string") {
-      const cleanedValue = yesterdayData.value.trim().toLowerCase();
+    if (isTotalAssets) {
+      // Find Current Month and Last Month from historicalData
+      const currentMonthData = historicalData.find(
+        (item) => item.label === "Current Month"
+      );
+      const lastMonthData = historicalData.find(
+        (item) => item.label === "Last Month"
+      );
 
-      // Handle "k" suffix (thousands)
-      if (cleanedValue.endsWith("k")) {
-        const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
-        yesterdayValue = isNaN(numValue) ? 0 : numValue * 1000;
-      } else {
-        // Handle regular numbers
-        const numValue = parseFloat(cleanedValue.replace(/[^0-9.]/g, ""));
-        yesterdayValue = isNaN(numValue) ? 0 : numValue;
+      if (!currentMonthData || !lastMonthData) return trend;
+
+      // Parse current month value
+      if (typeof currentMonthData.value === "number") {
+        currentValue = currentMonthData.value;
+      } else if (typeof currentMonthData.value === "string") {
+        currentValue = parseFormattedValue(currentMonthData.value);
+      }
+
+      // Parse last month value
+      if (typeof lastMonthData.value === "number") {
+        previousValue = lastMonthData.value;
+      } else if (typeof lastMonthData.value === "string") {
+        previousValue = parseFormattedValue(lastMonthData.value);
+      }
+    } else {
+      // For other cards, compare Today vs Yesterday
+      const yesterdayData = historicalData.find(
+        (item) => item.label === "Yesterday"
+      );
+
+      if (!yesterdayData) return trend;
+
+      // Parse yesterday's value
+      if (typeof yesterdayData.value === "number") {
+        previousValue = yesterdayData.value;
+      } else if (typeof yesterdayData.value === "string") {
+        previousValue = parseFormattedValue(yesterdayData.value);
       }
     }
 
@@ -85,12 +131,12 @@ export function StatsCard({
     let percentageChange = 0;
     let isPositive = true;
 
-    if (yesterdayValue === 0) {
-      // If yesterday was 0, show 100% increase if today > 0, otherwise 0%
-      percentageChange = value > 0 ? 100 : 0;
-      isPositive = value > 0;
+    if (previousValue === 0) {
+      // If previous was 0, show 100% increase if current > 0, otherwise 0%
+      percentageChange = currentValue > 0 ? 100 : 0;
+      isPositive = currentValue > 0;
     } else {
-      percentageChange = ((value - yesterdayValue) / yesterdayValue) * 100;
+      percentageChange = ((currentValue - previousValue) / previousValue) * 100;
       isPositive = percentageChange >= 0;
     }
 
@@ -102,29 +148,26 @@ export function StatsCard({
       textValue: `${roundedPercentage}%`,
       trendIconValue: isPositive ? TrendingUp : TrendingDown,
     };
-  }, [value, historicalData, trend]);
+  }, [value, historicalData, trend, title]);
 
   const TrendIcon = calculatedTrend?.trendIconValue;
   const isPositive = TrendIcon === TrendingUp;
 
-  // Filter and order historical data: remove "Today", order as Yesterday, Current Month, Last Month
+  // Filter and order historical data: Yesterday, Current Month, Last Month, Total
   const filteredAndOrderedHistoricalData = useMemo(() => {
     if (!historicalData) return null;
 
-    // Filter out "Today"
-    const filtered = historicalData.filter(
-      (item) => item.label !== "Today"
-    );
-
     // Define the desired order
-    const order = ["Yesterday", "Current Month", "Last Month"];
+    const order = ["Yesterday", "Current Month", "Last Month", "Total"];
 
     // Sort the filtered data according to the desired order
     const ordered = order
-      .map((label) => filtered.find((item) => item.label === label))
+      .map((label) => historicalData.find((item) => item.label === label))
       .filter((item) => item !== undefined);
 
-    return ordered.length > 0 ? ordered : null;
+    if (ordered.length === 0) return null;
+
+    return ordered;
   }, [historicalData]);
 
   const getBackgroundColor = () => {
@@ -180,6 +223,7 @@ export function StatsCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-6 md:space-y-6.5">
+        {/* Main value represents today's count */}
         <div className="flex items-center justify-between">
           <div
             className="text-4xl xl:text-[2.5rem] font-medium font-inter"
@@ -224,29 +268,39 @@ export function StatsCard({
 
         {filteredAndOrderedHistoricalData && (
           <div className="space-y-2 ">
-            {filteredAndOrderedHistoricalData.map((item, index) => (
-              <React.Fragment key={index}>
-                <div className="flex items-center justify-between">
-                  <span
-                    className="text-sm font-inter"
-                    style={{
-                      color: variables.colors.statsCardHistoricalDataLabelColor,
-                    }}
-                  >
-                    {item.label}
-                  </span>
-                  <span
-                    className="text-base font-inter font-medium"
-                    style={{
-                      color: variables.colors.statsCardHistoricalDataValueColor,
-                    }}
-                  >
-                    {item.value}
-                  </span>
-                </div>
-                {index < filteredAndOrderedHistoricalData.length - 1 && <Separator />}
-              </React.Fragment>
-            ))}
+            {filteredAndOrderedHistoricalData.map((item, index) => {
+              const isTotal = item.label === "Total";
+              const isLastNonTotal =
+                !isTotal &&
+                index === filteredAndOrderedHistoricalData.length - 2;
+
+              return (
+                <React.Fragment key={index}>
+                  {isTotal && <Separator />}
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-sm font-inter ${isTotal ? "font-semibold" : ""}`}
+                      style={{
+                        color:
+                          variables.colors.statsCardHistoricalDataLabelColor,
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                    <span
+                      className={`text-base font-inter ${isTotal ? "font-semibold" : "font-medium"}`}
+                      style={{
+                        color:
+                          variables.colors.statsCardHistoricalDataValueColor,
+                      }}
+                    >
+                      {item.value}
+                    </span>
+                  </div>
+                  {!isTotal && !isLastNonTotal && <Separator />}
+                </React.Fragment>
+              );
+            })}
           </div>
         )}
       </CardContent>

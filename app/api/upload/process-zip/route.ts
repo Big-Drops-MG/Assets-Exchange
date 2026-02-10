@@ -83,7 +83,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 4. Return analysis in same format as before
     return NextResponse.json({
       success: true,
       zipAnalysis: {

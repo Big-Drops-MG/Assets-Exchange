@@ -38,6 +38,12 @@ interface MultipleCreativesModalProps {
       additionalNotes?: string;
     }
   ) => void;
+  viewOnly?: boolean;
+  onSaveAndSubmit?: (metadata: {
+    fromLines: string;
+    subjectLines: string;
+    additionalNotes: string;
+  }) => Promise<void>;
 }
 
 const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
@@ -48,8 +54,10 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
   uploadedZipFileName,
   onFileNameChange,
   onZipFileNameChange,
-  onMetadataChange,
+  onMetadataChange: _onMetadataChange,
   creativeType = "email",
+  viewOnly = false,
+  onSaveAndSubmit,
 }) => {
   const viewModel = useMultipleCreativesModal({
     isOpen,
@@ -113,26 +121,26 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
 
   if (!isOpen) return null;
 
-  console.log('MultipleCreativesModal debug:', {
-    total: creatives.length,
-    hiddenCount: creatives.filter(c => (c as any).isHidden).length,
-    firstHidden: creatives.find(c => (c as any).isHidden),
-    allIsHidden: creatives.map(c => (c as any).isHidden)
-  });
+  interface CreativeWithHidden extends CreativeFile {
+    isHidden?: boolean;
+  }
 
   const htmlFiles = creatives.filter(
-    (c) => (c.html || /\.html?$/i.test(c.name)) && !(c as any).isHidden
+    (c) =>
+      (c.html || /\.html?$/i.test(c.name)) &&
+      !(c as CreativeWithHidden).isHidden
   );
   const imageFiles = creatives.filter(
     (c) =>
-      /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(c.name) && !(c as any).isHidden
+      /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(c.name) &&
+      !(c as CreativeWithHidden).isHidden
   );
   const otherFiles = creatives.filter(
     (c) =>
       !c.html &&
       !/\.html?$/i.test(c.name) &&
       !/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(c.name) &&
-      !(c as any).isHidden
+      !(c as CreativeWithHidden).isHidden
   );
 
   return (
@@ -142,7 +150,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
           <DialogDescription className="sr-only">
             Multiple creatives view
           </DialogDescription>
-          <DialogHeader className="p-4 sm:p-6 border-b border-gray-200 bg-linear-to-r from-purple-50 to-blue-50">
+          <DialogHeader className="p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
             <div className="flex items-center justify-between gap-3 sm:gap-4">
               <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                 <div className="p-2 sm:p-3 bg-purple-100 rounded-xl shadow-sm shrink-0">
@@ -174,8 +182,8 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                           <span className="text-xs sm:text-sm text-gray-700 font-medium px-2 py-2 h-8 sm:h-9 flex items-center whitespace-nowrap">
                             {uploadedZipFileName
                               ? uploadedZipFileName.substring(
-                                uploadedZipFileName.lastIndexOf(".")
-                              )
+                                  uploadedZipFileName.lastIndexOf(".")
+                                )
                               : ".zip"}
                           </span>
                         </div>
@@ -273,7 +281,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
             {/* Grid Layout */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4">
               {creatives
-                .filter((c) => !(c as any).isHidden)
+                .filter((c) => !(c as CreativeWithHidden).isHidden)
                 .map((creative) => {
                   const fileType = viewModel.getFileType(creative.name);
                   const isImage = fileType === "image";
@@ -285,7 +293,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                       className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-200 overflow-hidden group"
                     >
                       {/* Preview Section */}
-                      <div className="aspect-[4/3] bg-gray-50 overflow-hidden relative">
+                      <div className="aspect-4/3 bg-gray-50 overflow-hidden relative">
                         {isImage && (creative.previewUrl || creative.url) ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -346,12 +354,13 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                           </h3>
                           <div className="flex items-center justify-between text-xs text-gray-500">
                             <span
-                              className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full font-medium text-xs ${isImage
-                                ? "bg-blue-50 text-blue-600"
-                                : isHtml
-                                  ? "bg-emerald-50 text-emerald-600"
-                                  : "bg-gray-50 text-gray-600"
-                                }`}
+                              className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full font-medium text-xs ${
+                                isImage
+                                  ? "bg-blue-50 text-blue-600"
+                                  : isHtml
+                                    ? "bg-emerald-50 text-emerald-600"
+                                    : "bg-gray-50 text-gray-600"
+                              }`}
                             >
                               {fileType}
                             </span>
@@ -399,6 +408,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
             type: viewModel.selectedCreative.type || "application/octet-stream",
             previewUrl: viewModel.selectedCreative.previewUrl,
             html: viewModel.selectedCreative.html,
+            metadata: viewModel.selectedCreative.metadata,
           }}
           onFileNameChange={viewModel.handleFileNameChangeFromSingle}
           showAdditionalNotes={true}
@@ -412,7 +422,10 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
             previewUrl: c.previewUrl,
             html: c.html,
             uploadId: c.uploadId,
+            metadata: c.metadata,
           }))}
+          viewOnly={viewOnly}
+          onSaveAndSubmit={onSaveAndSubmit}
         />
       )}
     </>

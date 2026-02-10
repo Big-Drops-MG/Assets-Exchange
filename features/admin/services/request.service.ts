@@ -1,4 +1,14 @@
-import { and, asc, eq, inArray, ilike, or, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  inArray,
+  ilike,
+  ne,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 
 import { logStatusChange } from "@/features/admin/services/statusHistory.service";
 import { notifyWorkflowEvent } from "@/features/notifications/notification.service";
@@ -80,12 +90,14 @@ export async function getAdminRequests({
           month: "short",
           day: "numeric",
           year: "numeric",
+          timeZone: "America/Los_Angeles",
         }) +
         ", " +
         new Date(row.submittedAt).toLocaleTimeString("en-US", {
           hour: "2-digit",
           minute: "2-digit",
           hour12: false,
+          timeZone: "America/Los_Angeles",
         })
       : "",
   }));
@@ -136,7 +148,12 @@ export async function getRequestWithCreatives(requestId: string) {
       format: creatives.format,
     })
     .from(creatives)
-    .where(eq(creatives.requestId, requestId))
+    .where(
+      and(
+        eq(creatives.requestId, requestId),
+        ne(creatives.status, "superseded")
+      )
+    )
     .orderBy(asc(creatives.createdAt));
 
   return {
@@ -160,7 +177,76 @@ export async function approveRequest(id: string, adminId: string) {
       throw new Error("Request not found");
     }
 
-    if (row.status !== "new" || row.approvalStage !== "admin") {
+    const isValidStatus =
+      row.status === "new" ||
+      row.status === "revised" ||
+      (row.status === "pending" && row.approvalStage === "admin");
+    if (!isValidStatus || row.approvalStage !== "admin") {
+      throw new Error("Invalid state transition");
+    }
+
+    await tx
+      .update(creativeRequests)
+      .set({
+        status: "approved",
+        approvalStage: "admin",
+        adminApprovedBy: adminId,
+        adminApprovedAt: new Date(),
+        adminStatus: "approved",
+        updatedAt: new Date(),
+      })
+      .where(eq(creativeRequests.id, id));
+
+    await tx
+      .update(creatives)
+      .set({ status: "approved", updatedAt: new Date() })
+      .where(
+        and(eq(creatives.requestId, id), ne(creatives.status, "superseded"))
+      );
+
+    evt = {
+      event: "request.approved_by_admin",
+      requestId: row.id,
+      offerName: row.offerName,
+      fromStatus: row.status,
+      toStatus: "approved",
+      actor: { role: "admin", id: adminId },
+      timestamp: new Date().toISOString(),
+    };
+
+    historyEntry = {
+      requestId: row.id,
+      fromStatus: row.status,
+      toStatus: "approved",
+      actorRole: "admin",
+      actorId: adminId,
+    };
+  });
+
+  if (evt) await notifyWorkflowEvent(evt);
+  if (historyEntry) await logStatusChange(historyEntry);
+}
+
+export async function forwardRequest(id: string, adminId: string) {
+  let evt: WorkflowEvent | null = null;
+  let historyEntry: Parameters<typeof logStatusChange>[0] | null = null;
+
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(creativeRequests)
+      .where(eq(creativeRequests.id, id))
+      .for("update");
+
+    if (!row) {
+      throw new Error("Request not found");
+    }
+
+    const isValidStatus =
+      row.status === "new" ||
+      row.status === "revised" ||
+      (row.status === "pending" && row.approvalStage === "admin");
+    if (!isValidStatus || row.approvalStage !== "admin") {
       throw new Error("Invalid state transition");
     }
 
@@ -169,16 +255,25 @@ export async function approveRequest(id: string, adminId: string) {
       .set({
         status: "pending",
         approvalStage: "advertiser",
+        adminApprovedBy: adminId,
         adminApprovedAt: new Date(),
         adminStatus: "approved",
+        updatedAt: new Date(),
       })
       .where(eq(creativeRequests.id, id));
 
+    await tx
+      .update(creatives)
+      .set({ status: "pending", updatedAt: new Date() })
+      .where(
+        and(eq(creatives.requestId, id), ne(creatives.status, "superseded"))
+      );
+
     evt = {
-      event: "request.approved_by_admin",
+      event: "request.forwarded_to_advertiser",
       requestId: row.id,
       offerName: row.offerName,
-      fromStatus: "new",
+      fromStatus: row.status,
       toStatus: "pending",
       actor: { role: "admin", id: adminId },
       timestamp: new Date().toISOString(),
@@ -186,7 +281,7 @@ export async function approveRequest(id: string, adminId: string) {
 
     historyEntry = {
       requestId: row.id,
-      fromStatus: "new",
+      fromStatus: row.status,
       toStatus: "pending",
       actorRole: "admin",
       actorId: adminId,
@@ -216,7 +311,11 @@ export async function rejectRequest(
       throw new Error("Request not found");
     }
 
-    if (row.status !== "new" || row.approvalStage !== "admin") {
+    const isValidStatus =
+      row.status === "new" ||
+      row.status === "revised" ||
+      (row.status === "pending" && row.approvalStage === "admin");
+    if (!isValidStatus || row.approvalStage !== "admin") {
       throw new Error("Invalid state transition");
     }
 
@@ -233,7 +332,7 @@ export async function rejectRequest(
       event: "request.rejected_by_admin",
       requestId: row.id,
       offerName: row.offerName,
-      fromStatus: "new",
+      fromStatus: row.status,
       toStatus: "rejected",
       actor: { role: "admin", id: adminId },
       timestamp: new Date().toISOString(),
@@ -241,11 +340,82 @@ export async function rejectRequest(
 
     historyEntry = {
       requestId: row.id,
-      fromStatus: "new",
+      fromStatus: row.status,
       toStatus: "rejected",
       actorRole: "admin",
       actorId: adminId,
       reason,
+    };
+  });
+
+  if (evt) await notifyWorkflowEvent(evt);
+  if (historyEntry) await logStatusChange(historyEntry);
+}
+
+export async function sendBackRequest(
+  id: string,
+  adminId: string,
+  feedback: string
+) {
+  let evt: WorkflowEvent | null = null;
+  let historyEntry: Parameters<typeof logStatusChange>[0] | null = null;
+
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(creativeRequests)
+      .where(eq(creativeRequests.id, id))
+      .for("update");
+
+    if (!row) {
+      throw new Error("Request not found");
+    }
+
+    const isValidStatus =
+      row.status === "new" ||
+      row.status === "revised" ||
+      (row.status === "pending" && row.approvalStage === "admin");
+    if (!isValidStatus || row.approvalStage !== "admin") {
+      throw new Error("Invalid state transition");
+    }
+
+    await tx
+      .update(creativeRequests)
+      .set({
+        status: "sent-back",
+        adminComments: feedback,
+        adminStatus: "rejected",
+        updatedAt: new Date(),
+      })
+      .where(eq(creativeRequests.id, id));
+
+    await tx
+      .update(creatives)
+      .set({
+        status: "sent-back",
+        updatedAt: new Date(),
+      })
+      .where(
+        and(eq(creatives.requestId, id), ne(creatives.status, "superseded"))
+      );
+
+    evt = {
+      event: "request.sent_back_by_admin",
+      requestId: row.id,
+      offerName: row.offerName,
+      fromStatus: row.status,
+      toStatus: "sent-back",
+      actor: { role: "admin", id: adminId },
+      timestamp: new Date().toISOString(),
+    };
+
+    historyEntry = {
+      requestId: row.id,
+      fromStatus: row.status,
+      toStatus: "sent-back",
+      actorRole: "admin",
+      actorId: adminId,
+      reason: feedback,
     };
   });
 

@@ -13,9 +13,23 @@ export type ViewCreative = {
   type: string;
   previewUrl?: string;
   html?: boolean;
+  metadata?: {
+    fromLines?: string;
+    subjectLines?: string;
+    additionalNotes?: string;
+  };
 };
 
-function rowToViewCreative(row: RequestCreativeRow): ViewCreative {
+interface RequestMetadata {
+  fromLines?: string;
+  subjectLines?: string;
+  additionalNotes?: string;
+}
+
+function rowToViewCreative(
+  row: RequestCreativeRow,
+  requestMetadata: RequestMetadata
+): ViewCreative {
   const isImage =
     row.format === "image" ||
     /^image\//i.test(row.type) ||
@@ -32,6 +46,7 @@ function rowToViewCreative(row: RequestCreativeRow): ViewCreative {
     type: row.type,
     previewUrl: isImage ? row.url : undefined,
     html: isHtml,
+    metadata: requestMetadata,
   };
 }
 
@@ -47,7 +62,16 @@ export async function getRequestViewData(
   if (!result || result.creatives.length === 0) return null;
 
   const creativeType = result.request.creativeType ?? "email";
-  const viewCreatives = result.creatives.map(rowToViewCreative);
+
+  const requestMetadata: RequestMetadata = {
+    fromLines: result.request.fromLines ?? undefined,
+    subjectLines: result.request.subjectLines ?? undefined,
+    additionalNotes: result.request.additionalNotes ?? undefined,
+  };
+
+  const viewCreatives = result.creatives.map((row) =>
+    rowToViewCreative(row, requestMetadata)
+  );
 
   if (viewCreatives.length === 1) {
     return {

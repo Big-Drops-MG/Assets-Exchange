@@ -8,7 +8,10 @@ import {
   integer,
   pgEnum,
   index,
+  unique,
   jsonb,
+  date,
+  doublePrecision,
 } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
@@ -72,6 +75,7 @@ export const requestStatusEnum = pgEnum("request_status", [
   "approved",
   "rejected",
   "sent-back",
+  "revised",
 ]);
 
 export const approvalStageEnum = pgEnum("approval_stage", [
@@ -647,5 +651,119 @@ export const externalTasks = pgTable(
     externalTaskIdIdx: index("idx_external_tasks_external_task_id").on(
       table.externalTaskId
     ),
+  })
+);
+
+export const dailyStats = pgTable(
+  "daily_stats",
+  {
+    date: date("date").primaryKey().notNull(),
+    totalSubmitted: integer("total_submitted").notNull().default(0),
+    totalApproved: integer("total_approved").notNull().default(0),
+    avgApprovalTimeSeconds: doublePrecision("avg_approval_time_seconds"),
+    topPublishers: jsonb("top_publishers").$type<
+      Array<{
+        publisherId: string;
+        publisherName: string;
+        requestCount: number;
+      }>
+    >(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    dateIdx: index("idx_daily_stats_date").on(table.date),
+  })
+);
+
+export const assetsTable = pgTable(
+  "assets_table",
+  {
+    id: text("id").primaryKey().notNull(),
+    publisherId: text("publisher_id").notNull(),
+    status: text("status").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    approvedAt: timestamp("approved_at"),
+  },
+  (table) => ({
+    publisherIdIdx: index("idx_assets_table_publisher_id").on(
+      table.publisherId
+    ),
+    statusIdx: index("idx_assets_table_status").on(table.status),
+    createdAtIdx: index("idx_assets_table_created_at").on(table.createdAt),
+    approvedAtIdx: index("idx_assets_table_approved_at").on(table.approvedAt),
+  })
+);
+
+export const batches = pgTable(
+  "batches",
+  {
+    id: text("id").primaryKey().notNull(),
+    batchLabel: text("batch_label").notNull(),
+    description: text("description"),
+    status: text("status").notNull().default("active"),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    statusIdx: index("idx_batches_status").on(table.status),
+    createdByIdx: index("idx_batches_created_by").on(table.createdBy),
+    createdAtIdx: index("idx_batches_created_at").on(table.createdAt),
+  })
+);
+
+export const batchAssets = pgTable(
+  "batch_assets",
+  {
+    id: text("id").primaryKey().notNull(),
+    batchId: text("batch_id")
+      .notNull()
+      .references(() => batches.id, { onDelete: "cascade" }),
+    assetId: text("asset_id")
+      .notNull()
+      .references(() => assetsTable.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    batchIdIdx: index("idx_batch_assets_batch_id").on(table.batchId),
+    assetIdIdx: index("idx_batch_assets_asset_id").on(table.assetId),
+    batchAssetUnique: unique("batch_assets_batch_id_asset_id_unique").on(
+      table.batchId,
+      table.assetId
+    ),
+  })
+);
+
+export const impressions = pgTable(
+  "impressions",
+  {
+    id: text("id").primaryKey().notNull(),
+    assetId: text("asset_id").notNull(),
+    batchId: text("batch_id").references(() => batches.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    assetIdIdx: index("idx_impressions_asset_id").on(table.assetId),
+    batchIdIdx: index("idx_impressions_batch_id").on(table.batchId),
+    createdAtIdx: index("idx_impressions_created_at").on(table.createdAt),
+  })
+);
+
+export const clicks = pgTable(
+  "clicks",
+  {
+    id: text("id").primaryKey().notNull(),
+    assetId: text("asset_id").notNull(),
+    batchId: text("batch_id").references(() => batches.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    assetIdIdx: index("idx_clicks_asset_id").on(table.assetId),
+    batchIdIdx: index("idx_clicks_batch_id").on(table.batchId),
+    createdAtIdx: index("idx_clicks_created_at").on(table.createdAt),
   })
 );

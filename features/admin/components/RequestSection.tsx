@@ -2,7 +2,11 @@
 
 import * as Accordion from "@radix-ui/react-accordion";
 
-import type { CreativeRequest } from "../types/request.types";
+import type {
+  ApprovalStage,
+  CreativeRequest,
+  RequestStatus,
+} from "../types/request.types";
 
 import { RequestItem } from "./RequestItem";
 
@@ -11,6 +15,13 @@ interface RequestSectionProps {
   startIndex?: number;
   viewButtonText?: string;
   showDownloadButton?: boolean;
+  onRefresh?: () => void;
+  onStatusUpdate?: (
+    requestId: string,
+    newStatus: RequestStatus,
+    newApprovalStage: ApprovalStage
+  ) => void;
+  isAdvertiserView?: boolean;
 }
 
 export function RequestSection({
@@ -18,6 +29,9 @@ export function RequestSection({
   startIndex = 0,
   viewButtonText,
   showDownloadButton,
+  onRefresh,
+  onStatusUpdate,
+  isAdvertiserView = false,
 }: RequestSectionProps) {
   return (
     <Accordion.Root type="single" collapsible className="space-y-4">
@@ -31,6 +45,9 @@ export function RequestSection({
             colorVariant={globalIndex % 2 === 0 ? "purple" : "blue"}
             viewButtonText={viewButtonText}
             showDownloadButton={showDownloadButton}
+            onRefresh={onRefresh}
+            onStatusUpdate={onStatusUpdate}
+            isAdvertiserView={isAdvertiserView}
           />
         );
       })}

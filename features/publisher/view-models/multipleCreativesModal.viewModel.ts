@@ -14,6 +14,11 @@ export interface CreativeFile {
   source?: "single" | "zip";
   uploadId?: string;
   embeddedHtml?: string;
+  metadata?: {
+    fromLines?: string;
+    subjectLines?: string;
+    additionalNotes?: string;
+  };
 }
 
 interface UseMultipleCreativesModalProps {
@@ -76,7 +81,7 @@ export const useMultipleCreativesModal = ({
         // Try API endpoint first
         try {
           const encodedFileUrl = encodeURIComponent(creative.url);
-          let apiUrl = `/api/get-file-content?fileId=${creative.id}&fileUrl=${encodedFileUrl}&processAssets=true`;
+          let apiUrl = `/api/files?fileId=${creative.id}&fileUrl=${encodedFileUrl}&processAssets=true`;
           if (creative.uploadId) {
             apiUrl += `&uploadId=${encodeURIComponent(creative.uploadId)}`;
           }
