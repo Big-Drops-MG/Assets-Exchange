@@ -59,10 +59,10 @@ export async function POST(req: NextRequest) {
     if (isZip && smartDetection) {
       const zipId = uuidv4();
 
-      const parsedEntries =
-        await ZipParserService.parseAndIdentifyDependencies(fileBuffer);
+      const { entries, analysis } =
+        await ZipParserService.parseWithAllEntries(fileBuffer);
 
-      if (parsedEntries.length > 50) {
+      if (entries.length > 50) {
         return NextResponse.json(
           { error: "ZIP contains too many files (Limit: 50)" },
           { status: 400 }
@@ -76,12 +76,25 @@ export async function POST(req: NextRequest) {
         size: number;
         type: string;
         isDependency: boolean;
+        dependencyType?: string;
+        parentPath?: string;
       }> = [];
       let imagesCount = 0;
       let htmlCount = 0;
 
-      for (const entry of parsedEntries) {
-        //  validate actual file content
+      for (const entry of entries) {
+        // Safe path normalization
+        const normalizedPath = entry.name
+          .replace(/\\/g, "/")
+          .replace(/^\/+/, "")
+          .replace(/\.\.+\//g, "")
+          .replace(/\/+/g, "/");
+
+        const pathParts = normalizedPath.split("/");
+        const fileNameOnly = pathParts.pop() || "file";
+        const subPath = pathParts.length > 0 ? pathParts.join("/") : "";
+
+        //  validate actual file content BEFORE saving
         const v = await validateBufferMagicBytes(entry.content);
 
         if (!v.ok) {
@@ -99,21 +112,22 @@ export async function POST(req: NextRequest) {
 
         const saved = await saveBuffer(
           entry.content,
-          sanitizeFilename(entry.name.split("/").pop() || "file"),
-          `extracted/${zipId}`
+          sanitizeFilename(fileNameOnly),
+          `extracted/${zipId}${subPath ? "/" + subPath : ""}`
         );
 
-        //  REPLACED: use detectedType instead of entry.type
         if (detectedType.startsWith("image/")) imagesCount++;
         if (detectedType.includes("html")) htmlCount++;
 
         items.push({
           id: saved.id,
-          name: entry.name,
+          name: normalizedPath,
           url: saved.url,
           size: entry.content.length,
-          type: detectedType, // REPLACED HERE
+          type: detectedType,
           isDependency: entry.isDependency,
+          dependencyType: entry.dependencyType,
+          parentPath: entry.parentPath,
         });
       }
 
@@ -124,6 +138,11 @@ export async function POST(req: NextRequest) {
           isSingleCreative: htmlCount === 1,
           items,
           counts: { images: imagesCount, htmls: htmlCount },
+          dependencyAnalysis: analysis,
+          mainCreative:
+            htmlCount === 1
+              ? items.find((i) => i.type.includes("html"))
+              : undefined,
         },
       });
     }

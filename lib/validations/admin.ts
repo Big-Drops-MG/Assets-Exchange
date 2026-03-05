@@ -27,6 +27,7 @@ export const offersListQuerySchema = z
   .object({
     search: z.string().max(100).optional(),
     status: z.enum(["Active", "Inactive"]).optional(),
+    visibility: z.enum(["Public", "Internal", "Hidden"]).optional(),
   })
   .strict();
 

@@ -69,13 +69,20 @@ export async function POST(req: NextRequest) {
 
     const trackingCode = generateTrackingCode();
 
+    const nonDependencyFiles =
+      data.files?.filter((f) => {
+        const metadata = (f.metadata || {}) as Record<string, unknown>;
+        const isHtml = f.type.includes("html");
+        return isHtml || !metadata.isDependency;
+      }) || [];
+
     const [request] = await db
       .insert(creativeRequests)
       .values({
         offerId: data.offerId,
         offerName: offer.offerName,
         creativeType: data.creativeType,
-        creativeCount: data.files?.length || 1,
+        creativeCount: nonDependencyFiles.length || 1,
         fromLinesCount,
         subjectLinesCount,
         publisherId,
@@ -122,25 +129,51 @@ export async function POST(req: NextRequest) {
 
     if (data.files?.length) {
       const now = new Date();
-      const creativeRecords = data.files.map((file) => ({
-        id: createId(),
-        requestId: request.id,
-        name: file.name,
-        url: file.url,
-        type: file.type,
-        size: file.size,
-        format: file.type.includes("image")
-          ? "image"
-          : file.type.includes("html")
-            ? "html"
-            : "other",
-        status: "pending",
-        metadata: file.metadata || {},
-        createdAt: now,
-        updatedAt: now,
-        statusUpdatedAt: now,
-        scanAttempts: 0,
-      }));
+      const nameToId = new Map<string, string>();
+
+      // Pre-generate IDs for all files to allow parentId linkage
+      data.files.forEach((file) => {
+        nameToId.set(file.name, createId());
+      });
+
+      const creativeRecords = data.files.map((file) => {
+        const id = nameToId.get(file.name)!;
+        const metadata = (file.metadata || {}) as Record<string, unknown>;
+        const isHtml = file.type.includes("html");
+
+        // Linkage logic:
+        // - if file is dependency: set isDependency = true, parentId = linked HTML id, dependencyType
+        // - HTML creatives: isDependency = false
+        const isDependency = !isHtml && !!metadata.isDependency;
+        const parentPath = metadata.parentPath as string | undefined;
+        const parentId =
+          isDependency && parentPath ? nameToId.get(parentPath) || null : null;
+
+        return {
+          id,
+          requestId: request.id,
+          parentId,
+          name: file.name,
+          url: file.url,
+          type: file.type,
+          size: file.size,
+          format: file.type.includes("image")
+            ? "image"
+            : isHtml
+              ? "html"
+              : "other",
+          status: "pending", // Inherits same initial status as parent (all start as pending)
+          isDependency,
+          dependencyType: isDependency
+            ? (metadata.dependencyType as string) || "asset"
+            : null,
+          metadata: file.metadata || {},
+          createdAt: now,
+          updatedAt: now,
+          statusUpdatedAt: now,
+          scanAttempts: 0,
+        };
+      });
 
       await db.insert(creatives).values(creativeRecords);
     }

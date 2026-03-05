@@ -23,11 +23,16 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await response.arrayBuffer();
     const fileBuffer = Buffer.from(arrayBuffer);
 
-    // 2. Process with existing ZipParserService
-    const parsedEntries =
-      await ZipParserService.parseAndIdentifyDependencies(fileBuffer);
+    // 2. Process with ZipParserService
+    // Note: ZipParserService has been updated to return HTMLDependencyMap[]
+    // but for the upload-blob flow we still need to iterate over all files once.
+    // We'll use a modified approach or assume Service still provides access to raw files if needed,
+    // or we'll wrap the parsing to get all entries.
 
-    if (parsedEntries.length > 50) {
+    const { entries, analysis } =
+      await ZipParserService.parseWithAllEntries(fileBuffer);
+
+    if (entries.length > 50) {
       return NextResponse.json(
         { error: "ZIP contains too many files (Limit: 50)" },
         { status: 400 }
@@ -42,12 +47,20 @@ export async function POST(req: NextRequest) {
       size: number;
       type: string;
       isDependency: boolean;
+      dependencyType?: string;
+      parentPath?: string;
     }> = [];
     let imagesCount = 0;
     let htmlCount = 0;
 
-    for (const entry of parsedEntries) {
-      //validating each extracted file before saving it
+    for (const entry of entries) {
+      // safe path normalization
+      const normalizedName = entry.name
+        .replace(/^\/+/, "") // remove leading "/"
+        .replace(/\.\.\//g, "") // prevent "../"
+        .replace(/\/+/g, "/"); // collapse multiple slashes
+
+      // validating each extracted file before saving it
       const v = await validateBufferMagicBytes(entry.content);
 
       if (!v.ok) {
@@ -64,10 +77,21 @@ export async function POST(req: NextRequest) {
       const detectedType = v.detectedMime;
 
       // 3. Save extracted files to Blob (server-side)
+      // Preserve full ZIP path structure by splitting name and path segments
+      const lastSlashIndex = normalizedName.lastIndexOf("/");
+      const fileName =
+        lastSlashIndex === -1
+          ? normalizedName
+          : normalizedName.substring(lastSlashIndex + 1);
+      const subPath =
+        lastSlashIndex === -1
+          ? ""
+          : normalizedName.substring(0, lastSlashIndex);
+
       const saved = await saveBuffer(
         entry.content,
-        entry.name.split("/").pop() || "file",
-        `extracted/${zipId}`
+        fileName || "file",
+        subPath ? `extracted/${zipId}/${subPath}` : `extracted/${zipId}`
       );
 
       if (detectedType.startsWith("image/")) imagesCount++;
@@ -75,11 +99,13 @@ export async function POST(req: NextRequest) {
 
       items.push({
         id: saved.id,
-        name: entry.name,
+        name: normalizedName,
         url: saved.url,
         size: entry.content.length,
         type: detectedType,
         isDependency: entry.isDependency,
+        dependencyType: entry.dependencyType,
+        parentPath: entry.parentPath,
       });
     }
 
@@ -90,6 +116,7 @@ export async function POST(req: NextRequest) {
         isSingleCreative: htmlCount === 1,
         items,
         counts: { images: imagesCount, htmls: htmlCount },
+        dependencyAnalysis: analysis,
         mainCreative:
           htmlCount === 1
             ? items.find((i) => i.type.includes("html"))

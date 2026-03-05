@@ -13,6 +13,7 @@ import {
   date,
   doublePrecision,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
@@ -570,6 +571,11 @@ export const creatives = pgTable(
     type: text("type").notNull(),
     size: integer("size").notNull(),
     format: text("format"),
+    parentId: text("parent_id").references((): AnyPgColumn => creatives.id, {
+      onDelete: "cascade",
+    }),
+    isDependency: boolean("is_dependency").notNull().default(false),
+    dependencyType: text("dependency_type"),
     status: text("status").notNull().default("pending"),
     metadata: jsonb("metadata").$type<{
       proofreadingData?: {

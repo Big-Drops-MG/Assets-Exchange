@@ -155,6 +155,7 @@ export async function getRequestWithCreatives(requestId: string) {
     .where(
       and(
         eq(creatives.requestId, requestId),
+        eq(creatives.isDependency, false),
         ne(creatives.status, "superseded")
       )
     )

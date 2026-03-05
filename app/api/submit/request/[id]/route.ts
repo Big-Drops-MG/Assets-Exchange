@@ -57,7 +57,9 @@ export async function GET(
         metadata: creatives.metadata,
       })
       .from(creatives)
-      .where(eq(creatives.requestId, id))
+      .where(
+        and(eq(creatives.requestId, id), eq(creatives.isDependency, false))
+      )
       .orderBy(asc(creatives.createdAt));
 
     return NextResponse.json({

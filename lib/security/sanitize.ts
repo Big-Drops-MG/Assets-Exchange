@@ -57,6 +57,8 @@ export function sanitizeCreativeHtml(input: unknown): string {
       "main",
       "article",
       "aside",
+      "link",
+      "source",
     ]),
     allowedAttributes: {
       ...sanitizeHtml.defaults.allowedAttributes,
@@ -75,6 +77,8 @@ export function sanitizeCreativeHtml(input: unknown): string {
       ],
       img: ["src", "alt", "width", "height", "style"],
       a: ["href", "name", "target", "style"],
+      link: ["rel", "href", "type", "media"],
+      source: ["srcset", "src", "type", "media"],
     },
     allowedStyles: {
       "*": {

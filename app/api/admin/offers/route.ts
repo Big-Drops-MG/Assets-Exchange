@@ -28,6 +28,12 @@ async function enforceRateLimit() {
   }
 }
 
+/**
+ * GET /api/admin/offers
+ * Admin endpoint for managing offers.
+ * Supports filtering by visibility (optional).
+ * Defaults to "Active" status if not specified.
+ */
 export async function GET(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session || !["admin", "advertiser"].includes(session.user.role))
@@ -36,9 +42,14 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search") || undefined;
   const status = searchParams.get("status") || undefined;
+  const visibility = searchParams.get("visibility") || undefined;
 
   // Validate query parameters
-  const queryParsed = offersListQuerySchema.safeParse({ search, status });
+  const queryParsed = offersListQuerySchema.safeParse({
+    search,
+    status,
+    visibility,
+  });
   if (!queryParsed.success) {
     return NextResponse.json(
       {
@@ -63,6 +74,7 @@ export async function GET(req: Request) {
     const data = await listOffers({
       search: queryParsed.data.search,
       status: queryParsed.data.status,
+      visibility: queryParsed.data.visibility,
       advertiserId,
     });
     return NextResponse.json({ data });

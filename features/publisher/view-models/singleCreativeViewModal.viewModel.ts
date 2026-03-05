@@ -258,6 +258,76 @@ export const useSingleCreativeViewModal = ({
     return null;
   }, [proofreadingData, creative.url, creative.previewUrl]);
 
+  const processHtmlContent = useCallback(
+    (html: string) => {
+      if (!html || !siblingCreatives || siblingCreatives.length === 0) {
+        return html;
+      }
+
+      let processedHtml = html;
+
+      // Handle src, href, and srcset attributes
+      const attrRegex = /(src|href|srcset)=["']([^"']+)["']/gi;
+
+      processedHtml = processedHtml.replace(
+        attrRegex,
+        (match, attrName, urlValue) => {
+          const decodedUrl = decodeURIComponent(urlValue);
+
+          // For srcset, it could be multiple comma-separated URLs
+          if (attrName.toLowerCase() === "srcset") {
+            const parts = decodedUrl.split(",");
+            const processedParts = parts.map((part) => {
+              const trimmed = part.trim();
+              const [url, ...suffix] = trimmed.split(/\s+/);
+              if (!url) return part;
+
+              const resolved = resolveSibling(url);
+              return resolved
+                ? `${resolved}${suffix.length ? " " + suffix.join(" ") : ""}`
+                : part;
+            });
+            return `${attrName}="${processedParts.join(", ")}"`;
+          }
+
+          const resolved = resolveSibling(decodedUrl);
+          if (resolved) {
+            return `${attrName}="${resolved}"`;
+          }
+
+          return match;
+        }
+      );
+
+      return processedHtml;
+
+      function resolveSibling(rawUrl: string): string | null {
+        let normalizedTarget = rawUrl.split(/[?#]/)[0].replace(/\\/g, "/");
+        if (normalizedTarget.startsWith("./")) {
+          normalizedTarget = normalizedTarget.substring(2);
+        }
+
+        const matchedSibling = siblingCreatives?.find((sibling) => {
+          const siblingPath = sibling.name.replace(/\\/g, "/");
+          const lowerSibling = siblingPath.toLowerCase();
+          const lowerTarget = normalizedTarget.toLowerCase();
+
+          if (lowerSibling === lowerTarget) return true;
+          if (lowerSibling.endsWith("/" + lowerTarget)) return true;
+
+          const siblingBasename = lowerSibling.split("/").pop();
+          const targetBasename = lowerTarget.split("/").pop();
+          return siblingBasename === targetBasename;
+        });
+
+        return matchedSibling
+          ? matchedSibling.previewUrl || matchedSibling.url
+          : null;
+      }
+    },
+    [siblingCreatives]
+  );
+
   const getMarkedHtmlContent = useCallback((): string | null => {
     if (
       !proofreadingData?.result ||
@@ -268,16 +338,16 @@ export const useSingleCreativeViewModal = ({
     const result = proofreadingData.result as Record<string, unknown>;
 
     if (result.output_content && typeof result.output_content === "string") {
-      return result.output_content;
+      return processHtmlContent(result.output_content);
     }
     if (result.corrected_html && typeof result.corrected_html === "string") {
-      return result.corrected_html;
+      return processHtmlContent(result.corrected_html);
     }
     if (result.annotated_html && typeof result.annotated_html === "string") {
-      return result.annotated_html;
+      return processHtmlContent(result.annotated_html);
     }
     if (result.marked_html && typeof result.marked_html === "string") {
-      return result.marked_html;
+      return processHtmlContent(result.marked_html);
     }
 
     if (result.result && typeof result.result === "object") {
@@ -286,82 +356,30 @@ export const useSingleCreativeViewModal = ({
         nestedResult.output_content &&
         typeof nestedResult.output_content === "string"
       ) {
-        return nestedResult.output_content;
+        return processHtmlContent(nestedResult.output_content);
       }
       if (
         nestedResult.corrected_html &&
         typeof nestedResult.corrected_html === "string"
       ) {
-        return nestedResult.corrected_html;
+        return processHtmlContent(nestedResult.corrected_html);
       }
       if (
         nestedResult.annotated_html &&
         typeof nestedResult.annotated_html === "string"
       ) {
-        return nestedResult.annotated_html;
+        return processHtmlContent(nestedResult.annotated_html);
       }
       if (
         nestedResult.marked_html &&
         typeof nestedResult.marked_html === "string"
       ) {
-        return nestedResult.marked_html;
+        return processHtmlContent(nestedResult.marked_html);
       }
     }
 
     return null;
-  }, [proofreadingData]);
-
-  const processHtmlContent = useCallback(
-    (html: string) => {
-      if (!html || !siblingCreatives || siblingCreatives.length === 0) {
-        return html;
-      }
-
-      let processedHtml = html;
-
-      const srcRegex = /src=["']([^"']+)["']/gi;
-
-      processedHtml = processedHtml.replace(srcRegex, (match, url) => {
-        const decodedUrl = decodeURIComponent(url);
-        let normalizedTarget = decodedUrl.replace(/\\/g, "/");
-        if (normalizedTarget.startsWith("./")) {
-          normalizedTarget = normalizedTarget.substring(2);
-        }
-
-        const matchedSibling = siblingCreatives.find((sibling) => {
-          const isAsset =
-            sibling.type?.startsWith("image/") ||
-            /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(sibling.name);
-          if (!isAsset) return false;
-
-          const siblingPath = sibling.name.replace(/\\/g, "/");
-
-          const lowerSibling = siblingPath.toLowerCase();
-          const lowerTarget = normalizedTarget.toLowerCase();
-          if (lowerSibling === lowerTarget) return true;
-
-          if (lowerSibling.endsWith("/" + lowerTarget)) return true;
-
-          const siblingBasename = lowerSibling.split("/").pop();
-          const targetBasename = lowerTarget.split("/").pop();
-
-          return siblingBasename === targetBasename;
-        });
-
-        if (matchedSibling) {
-          const replacementUrl =
-            matchedSibling.previewUrl || matchedSibling.url;
-
-          return `src="${replacementUrl}"`;
-        }
-
-        return match;
-      });
-
-      return processedHtml;
-    },
-    [siblingCreatives]
-  );
+  }, [proofreadingData, processHtmlContent]);
 
   const onMetadataChangeRef = useRef(_onMetadataChange);
   useEffect(() => {
@@ -864,15 +882,15 @@ export const useSingleCreativeViewModal = ({
         const rawCorrections = (resultData.corrections ||
           resultData.issues ||
           []) as Array<{
-            original_word?: string;
-            corrected_word?: string;
-            original_context?: string;
-            corrected_context?: string;
-            type?: string;
-            original?: string;
-            correction?: string;
-            note?: string;
-          }>;
+          original_word?: string;
+          corrected_word?: string;
+          original_context?: string;
+          corrected_context?: string;
+          type?: string;
+          original?: string;
+          correction?: string;
+          note?: string;
+        }>;
 
         const issues: ProofreadCreativeResponse["issues"] = rawCorrections.map(
           (c) => ({
@@ -971,15 +989,15 @@ export const useSingleCreativeViewModal = ({
               const rawCorrections = (resultData.corrections ||
                 resultData.issues ||
                 []) as Array<{
-                  original_word?: string;
-                  corrected_word?: string;
-                  original_context?: string;
-                  corrected_context?: string;
-                  type?: string;
-                  original?: string;
-                  correction?: string;
-                  note?: string;
-                }>;
+                original_word?: string;
+                corrected_word?: string;
+                original_context?: string;
+                corrected_context?: string;
+                type?: string;
+                original?: string;
+                correction?: string;
+                note?: string;
+              }>;
 
               const issues: ProofreadCreativeResponse["issues"] =
                 rawCorrections.map((c) => ({
@@ -1360,12 +1378,12 @@ export const useSingleCreativeViewModal = ({
   const isProofreadComplete = !!proofreadingData && !isAnalyzing;
   const proofreadResult = proofreadingData
     ? {
-      issues: proofreadingData.issues || [],
-      suggestions: proofreadingData.suggestions || [],
-      qualityScore: proofreadingData.qualityScore,
-      marked_image: getMarkedImageUrl(),
-      success: proofreadingData.success,
-    }
+        issues: proofreadingData.issues || [],
+        suggestions: proofreadingData.suggestions || [],
+        qualityScore: proofreadingData.qualityScore,
+        marked_image: getMarkedImageUrl(),
+        success: proofreadingData.success,
+      }
     : null;
 
   return {

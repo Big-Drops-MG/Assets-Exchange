@@ -26,10 +26,12 @@ export async function listOffers({
   search,
   status,
   advertiserId,
+  visibility,
 }: {
   search?: string;
   status?: "Active" | "Inactive";
   advertiserId?: string;
+  visibility?: "Public" | "Internal" | "Hidden";
 }) {
   try {
     const conditions = [];
@@ -38,6 +40,10 @@ export async function listOffers({
       conditions.push(eq(offers.status, status));
     } else {
       conditions.push(eq(offers.status, "Active"));
+    }
+
+    if (visibility) {
+      conditions.push(eq(offers.visibility, visibility));
     }
 
     if (search) {

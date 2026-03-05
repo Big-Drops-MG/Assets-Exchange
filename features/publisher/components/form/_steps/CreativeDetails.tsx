@@ -271,6 +271,10 @@ type UploadedFileMeta = {
     grammar_feedback?: GrammarFeedbackInput;
     grammarFeedback?: GrammarFeedbackInput;
     status?: Status;
+    isDependency?: boolean;
+    dependencyType?: string;
+    parentPath?: string;
+    additionalNotes?: string;
   };
 };
 
@@ -714,6 +718,8 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
       size: number;
       type?: string;
       isDependency?: boolean;
+      dependencyType?: string;
+      parentPath?: string;
     }>,
     zipName: string
   ) => {
@@ -741,6 +747,8 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
         size: number;
         type?: string;
         isDependency?: boolean;
+        dependencyType?: string;
+        parentPath?: string;
       }) => {
         const isImageFile = /\.(png|jpe?g|gif|webp|svg)$/i.test(f.name);
         const isHtml = isHtmlItem(f);
@@ -754,8 +762,13 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
             f.type || (isImageFile ? "image/png" : "application/octet-stream"),
           source: "zip",
           html: isHtml,
-          isHidden: hasHtml && !isHtml,
+          isHidden: (hasHtml && !isHtml) || !!f.isDependency,
           previewUrl: isImageFile || isHtml ? f.url : undefined,
+          metadata: {
+            isDependency: !!f.isDependency,
+            dependencyType: f.dependencyType,
+            parentPath: f.parentPath,
+          },
         };
       }
     );
@@ -1616,6 +1629,16 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
             }}
             showAdditionalNotes={true}
             creativeType={formData.creativeType}
+            siblingCreatives={uploadedFiles.map((f) => ({
+              id: f.id,
+              name: f.name,
+              url: f.url,
+              size: f.size,
+              type: f.type,
+              previewUrl: f.previewUrl,
+              html: f.html,
+              metadata: f.metadata,
+            }))}
           />
         )}
 

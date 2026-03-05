@@ -1,4 +1,4 @@
-import { pgTable, text, jsonb, timestamp, index, integer, unique, foreignKey, boolean, serial, real, date, doublePrecision, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, text, jsonb, timestamp, index, integer, unique, foreignKey, boolean, serial, real, date, doublePrecision, pgEnum, AnyPgColumn } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const adminStatus = pgEnum("admin_status", ['pending', 'approved', 'rejected'])
@@ -86,10 +86,10 @@ export const session = pgTable("session", {
 	userId: text().notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [user.id],
-			name: "session_userId_user_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [user.id],
+		name: "session_userId_user_id_fk"
+	}).onDelete("cascade"),
 	unique("session_token_unique").on(table.token),
 ]);
 
@@ -129,10 +129,10 @@ export const account = pgTable("account", {
 	updatedAt: timestamp({ mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [user.id],
-			name: "account_userId_user_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [user.id],
+		name: "account_userId_user_id_fk"
+	}).onDelete("cascade"),
 ]);
 
 export const tenants = pgTable("tenants", {
@@ -160,10 +160,10 @@ export const annotations = pgTable("annotations", {
 	updatedAt: timestamp({ mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.creativeRequestId],
-			foreignColumns: [creativeRequests.id],
-			name: "annotations_creative_request_id_creative_requests_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.creativeRequestId],
+		foreignColumns: [creativeRequests.id],
+		name: "annotations_creative_request_id_creative_requests_id_fk"
+	}).onDelete("cascade"),
 ]);
 
 export const creativeRequestHistory = pgTable("creative_request_history", {
@@ -182,10 +182,10 @@ export const creativeRequestHistory = pgTable("creative_request_history", {
 	index("idx_action_at").using("btree", table.actionAt.asc().nullsLast().op("timestamp_ops")),
 	index("idx_request_id").using("btree", table.requestId.asc().nullsLast().op("text_ops")),
 	foreignKey({
-			columns: [table.requestId],
-			foreignColumns: [creativeRequests.id],
-			name: "creative_request_history_request_id_creative_requests_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.requestId],
+		foreignColumns: [creativeRequests.id],
+		name: "creative_request_history_request_id_creative_requests_id_fk"
+	}).onDelete("cascade"),
 ]);
 
 export const creativeRequests = pgTable("creative_requests", {
@@ -281,10 +281,10 @@ export const backgroundJobEvents = pgTable("background_job_events", {
 	index("idx_background_job_events_created_at").using("btree", table.createdAt.asc().nullsLast().op("timestamp_ops")),
 	index("idx_background_job_events_job_id").using("btree", table.jobId.asc().nullsLast().op("text_ops")),
 	foreignKey({
-			columns: [table.jobId],
-			foreignColumns: [backgroundJobs.id],
-			name: "background_job_events_job_id_background_jobs_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.jobId],
+		foreignColumns: [backgroundJobs.id],
+		name: "background_job_events_job_id_background_jobs_id_fk"
+	}).onDelete("cascade"),
 ]);
 
 export const idempotencyKeys = pgTable("idempotency_keys", {
@@ -323,10 +323,10 @@ export const fileUploads = pgTable("file_uploads", {
 	index("idx_file_uploads_status").using("btree", table.status.asc().nullsLast().op("enum_ops")),
 	index("idx_file_uploads_uploaded_by").using("btree", table.uploadedBy.asc().nullsLast().op("text_ops")),
 	foreignKey({
-			columns: [table.uploadedBy],
-			foreignColumns: [user.id],
-			name: "file_uploads_uploaded_by_user_id_fk"
-		}),
+		columns: [table.uploadedBy],
+		foreignColumns: [user.id],
+		name: "file_uploads_uploaded_by_user_id_fk"
+	}),
 ]);
 
 export const syncHistory = pgTable("sync_history", {
@@ -432,6 +432,9 @@ export const creatives = pgTable("creatives", {
 	scanAttempts: integer("scan_attempts").default(0).notNull(),
 	lastScanError: text("last_scan_error"),
 	revision: integer().default(1).notNull(),
+	parentId: text("parent_id").references((): AnyPgColumn => creatives.id, { onDelete: "cascade" }),
+	isDependency: boolean("is_dependency").notNull().default(false),
+	dependencyType: text("dependency_type"),
 }, (table) => [
 	index("idx_creatives_created_at").using("btree", table.createdAt.asc().nullsLast().op("timestamp_ops")),
 	index("idx_creatives_request_id").using("btree", table.requestId.asc().nullsLast().op("text_ops")),
@@ -439,10 +442,10 @@ export const creatives = pgTable("creatives", {
 	index("idx_creatives_status").using("btree", table.status.asc().nullsLast().op("text_ops")),
 	index("idx_creatives_status_updated_at").using("btree", table.status.asc().nullsLast().op("timestamp_ops"), table.statusUpdatedAt.asc().nullsLast().op("timestamp_ops")),
 	foreignKey({
-			columns: [table.requestId],
-			foreignColumns: [creativeRequests.id],
-			name: "creatives_request_id_creative_requests_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.requestId],
+		foreignColumns: [creativeRequests.id],
+		name: "creatives_request_id_creative_requests_id_fk"
+	}).onDelete("cascade"),
 ]);
 
 export const dailyStats = pgTable("daily_stats", {
@@ -489,14 +492,14 @@ export const batchAssets = pgTable("batch_assets", {
 	index("idx_batch_assets_asset_id").using("btree", table.assetId.asc().nullsLast().op("text_ops")),
 	index("idx_batch_assets_batch_id").using("btree", table.batchId.asc().nullsLast().op("text_ops")),
 	foreignKey({
-			columns: [table.batchId],
-			foreignColumns: [batches.id],
-			name: "fk_batch_assets_batch"
-		}).onDelete("cascade"),
+		columns: [table.batchId],
+		foreignColumns: [batches.id],
+		name: "fk_batch_assets_batch"
+	}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.assetId],
-			foreignColumns: [assetsTable.id],
-			name: "fk_batch_assets_asset"
-		}).onDelete("cascade"),
+		columns: [table.assetId],
+		foreignColumns: [assetsTable.id],
+		name: "fk_batch_assets_asset"
+	}).onDelete("cascade"),
 	unique("uq_batch_asset").on(table.batchId, table.assetId),
 ]);

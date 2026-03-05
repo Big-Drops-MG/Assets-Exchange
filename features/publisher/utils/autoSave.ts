@@ -30,6 +30,9 @@ export interface SavedFileMeta {
     fromLines?: string;
     subjectLines?: string;
     additionalNotes?: string;
+    isDependency?: boolean;
+    dependencyType?: string;
+    parentPath?: string;
     proofreadingData?: {
       issues?: Array<unknown>;
       suggestions?: Array<unknown>;
@@ -160,6 +163,7 @@ const optimizeFileMeta = (file: SavedFileMeta): SavedFileMeta => {
       file.additionalNotes && file.additionalNotes.length > 5000
         ? file.additionalNotes.substring(0, 5000)
         : file.additionalNotes,
+    metadata: file.metadata,
   };
   return optimized;
 };

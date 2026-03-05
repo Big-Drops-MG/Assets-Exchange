@@ -4,9 +4,24 @@ import { listOffers } from "@/features/admin/services/offer.service";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * GET /api/offers
+ * Public endpoint for publishers to fetch available offers.
+ * STRICT SECURITY: Only Active + Public offers are returned.
+ *
+ * Manual Test:
+ * 1. Create an offer with status='Active' and visibility='Public'. Verify it appears here.
+ * 2. Create an offer with status='Active' and visibility='Internal'. Verify it is NOT returned here.
+ * 3. Create an offer with status='Inactive' and visibility='Public'. Verify it is NOT returned here.
+ *
+ * Note: Admin users should use /api/admin/offers for management, which bypasses these filters.
+ */
 export async function GET() {
   try {
-    const offersList = await listOffers({ status: "Active" });
+    const offersList = await listOffers({
+      status: "Active",
+      visibility: "Public",
+    });
     const offerData = offersList.map((offer) => ({
       id: offer.id,
       offerId: offer.offerId,
