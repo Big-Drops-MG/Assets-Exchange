@@ -47,7 +47,17 @@ export async function POST(req: NextRequest) {
     let htmlCount = 0;
 
     for (const entry of parsedEntries) {
-      //validating each extracted file before saving it
+      const basename = entry.name.split("/").pop() ?? "";
+      if (
+        basename === ".DS_Store" ||
+        basename === "Thumbs.db" ||
+        basename === "desktop.ini" ||
+        entry.name.startsWith("__MACOSX/") ||
+        basename.startsWith("._")
+      ) {
+        continue;
+      }
+
       const v = await validateBufferMagicBytes(entry.content);
 
       if (!v.ok) {
