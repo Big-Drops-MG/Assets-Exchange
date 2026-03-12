@@ -24,7 +24,11 @@ async function getPublisherInfo(requestId: string): Promise<{
 }> {
   const row = await db.query.creativeRequests.findFirst({
     where: eq(creativeRequests.id, requestId),
-    columns: { email: true, publisherId: true, trackingCode: true },
+    columns: {
+      email: true,
+      trackingCode: true,
+      telegramId: true,
+    },
   });
   if (!row)
     return {
@@ -34,17 +38,18 @@ async function getPublisherInfo(requestId: string): Promise<{
       telegramId: null,
     };
 
-  const pub = await db.query.publishers.findFirst({
-    where: eq(publishers.id, row.publisherId),
-    columns: { contactEmail: true, telegramId: true, telegramChatId: true },
-  });
+  const pub = row.email?.trim()
+    ? await db.query.publishers.findFirst({
+        where: eq(publishers.contactEmail, row.email.trim()),
+        columns: { telegramId: true, telegramChatId: true },
+      })
+    : null;
 
-  const email = row.email?.trim() || pub?.contactEmail?.trim() || null;
   return {
-    email,
+    email: row.email?.trim() || null,
     trackingCode: row.trackingCode ?? null,
     telegramChatId: pub?.telegramChatId ?? null,
-    telegramId: pub?.telegramId ?? null,
+    telegramId: pub?.telegramId ?? row.telegramId ?? null,
   };
 }
 
