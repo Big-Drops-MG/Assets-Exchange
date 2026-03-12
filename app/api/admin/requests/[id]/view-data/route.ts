@@ -74,17 +74,33 @@ export async function GET(
       rowToViewCreative(row, requestMetadata)
     );
 
-    if (viewCreatives.length === 1) {
+
+    const hasHtml = viewCreatives.some((c) => c.html);
+    const processed = viewCreatives
+      .map((c) => ({
+        ...c,
+        isHidden: hasHtml && !c.html,
+      }))
+      // HTML files first, then images — same order as upload flow
+      .sort((a, b) => {
+        if (a.html && !b.html) return -1;
+        if (!a.html && b.html) return 1;
+        return 0;
+      });
+
+    const visible = processed.filter((c) => !c.isHidden);
+
+    if (visible.length === 1) {
       return NextResponse.json({
         type: "single",
-        creative: viewCreatives[0],
+        creative: visible[0],
         creativeType,
       });
     }
 
     return NextResponse.json({
       type: "multiple",
-      creatives: viewCreatives,
+      creatives: processed,
       creativeType,
     });
   } catch (error) {
