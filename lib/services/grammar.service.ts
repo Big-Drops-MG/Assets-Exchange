@@ -124,7 +124,7 @@ async function nativeHttpPost(
     );
 
   const escapedFilename = filename.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-  const fileFieldName = process.env.GRAMMAR_AI_FILE_FIELD ?? "creative_file";
+  const fileFieldName = process.env.GRAMMAR_AI_FILE_FIELD ?? "file";
   const filePart = Buffer.concat([
     Buffer.from(
       `--${boundary}\r\nContent-Disposition: form-data; name="${fileFieldName}"; filename="${escapedFilename}"\r\nContent-Type: ${mimeType}\r\n\r\n`
@@ -1042,10 +1042,6 @@ export const GrammarService = {
             );
           }
 
-          console.warn(
-            `Sending file to AI service (attempt ${attempt}/${MAX_RETRIES}): ${AI_BASE_URL}/process?format=json`
-          );
-
           const startTime = Date.now();
           const fileBuffer = Buffer.from(await blob.arrayBuffer());
           const mimeType = blob.type || "application/octet-stream";
@@ -1057,6 +1053,10 @@ export const GrammarService = {
 
           const processPath = process.env.GRAMMAR_AI_PROCESS_PATH || "/process";
           const processUrl = `${grammarBaseUrl}${processPath.startsWith("/") ? processPath : `/${processPath}`}${processPath.includes("?") ? "&" : "?"}format=json`;
+
+          console.warn(
+            `Sending file to AI service (attempt ${attempt}/${MAX_RETRIES}): ${processUrl} [field: ${process.env.GRAMMAR_AI_FILE_FIELD ?? "file"}]`
+          );
 
           let res: { status: number; body: string };
           try {
