@@ -424,6 +424,12 @@ BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
 
 # Telegram (optional, for notifications/webhook)
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+
+# External services (Hetzner). Grammar API docs: GRAMMAR_AI_URL/docs (port 8002)
+GRAMMAR_AI_URL=http://46.224.98.165:8002
+PYTHON_SERVICE_URL=http://46.224.98.165:8000
+# If 404 on /process, set GRAMMAR_AI_PROCESS_PATH per API docs.
+
 ```
 
 ### Environment Validation

@@ -27,7 +27,7 @@ export async function POST(req: Request) {
                 payload: {
                     userId: session.user.id,
                     conflictResolution: body.conflictResolution || "update",
-                    filters: body.filters || { status: "active" },
+                    filters: body.filters ?? {},
                 },
                 progress: 0,
                 total: 0,

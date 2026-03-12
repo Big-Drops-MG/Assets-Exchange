@@ -72,6 +72,7 @@ interface SingleCreativeViewModalProps {
         };
         success?: boolean;
       };
+      originalImageUrl?: string;
       ai_issues?: Array<unknown>;
       ai_score?: number;
       ai_status?: string;
@@ -156,23 +157,20 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
     }
   }, [isAnalyzing]);
 
-  // ✅ UPDATED EFFECT: Sync AI Results with Guard
   React.useEffect(() => {
     if (
       isProofreadComplete &&
       proofreadResult &&
       !hasSyncedRef.current &&
-      onFileUpdate
+      onFileUpdate &&
+      viewModel.proofreadingData
     ) {
       onFileUpdate({
-        url: proofreadResult.marked_image || creative?.url,
+        url: creative?.url,
         metadata: {
-          proofreadingData: {
-            issues: proofreadResult.issues || [],
-            suggestions: proofreadResult.suggestions || [],
-            qualityScore: proofreadResult.qualityScore,
-            success: proofreadResult.success,
-          },
+          ...creative?.metadata,
+          proofreadingData: viewModel.proofreadingData,
+          originalImageUrl: creative?.url || creative?.previewUrl,
           ai_issues: proofreadResult.issues || [],
           ai_score:
             proofreadResult.qualityScore?.grammar ||
@@ -183,10 +181,9 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
         },
       });
 
-      // 🔒 LOCK: Prevent this block from running again for this result
       hasSyncedRef.current = true;
     }
-  }, [isProofreadComplete, proofreadResult, onFileUpdate, creative?.url]);
+  }, [isProofreadComplete, proofreadResult, onFileUpdate, creative?.url, viewModel.proofreadingData]);
 
   if (!isOpen) return null;
 
@@ -474,9 +471,10 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                 <div className="flex-1 bg-white border border-gray-200 rounded-lg overflow-auto min-h-[300px] lg:min-h-0">
                   {isImage && (creative.previewUrl || creative.url) ? (
                     viewModel.proofreadingData && !viewModel.showOriginal ? (
-                      // Marked view - show the marked image from API
                       (() => {
-                        const markedImageUrl = viewModel.getMarkedImageUrl();
+                        const markedImageUrl =
+                          viewModel.getMarkedImageUrlFromModel?.() ??
+                          viewModel.getMarkedImageUrl();
                         return markedImageUrl ? (
                           <div className="w-full p-4 flex justify-center">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -502,7 +500,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                                   wait...
                                 </p>
                                 {viewModel.proofreadingData.issues &&
-                                  viewModel.proofreadingData.issues.length >
+                                  viewModel.complianceViolations.length >
                                     0 && (
                                     <div className="mt-4 flex items-center justify-center gap-2">
                                       <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
@@ -525,11 +523,14 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                         );
                       })()
                     ) : (
-                      // Original view - show the actual image
                       <div className="w-full p-4 flex justify-center">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={creative.previewUrl || creative.url}
+                          src={
+                            viewModel.getOriginalImageUrl?.() ||
+                            creative.previewUrl ||
+                            creative.url
+                          }
                           alt={creative.name}
                           className="max-w-[600px] w-full h-auto rounded-lg shadow-sm"
                         />
@@ -537,7 +538,6 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                     )
                   ) : isHtml ? (
                     viewModel.proofreadingData && !viewModel.showOriginal ? (
-                      // Marked view - show the marked HTML from API
                       (() => {
                         const markedHtmlContent =
                           viewModel.getMarkedHtmlContent();
@@ -564,7 +564,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                                   Marked HTML is being processed. Please wait...
                                 </p>
                                 {viewModel.proofreadingData.issues &&
-                                  viewModel.proofreadingData.issues.length >
+                                  viewModel.complianceViolations.length >
                                     0 && (
                                     <div className="mt-4 flex items-center justify-center gap-2">
                                       <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
@@ -817,6 +817,36 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                               </>
                             )}
                           </div>
+                           {/* Compliance Violations - populated after Generate is clicked */}
+                           {viewModel.complianceViolations && viewModel.complianceViolations.length > 0 && (
+                               <div className="mt-2">
+                                 <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-2">
+                                   Compliance Violations
+                                   <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-bold">
+                                     {viewModel.complianceViolations.length}
+                                   </span>
+                                 </p>
+                                 <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                                   {(viewModel.complianceViolations as Array<{type?:string;rule_type?:string;note?:string;evidence_text?:string;original?:string;confidence?:number;source?:string;}>).map((v, i) => (
+                                     <div key={i} className="flex items-start gap-2 p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs">
+                                       <span className="shrink-0 px-1.5 py-0.5 bg-red-200 text-red-800 rounded font-semibold text-[10px] uppercase whitespace-nowrap">
+                                         {v.rule_type ?? v.type ?? "Violation"}
+                                       </span>
+                                       <div className="flex-1 min-w-0">
+                                         <p className="text-red-800 font-medium leading-snug">{v.evidence_text ?? v.note ?? v.original ?? "Issue detected"}</p>
+                                         {(v.confidence !== undefined || v.source) && (
+                                           <p className="text-red-400 mt-0.5">
+                                             {v.source && <span className="capitalize">{v.source}</span>}
+                                             {v.confidence !== undefined && v.source && "  "}
+                                             {v.confidence !== undefined && <span>{Math.round(v.confidence * 100)}% confidence</span>}
+                                           </p>
+                                         )}
+                                       </div>
+                                     </div>
+                                   ))}
+                                 </div>
+                               </div>
+                             )}
                         </div>
                       </div>
                     )}
@@ -864,15 +894,13 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                           <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                             <span className="w-2 h-2 bg-red-500 rounded-full"></span>
                             Issues Found
-                            {viewModel.proofreadingData?.issues &&
-                            viewModel.proofreadingData.issues.length > 0
+                            {viewModel.proofreadingData?.issues && viewModel.proofreadingData.issues.length > 0
                               ? ` (${viewModel.proofreadingData.issues.length})`
                               : ""}
                           </h4>
 
                           <div className="space-y-2">
-                            {viewModel.proofreadingData?.issues &&
-                            viewModel.proofreadingData.issues.length > 0 ? (
+                            {viewModel.proofreadingData?.issues && viewModel.proofreadingData.issues.length > 0 ? (
                               viewModel.proofreadingData.issues.map(
                                 (issue: unknown, index: number) => {
                                   const issueData = issue as {
@@ -1200,13 +1228,13 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                     src={
                       viewModel.proofreadingData &&
                       !viewModel.showOriginalFullscreen
-                        ? (() => {
-                            const markedUrl = viewModel.getMarkedImageUrl();
-                            return (
-                              markedUrl || creative.previewUrl || creative.url
-                            );
-                          })()
-                        : creative.previewUrl || creative.url
+                        ? (viewModel.getMarkedImageUrlFromModel?.() ??
+                            viewModel.getMarkedImageUrl()) ||
+                          creative.previewUrl ||
+                          creative.url
+                        : (viewModel.getOriginalImageUrl?.() ||
+                            creative.previewUrl ||
+                            creative.url)
                     }
                     alt={
                       viewModel.proofreadingData &&
@@ -1326,12 +1354,12 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                               Marked HTML is being processed. Please wait...
                             </p>
                             {viewModel.proofreadingData.issues &&
-                              viewModel.proofreadingData.issues.length > 0 && (
+                              viewModel.complianceViolations.length > 0 && (
                                 <div className="mt-4 flex items-center justify-center gap-2">
                                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
                                     <X className="h-3 w-3" />
                                     {
-                                      viewModel.proofreadingData.issues.length
+                                      viewModel.complianceViolations.length
                                     }{" "}
                                     Issue
                                     {viewModel.proofreadingData.issues

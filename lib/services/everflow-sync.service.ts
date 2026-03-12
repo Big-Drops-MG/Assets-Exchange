@@ -147,9 +147,10 @@ export async function syncOffersFromEverflow(
   try {
     const pageSize = filters.limit || 200;
     let allEverflowOffers: EverflowOffer[] = [];
-    let totalPages = 1;
-    let totalCount = 0;
-    let actualPageSize = pageSize;
+    const statusesToFetch: string[] =
+      filters.status != null && filters.status !== ""
+        ? [filters.status]
+        : ["active", "paused"];
 
     const extractOffersAndPaging = (
       response: unknown
@@ -201,95 +202,67 @@ export async function syncOffersFromEverflow(
       return { offers, paging };
     };
 
-    const firstResponse = await everflowService.getOffers({
-      page: 1,
-      limit: pageSize,
-      advertiserId: filters.advertiserId,
-      status: filters.status,
-    });
+    for (const statusFilter of statusesToFetch) {
+      let totalPages = 1;
+      let totalCount = 0;
+      let actualPageSize = pageSize;
 
-    const { offers: firstPageOffers, paging: firstPaging } =
-      extractOffersAndPaging(firstResponse);
+      const firstResponse = await everflowService.getOffers({
+        page: 1,
+        limit: pageSize,
+        advertiserId: filters.advertiserId,
+        status: statusFilter,
+      });
 
-    if (firstPaging) {
-      totalCount = firstPaging.total_count;
-      actualPageSize = firstPaging.page_size;
-      totalPages = Math.ceil(totalCount / actualPageSize);
-      logger.everflow.info(
-        `Extracted pagination info from Everflow response - syncId: ${syncId}, totalCount: ${firstPaging.total_count}, pageSize: ${firstPaging.page_size}, totalPages: ${totalPages}, currentPage: ${firstPaging.page}`
-      );
-    } else {
-      totalCount = firstPageOffers.length;
-      totalPages = firstPageOffers.length === pageSize ? 2 : 1; // If we got full page, there might be more
-      logger.everflow.warn(
-        `No paging object in Everflow response, using fallback - syncId: ${syncId}, offersReceived: ${firstPageOffers.length}, pageSize: ${pageSize}, assumedTotalPages: ${totalPages}`
-      );
-    }
+      const { offers: firstPageOffers, paging: firstPaging } =
+        extractOffersAndPaging(firstResponse);
 
-    allEverflowOffers = [...firstPageOffers];
-    logger.everflow.info(
-      `Fetched first page from Everflow - syncId: ${syncId}, page: 1, offersInPage: ${firstPageOffers.length}, totalCount: ${totalCount}, totalPages: ${totalPages}, actualPageSize: ${actualPageSize}`
-    );
-
-    if (totalPages > 1) {
-      for (let currentPage = 2; currentPage <= totalPages; currentPage++) {
-        if (allEverflowOffers.length >= totalCount && totalCount > 0) {
-          logger.everflow.warn(
-            `Stopping pagination - already fetched all unique offers - syncId: ${syncId}, currentPage: ${currentPage}, totalPages: ${totalPages}, fetchedSoFar: ${allEverflowOffers.length}, totalCount: ${totalCount}`
-          );
-          break;
-        }
-
+      if (firstPaging) {
+        totalCount = firstPaging.total_count;
+        actualPageSize = firstPaging.page_size;
+        totalPages = Math.ceil(totalCount / actualPageSize);
         logger.everflow.info(
-          `Fetching page from Everflow - syncId: ${syncId}, page: ${currentPage}, totalPages: ${totalPages}, fetchedSoFar: ${allEverflowOffers.length}, totalCount: ${totalCount}`
+          `Extracted pagination - syncId: ${syncId}, status: ${statusFilter}, totalCount: ${firstPaging.total_count}, totalPages: ${totalPages}`
         );
-
-        const pageResponse = await everflowService.getOffers({
-          page: currentPage,
-          limit: actualPageSize,
-          advertiserId: filters.advertiserId,
-          status: filters.status,
-        });
-
-        const { offers: pageOffers } = extractOffersAndPaging(pageResponse);
-
-        allEverflowOffers = [...allEverflowOffers, ...pageOffers];
-        logger.everflow.info(
-          `Fetched page from Everflow - syncId: ${syncId}, page: ${currentPage}, offersInPage: ${pageOffers.length}, totalFetched: ${allEverflowOffers.length}, totalCount: ${totalCount}`
+      } else {
+        totalCount = firstPageOffers.length;
+        totalPages = firstPageOffers.length === pageSize ? 2 : 1;
+        logger.everflow.warn(
+          `No paging in Everflow response - syncId: ${syncId}, status: ${statusFilter}, offersReceived: ${firstPageOffers.length}`
         );
+      }
 
-        if (pageOffers.length < actualPageSize) {
-          logger.everflow.info(
-            `Received fewer offers than page size, likely last page - syncId: ${syncId}, page: ${currentPage}, offersReceived: ${pageOffers.length}, pageSize: ${actualPageSize}`
-          );
-        }
+      allEverflowOffers = [...allEverflowOffers, ...firstPageOffers];
 
-        if (pageOffers.length === 0) {
-          logger.everflow.warn(
-            `Received 0 offers, stopping pagination - syncId: ${syncId}, page: ${currentPage}`
-          );
-          break;
+      if (totalPages > 1) {
+        for (let currentPage = 2; currentPage <= totalPages; currentPage++) {
+          if (allEverflowOffers.length >= totalCount && totalCount > 0) break;
+
+          const pageResponse = await everflowService.getOffers({
+            page: currentPage,
+            limit: actualPageSize,
+            advertiserId: filters.advertiserId,
+            status: statusFilter,
+          });
+
+          const { offers: pageOffers } = extractOffersAndPaging(pageResponse);
+          allEverflowOffers = [...allEverflowOffers, ...pageOffers];
+
+          if (pageOffers.length === 0) break;
         }
       }
     }
 
     const uniqueOffersMap = new Map<number, EverflowOffer>();
     for (const offer of allEverflowOffers) {
-      const offerId = offer.network_offer_id;
-      if (!uniqueOffersMap.has(offerId)) {
-        uniqueOffersMap.set(offerId, offer);
-      } else {
-        logger.everflow.warn(
-          `Duplicate offer detected, keeping first occurrence - syncId: ${syncId}, offerId: ${offerId}, offerName: ${offer.name}`
-        );
-      }
+      uniqueOffersMap.set(offer.network_offer_id, offer);
     }
 
     const everflowOffers = Array.from(uniqueOffersMap.values());
-    totalRecords = everflowOffers.length;
+    const totalRecords = everflowOffers.length;
 
     logger.everflow.info(
-      `Fetched and deduplicated offers from Everflow - syncId: ${syncId}, totalFetched: ${allEverflowOffers.length}, totalUnique: ${totalRecords}, duplicatesRemoved: ${allEverflowOffers.length - totalRecords}`
+      `Fetched and deduplicated offers from Everflow - syncId: ${syncId}, statuses: ${statusesToFetch.join(",")}, totalFetched: ${allEverflowOffers.length}, totalUnique: ${totalRecords}`
     );
 
     if (options.onProgress && totalRecords > 0) {

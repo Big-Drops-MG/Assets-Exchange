@@ -7,7 +7,7 @@ import { GrammarService } from "@/lib/services/grammar.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 5 minutes - needed for AI image processing which can take 90+ seconds
+export const maxDuration = 600;
 
 export async function POST(req: NextRequest) {
   try {

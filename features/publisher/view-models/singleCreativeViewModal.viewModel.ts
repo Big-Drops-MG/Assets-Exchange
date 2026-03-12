@@ -10,7 +10,7 @@ import {
   getCreativeMetadata,
   updateCreativeContent,
 } from "@/lib/creativeClient";
-import { generateEmailContent } from "@/lib/generationClient";
+
 import {
   proofreadCreative,
   checkProofreadStatus,
@@ -31,6 +31,7 @@ export interface Creative {
     fromLines?: string;
     subjectLines?: string;
     additionalNotes?: string;
+    originalImageUrl?: string;
   };
 }
 
@@ -100,6 +101,7 @@ export const useSingleCreativeViewModal = ({
     creative.metadata?.additionalNotes || ""
   );
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  const [complianceViolations, setComplianceViolations] = useState<Array<{rule_type?:string;evidence_text?:string;source?:string;confidence?:number;type?:string;original?:string;note?:string;}>>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
   const [showOriginalFullscreen, setShowOriginalFullscreen] = useState(false);
@@ -114,7 +116,38 @@ export const useSingleCreativeViewModal = ({
     };
   }, []);
 
+  const getMarkedImageUrlFromModel = useCallback((): string | null => {
+    if (
+      !proofreadingData?.result ||
+      typeof proofreadingData.result !== "object"
+    ) {
+      return null;
+    }
+    const result = proofreadingData.result as Record<string, unknown>;
+    const isModelImageUrl = (s: string) =>
+      (s.startsWith("https://") || s.startsWith("data:image/")) &&
+      (s.includes("proofread-results") || s.includes("blob"));
+    if (
+      result.marked_image &&
+      typeof result.marked_image === "string" &&
+      isModelImageUrl(result.marked_image)
+    ) {
+      return result.marked_image;
+    }
+    const oc = result.output_content;
+    if (
+      typeof oc === "string" &&
+      isModelImageUrl(oc)
+    ) {
+      return oc;
+    }
+    return null;
+  }, [proofreadingData]);
+
   const getMarkedImageUrl = useCallback((): string | null => {
+    const fromModel = getMarkedImageUrlFromModel();
+    if (fromModel) return fromModel;
+
     if (!proofreadingData) {
       return null;
     }
@@ -125,6 +158,13 @@ export const useSingleCreativeViewModal = ({
       !proofreadingData.result ||
       typeof proofreadingData.result !== "object"
     ) {
+      if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+        console.warn("[Proofread] getMarkedImageUrl: no result object", {
+          hasProofreadingData: !!proofreadingData,
+          hasResult: !!proofreadingData.result,
+          resultType: typeof proofreadingData.result,
+        });
+      }
       return null;
     }
     const result = proofreadingData.result as Record<string, unknown>;
@@ -177,6 +217,17 @@ export const useSingleCreativeViewModal = ({
       result.processed_image !== originalUrl
     ) {
       return result.processed_image;
+    }
+    const outputContent = result.output_content;
+    if (
+      typeof outputContent === "string" &&
+      outputContent !== originalUrl &&
+      (outputContent.startsWith("https://") || outputContent.startsWith("data:image/")) &&
+      (outputContent.includes("proofread") ||
+        outputContent.includes("blob") ||
+        /\.(jpe?g|png|webp|gif)(\?|$)/i.test(outputContent))
+    ) {
+      return outputContent;
     }
     if (
       Array.isArray(result.image_marked_urls) &&
@@ -255,8 +306,35 @@ export const useSingleCreativeViewModal = ({
       }
     }
 
+    for (const value of Object.values(result)) {
+      if (
+        typeof value === "string" &&
+        value !== originalUrl &&
+        value.startsWith("https://") &&
+        value.includes("proofread-results")
+      ) {
+        return value;
+      }
+    }
+
+    if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+      console.warn("[Proofread] getMarkedImageUrl: no image URL found in result", {
+        resultKeys: Object.keys(result),
+        sampleValues: Object.fromEntries(
+          Object.entries(result).slice(0, 5).map(([k, v]) => [k, typeof v === "string" ? v.slice(0, 80) : typeof v])
+        ),
+      });
+    }
     return null;
   }, [proofreadingData, creative.url, creative.previewUrl]);
+
+  const getOriginalImageUrl = useCallback((): string => {
+    return (
+      creative.metadata?.originalImageUrl ??
+      creative.previewUrl ??
+      creative.url
+    );
+  }, [creative.url, creative.previewUrl, creative.metadata?.originalImageUrl]);
 
   const getMarkedHtmlContent = useCallback((): string | null => {
     if (
@@ -381,9 +459,12 @@ export const useSingleCreativeViewModal = ({
           typeof data.metadata.proofreadingData === "object" &&
           Object.keys(data.metadata.proofreadingData).length > 0
         ) {
-          setProofreadingData(
-            data.metadata.proofreadingData as ProofreadCreativeResponse
-          );
+          const loaded = data.metadata.proofreadingData as ProofreadCreativeResponse;
+          const loadedHasResult =
+            loaded.result != null && typeof loaded.result === "object";
+          if (loadedHasResult) {
+            setProofreadingData(loaded);
+          }
         }
         if (data.metadata.htmlContent) {
           setHtmlContent(processHtmlContent(data.metadata.htmlContent));
@@ -740,49 +821,122 @@ export const useSingleCreativeViewModal = ({
   const handleGenerateContent = async () => {
     try {
       setIsGeneratingContent(true);
-      let sampleText = "";
-      if (creative.type === "html" || creative.html) {
-        if (htmlContent) {
-          sampleText = htmlContent
-            .replace(/<[^>]*>/g, " ")
-            .replace(/\s+/g, " ")
-            .trim()
-            .slice(0, 1000);
+
+      const isHtml =
+        creative.html ||
+        creative.type === "html" ||
+        /\.html?$/i.test(creative.name);
+
+      let fileToSend: File | null = null;
+
+      if (isHtml && htmlContent) {
+        fileToSend = new File([htmlContent], creative.name || "creative.html", {
+          type: "text/html",
+        });
+      } else {
+        try {
+          const fileResponse = await fetch(creative.url);
+          if (fileResponse.ok) {
+            const blob = await fileResponse.blob();
+            fileToSend = new File([blob], creative.name, {
+              type: creative.type || blob.type,
+            });
+          }
+        } catch {
+          console.error("Could not fetch creative file for analysis");
         }
-      } else if (creative.type === "image") {
-        sampleText = `Image creative: ${creative.name}`;
       }
 
-      const { fromLines: newFromLines, subjectLines: newSubjectLines } =
-        await generateEmailContent({
-          creativeType: creative.type || "Email",
-          sampleText,
-          maxFrom: 4,
-          maxSubject: 8,
-        });
+      if (!fileToSend) {
+        toast.error("Could not read the creative file.");
+        return;
+      }
 
-      const mergeContent = (existing: string, newItems: string[]) => {
-        const existingLines = existing
-          .split("\n")
-          .map((s) => s.trim())
-          .filter(Boolean);
-        const newLines = newItems.map((s) => s.trim()).filter(Boolean);
-        const allLines = [...existingLines, ...newLines];
-        const uniqueLines = Array.from(new Set(allLines));
-        return uniqueLines.join("\n");
+      const formData = new FormData();
+      formData.append("creative", fileToSend);
+
+      const res = await fetch("/api/publisher/analyze-creative", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await res.json() as {
+        success: boolean;
+        data?: {
+          fromLines: string;
+          subjectLines: string;
+          analysis: Record<string, unknown>;
+        };
+        error?: string;
       };
 
-      const mergedFromLines = mergeContent(fromLines, newFromLines);
-      const mergedSubjectLines = mergeContent(subjectLines, newSubjectLines);
+      if (!result.success || !result.data) {
+        throw new Error(result.error || "Pipeline returned an unexpected response");
+      }
 
-      setFromLines(mergedFromLines);
-      setSubjectLines(mergedSubjectLines);
+      const { fromLines: newFrom, subjectLines: newSubject, analysis } = result.data;
+
+      const mergeContent = (existing: string, incoming: string) => {
+        const existingLines = existing.split("\n").map((s) => s.trim()).filter(Boolean);
+        const incomingLines = incoming.split("\n").map((s) => s.trim()).filter(Boolean);
+        const merged = Array.from(new Set([...existingLines, ...incomingLines]));
+        return merged.join("\n");
+      };
+
+      const mergedFrom = mergeContent(fromLines, newFrom);
+      const mergedSubject = mergeContent(subjectLines, newSubject);
+
+      setFromLines(mergedFrom);
+      setSubjectLines(mergedSubject);
+
+      if (analysis && Object.keys(analysis).length > 0) {
+        const rawIssues = (analysis.violations ?? analysis.corrections ?? analysis.issues ?? []) as Array<{
+          // Compliance API fields (/v1/analyze)
+          rule_type?: string;
+          evidence_text?: string;
+          source?: string;
+          confidence?: number;
+          // Legacy grammar API fields
+          original_word?: string;
+          corrected_word?: string;
+          original_context?: string;
+          corrected_context?: string;
+          type?: string;
+          original?: string;
+          correction?: string;
+          note?: string;
+        }>;
+
+        const mappedIssues = rawIssues.map((c) => ({
+          type: c.rule_type ?? c.type ?? "Violation",
+          rule_type: c.rule_type,
+          evidence_text: c.evidence_text,
+          source: c.source,
+          confidence: c.confidence,
+          original: c.original ?? c.original_word ?? c.evidence_text ?? "",
+          correction: c.correction ?? c.corrected_word ?? "",
+          note:
+            c.note ??
+            (c.original_context
+              ? `"${c.original_context}" → "${c.corrected_context}"`
+              : undefined),
+        }));
+
+        const proofreadResult: ProofreadCreativeResponse = {
+          success: true,
+          issues: mappedIssues,
+          suggestions: (analysis.suggestions as ProofreadCreativeResponse["suggestions"]) ?? [],
+          qualityScore: analysis.qualityScore as ProofreadCreativeResponse["qualityScore"],
+        };
+
+        setProofreadingData(proofreadResult);
+      }
 
       try {
         await saveCreativeMetadata({
           creativeId: creative.id,
-          fromLines: mergedFromLines,
-          subjectLines: mergedSubjectLines,
+          fromLines: mergedFrom,
+          subjectLines: mergedSubject,
           proofreadingData: proofreadingData || undefined,
           htmlContent,
           additionalNotes,
@@ -793,13 +947,20 @@ export const useSingleCreativeViewModal = ({
           },
         });
       } catch (saveError) {
-        console.error("Failed to save generated content:", saveError);
+        console.error("Failed to auto-save generated content:", saveError);
+      }
+
+      const issueCount = (result.data.analysis?.corrections as unknown[] | undefined)?.length ?? 0;
+      if (issueCount > 0) {
+        toast.success(`Generated! ${issueCount} issue${issueCount !== 1 ? "s" : ""} found.`);
+      } else {
+        toast.success("From & Subject lines generated successfully!");
       }
     } catch (error) {
-      console.error("Content generation failed:", error);
+      console.error("Content generation pipeline failed:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Failed to generate content";
-      alert(`Error: ${errorMessage}`);
+      toast.error(`Generation failed: ${errorMessage}`);
     } finally {
       setIsGeneratingContent(false);
     }
@@ -861,7 +1022,23 @@ export const useSingleCreativeViewModal = ({
 
       if (isSyncComplete) {
         const resultData = (result.result || result) as Record<string, unknown>;
-        const rawCorrections = (resultData.corrections ||
+        const payload =
+          resultData.result && typeof resultData.result === "object"
+            ? (resultData.result as Record<string, unknown>)
+            : resultData;
+        if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+          console.warn("[Proofread] Sync response:", {
+            hasResult: !!result.result,
+            resultDataKeys: Object.keys(resultData),
+            payloadKeys: Object.keys(payload),
+            correctionsCount: Array.isArray(payload.corrections) ? payload.corrections.length : 0,
+            hasMarkedImage: !!(payload as Record<string, unknown>).marked_image,
+            hasOutputContent: typeof (payload as Record<string, unknown>).output_content === "string",
+          });
+        }
+        const rawCorrections = (payload.corrections ||
+          payload.issues ||
+          resultData.corrections ||
           resultData.issues ||
           []) as Array<{
             original_word?: string;
@@ -889,16 +1066,39 @@ export const useSingleCreativeViewModal = ({
 
         const finalResult: ProofreadCreativeResponse = {
           success: true,
-          result: resultData,
+          result: payload,
           issues,
           suggestions:
-            (resultData.suggestions as ProofreadCreativeResponse["suggestions"]) ||
+            (payload.suggestions as ProofreadCreativeResponse["suggestions"]) ??
+            (resultData.suggestions as ProofreadCreativeResponse["suggestions"]) ??
             [],
           qualityScore:
-            resultData.qualityScore as ProofreadCreativeResponse["qualityScore"],
+            (payload.qualityScore as ProofreadCreativeResponse["qualityScore"]) ??
+            (resultData.qualityScore as ProofreadCreativeResponse["qualityScore"]),
         };
 
+        if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+          console.warn("[Proofread] Setting proofreadingData:", {
+            issuesCount: finalResult.issues?.length ?? 0,
+            hasResult: !!finalResult.result,
+            resultKeys: finalResult.result ? Object.keys(finalResult.result as object) : [],
+          });
+        }
         setProofreadingData(finalResult);
+
+        saveCreativeMetadata({
+          creativeId: creative.id,
+          fromLines,
+          subjectLines,
+          proofreadingData: finalResult,
+          htmlContent,
+          additionalNotes,
+          metadata: {
+            lastProofread: new Date().toISOString(),
+            creativeType: creative.type,
+            fileName: creative.name,
+          },
+        }).catch((err) => console.error("Failed to persist proofreading result:", err));
 
         const isHtmlFile =
           creative.html ||
@@ -1379,6 +1579,7 @@ export const useSingleCreativeViewModal = ({
     isHtmlPreviewFullscreen,
     isPreviewCollapsed,
     proofreadingData,
+    complianceViolations,
     htmlContent,
     isSaving,
     previewKey,
@@ -1426,6 +1627,8 @@ export const useSingleCreativeViewModal = ({
       setIsHtmlPreviewFullscreen(!isHtmlPreviewFullscreen),
     togglePreviewCollapse: () => setIsPreviewCollapsed(!isPreviewCollapsed),
     getMarkedImageUrl,
+    getMarkedImageUrlFromModel,
+    getOriginalImageUrl,
     getMarkedHtmlContent,
     isProofreadComplete,
     proofreadResult,
