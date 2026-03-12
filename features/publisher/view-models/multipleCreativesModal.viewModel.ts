@@ -1,6 +1,7 @@
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { getCreativeMetadata } from "@/lib/creativeClient";
 import { bulkDeleteByIds, parseIdsFromUrl } from "@/lib/filesClient";
 
 export interface CreativeFile {
@@ -64,7 +65,6 @@ export const useMultipleCreativesModal = ({
   const [editableZipFileName, setEditableZipFileName] = useState("");
   const [editableZipNameOnly, setEditableZipNameOnly] = useState("");
 
-  // Per-creative analysis status — keyed by creative.id, never mixed across creatives
   const [analysisStatusMap, setAnalysisStatusMap] = useState<
     Record<string, CreativeAnalysisStatus>
   >({});
@@ -72,8 +72,60 @@ export const useMultipleCreativesModal = ({
   useEffect(() => {
     if (!isOpen) {
       fetchingIdsRef.current.clear();
+      statusLoadedRef.current.clear();
+      setAnalysisStatusMap({});
     }
   }, [isOpen]);
+
+  const statusLoadedRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (!isOpen || typeof window === "undefined") return;
+
+    const loadStatus = async (creative: CreativeFile) => {
+      if (statusLoadedRef.current.has(creative.id)) return;
+      const isHtml = creative.html || /\.html?$/i.test(creative.name);
+      if (!isHtml) return;
+
+      statusLoadedRef.current.add(creative.id);
+
+      try {
+        const data = await getCreativeMetadata(creative.id);
+        const pd = data.metadata?.proofreadingData as
+          | Record<string, unknown>
+          | undefined;
+        if (!pd) return;
+
+        const issues = Array.isArray(pd.issues) ? pd.issues : [];
+        const rawScore =
+          typeof pd.qualityScore === "object" && pd.qualityScore !== null
+            ? ((pd.qualityScore as Record<string, unknown>).grammar as number)
+            : typeof pd.qualityScore === "number"
+              ? pd.qualityScore
+              : undefined;
+
+        setAnalysisStatusMap((prev) => ({
+          ...prev,
+          [creative.id]: {
+            ai_issues: issues,
+            ai_score: rawScore,
+            ai_status: issues.length === 0 ? "clean" : "flagged",
+            last_checked: (
+              data.metadata?.metadata as Record<string, unknown> | undefined
+            )?.lastProofread as string | undefined,
+          },
+        }));
+      } catch {
+        statusLoadedRef.current.delete(creative.id);
+      }
+    };
+
+    creatives.forEach((creative) => {
+      loadStatus(creative).catch(() => {
+        statusLoadedRef.current.delete(creative.id);
+      });
+    });
+  }, [isOpen, creatives]);
 
   useEffect(() => {
     if (!isOpen || typeof window === "undefined") return;
@@ -371,8 +423,6 @@ export const useMultipleCreativesModal = ({
     [handleZipFileNameSave, handleZipFileNameCancel]
   );
 
-  // Called by SingleCreativeViewModal via onFileUpdate when analysis completes.
-  // Each creative's result is stored under its own id — no cross-contamination.
   const handleCreativeFileUpdate = useCallback(
     (
       fileId: string,
