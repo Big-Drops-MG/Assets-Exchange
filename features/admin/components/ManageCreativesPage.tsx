@@ -54,13 +54,18 @@ import { CreativeCard } from "@/features/publisher/components/CreativeCard";
 import MultipleCreativesModal from "@/features/publisher/components/form/_modals/MultipleCreativesModal";
 import SingleCreativeViewModal from "@/features/publisher/components/form/_modals/SingleCreativeViewModal";
 
-import {
-  getRequestViewData,
-  type RequestViewData,
-} from "../actions/request.actions";
+import type { RequestViewData } from "../actions/request.actions";
 import { useManageCreativesViewModel } from "../view-models/useManageCreativesViewModel";
 
 import { RequestSection } from "./RequestSection";
+
+async function fetchRequestViewData(
+  requestId: string
+): Promise<RequestViewData> {
+  const res = await fetch(`/api/admin/requests/${requestId}/view-data`);
+  if (!res.ok) throw new Error("Failed to load request details");
+  return res.json() as Promise<RequestViewData>;
+}
 
 type TabValue = "approved" | "rejected";
 type SortOption =
@@ -745,7 +750,7 @@ export function ManageCreativesPage() {
                           setIsViewLoading(true);
                           setViewData(null);
                           try {
-                            const data = await getRequestViewData(requestId);
+                            const data = await fetchRequestViewData(requestId);
                             if (!data) {
                               toast.error("No creatives found", {
                                 description:

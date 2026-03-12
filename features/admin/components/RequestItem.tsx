@@ -41,10 +41,7 @@ import {
   rejectResponse,
   returnResponse,
 } from "../../advertiser/services/responses.client";
-import {
-  getRequestViewData,
-  type RequestViewData,
-} from "../actions/request.actions";
+import type { RequestViewData } from "../actions/request.actions";
 import {
   approveRequest,
   forwardRequest,
@@ -54,6 +51,14 @@ import {
 import type { CreativeRequest } from "../types/request.types";
 
 const MAX_COMMENT_LENGTH = 5000;
+
+async function fetchRequestViewData(
+  requestId: string
+): Promise<RequestViewData> {
+  const res = await fetch(`/api/admin/requests/${requestId}/view-data`);
+  if (!res.ok) throw new Error("Failed to load request details");
+  return res.json() as Promise<RequestViewData>;
+}
 
 interface RequestItemProps {
   request: CreativeRequest;
@@ -402,7 +407,7 @@ export function RequestItem({
   const handleViewRequest = async () => {
     setIsViewLoading(true);
     try {
-      const data = await getRequestViewData(request.id);
+      const data = await fetchRequestViewData(request.id);
       if (data) {
         setViewData(data);
         setIsViewModalOpen(true);
@@ -421,7 +426,7 @@ export function RequestItem({
     try {
       let data = viewData;
       if (!data) {
-        data = await getRequestViewData(request.id);
+        data = await fetchRequestViewData(request.id);
       }
 
       if (!data) {
