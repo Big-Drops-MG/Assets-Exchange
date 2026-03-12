@@ -7,33 +7,55 @@ import { creativeRequests, publishers } from "@/lib/schema";
 
 import type { WorkflowEvent } from "./types";
 
-const ADVERTISER_EVENTS: WorkflowEvent["event"][] = [
+const PUBLISHER_EVENTS: WorkflowEvent["event"][] = [
+  "request.approved_by_admin",
+  "request.rejected_by_admin",
+  "request.sent_back_by_admin",
   "response.approved_by_advertiser",
   "response.sent_back_by_advertiser",
   "response.rejected_by_advertiser",
 ];
 
-async function getPublisherEmailAndTracking(
-  requestId: string
-): Promise<{ email: string | null; trackingCode: string | null }> {
+async function getPublisherInfo(requestId: string): Promise<{
+  email: string | null;
+  trackingCode: string | null;
+  telegramChatId: string | null;
+  telegramId: string | null;
+}> {
   const row = await db.query.creativeRequests.findFirst({
     where: eq(creativeRequests.id, requestId),
     columns: { email: true, publisherId: true, trackingCode: true },
   });
-  if (!row) return { email: null, trackingCode: null };
-  const requestEmail = row.email?.trim();
-  if (requestEmail)
-    return { email: requestEmail, trackingCode: row.trackingCode ?? null };
+  if (!row)
+    return {
+      email: null,
+      trackingCode: null,
+      telegramChatId: null,
+      telegramId: null,
+    };
+
   const pub = await db.query.publishers.findFirst({
     where: eq(publishers.id, row.publisherId),
-    columns: { contactEmail: true },
+    columns: { contactEmail: true, telegramId: true, telegramChatId: true },
   });
-  const email = pub?.contactEmail?.trim() ?? null;
-  return { email, trackingCode: row.trackingCode ?? null };
+
+  const email = row.email?.trim() || pub?.contactEmail?.trim() || null;
+  return {
+    email,
+    trackingCode: row.trackingCode ?? null,
+    telegramChatId: pub?.telegramChatId ?? null,
+    telegramId: pub?.telegramId ?? null,
+  };
 }
 
 function buildWorkflowEmailSubject(evt: WorkflowEvent): string {
   switch (evt.event) {
+    case "request.approved_by_admin":
+      return `Creative approved – ${evt.offerName}`;
+    case "request.rejected_by_admin":
+      return `Creative rejected – ${evt.offerName}`;
+    case "request.sent_back_by_admin":
+      return `Creative sent back for revisions – ${evt.offerName}`;
     case "response.approved_by_advertiser":
       return `Your creative was approved – ${evt.offerName}`;
     case "response.sent_back_by_advertiser":
@@ -56,8 +78,18 @@ function buildWorkflowEmailBody(
     : baseUrl
       ? `${baseUrl}/track`
       : "";
+
   let summary = "";
   switch (evt.event) {
+    case "request.approved_by_admin":
+      summary = "Your creative has been reviewed and approved by our team.";
+      break;
+    case "request.rejected_by_admin":
+      summary = "Your creative has been rejected after review.";
+      break;
+    case "request.sent_back_by_admin":
+      summary = "Your creative has been sent back for revisions by our team.";
+      break;
     case "response.approved_by_advertiser":
       summary = "Your creative has been approved by the advertiser.";
       break;
@@ -70,15 +102,114 @@ function buildWorkflowEmailBody(
     default:
       summary = "There is an update on your creative request.";
   }
+
   const text =
     `${summary}\n\n${base}\n\n` +
-    (trackUrl ? `Assets Exchange tracking page: ${trackUrl}\n` : "");
+    (trackUrl ? `Track your asset status: ${trackUrl}\n` : "");
   const html =
     `<p>${summary}</p><p>${base.replace(/\n/g, "<br>")}</p>` +
     (trackUrl
       ? `<p><a href="${trackUrl}">Track your asset status</a></p>`
       : "");
   return { text, html };
+}
+
+function buildWorkflowTelegramMessage(
+  evt: WorkflowEvent,
+  trackingCode: string | null
+): string {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const trackUrl = trackingCode
+    ? `${baseUrl}/track?code=${encodeURIComponent(trackingCode)}`
+    : baseUrl
+      ? `${baseUrl}/track`
+      : "";
+
+  let header = "";
+  let body = "";
+
+  switch (evt.event) {
+    case "request.approved_by_admin":
+      header = "✅ <b>Creative Approved</b>";
+      body = "Your creative has been reviewed and approved by our team.";
+      break;
+    case "request.rejected_by_admin":
+      header = "❌ <b>Creative Rejected</b>";
+      body = "Your creative has been rejected after review.";
+      break;
+    case "request.sent_back_by_admin":
+      header = "↩️ <b>Creative Sent Back</b>";
+      body = "Your creative has been sent back for revisions by our team.";
+      break;
+    case "response.approved_by_advertiser":
+      header = "🎉 <b>Creative Approved by Advertiser</b>";
+      body = "Your creative has been approved by the advertiser.";
+      break;
+    case "response.sent_back_by_advertiser":
+      header = "↩️ <b>Creative Sent Back by Advertiser</b>";
+      body = "The advertiser has sent your creative back for revisions.";
+      break;
+    case "response.rejected_by_advertiser":
+      header = "❌ <b>Creative Rejected by Advertiser</b>";
+      body = "The advertiser has rejected your creative.";
+      break;
+    default:
+      return "";
+  }
+
+  const offerLine = `<b>Offer:</b> ${evt.offerName}`;
+  const trackLine = trackUrl
+    ? `\n\n<a href="${trackUrl}">Track your asset status</a>`
+    : "";
+
+  return `${header}\n\n${body}\n${offerLine}${trackLine}`;
+}
+
+async function sendWorkflowTelegramAlert(
+  chatId: string,
+  message: string
+): Promise<void> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) {
+    console.warn("[TELEGRAM_SKIP] TELEGRAM_BOT_TOKEN not set");
+    return;
+  }
+  if (!message) return;
+
+  const isLocalhost =
+    !process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_APP_URL.includes("localhost");
+
+  const payload: Record<string, unknown> = {
+    chat_id: chatId,
+    text: message,
+    parse_mode: "HTML",
+    disable_web_page_preview: false,
+  };
+
+  if (isLocalhost) {
+    payload.disable_web_page_preview = true;
+  }
+
+  const res = await fetch(
+    `https://api.telegram.org/bot${botToken}/sendMessage`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as {
+      description?: string;
+    };
+    console.error(
+      `[TELEGRAM_WORKFLOW_FAILED] ${err.description ?? res.statusText}`
+    );
+  } else {
+    console.warn(`[TELEGRAM_WORKFLOW_SENT] chat_id: ${chatId}`);
+  }
 }
 
 export async function notifyWorkflowEvent(evt: WorkflowEvent) {
@@ -108,20 +239,39 @@ export async function notifyWorkflowEvent(evt: WorkflowEvent) {
         msg = `❌ *Response rejected by Advertiser*\n${base}`;
         break;
 
+      case "request.sent_back_by_admin":
+        msg = `↩️ *Request sent back by Admin*\n${base}`;
+        break;
+
+      case "request.forwarded_to_advertiser":
+        msg = `📨 *Request forwarded to Advertiser*\n${base}`;
+        break;
+
       default:
         return;
     }
 
     await sendAlert(msg);
 
-    if (isEmailConfigured() && ADVERTISER_EVENTS.includes(evt.event)) {
-      const { email: toEmail, trackingCode } =
-        await getPublisherEmailAndTracking(evt.requestId);
-      if (toEmail) {
+    if (PUBLISHER_EVENTS.includes(evt.event)) {
+      const { email, trackingCode, telegramChatId, telegramId } =
+        await getPublisherInfo(evt.requestId);
+
+      // Email
+      if (isEmailConfigured() && email) {
         const subject = buildWorkflowEmailSubject(evt);
         const { text, html } = buildWorkflowEmailBody(evt, trackingCode);
-        await sendEmail({ to: toEmail, subject, text, html }).catch((err) => {
-          console.error("Failed to send workflow email to publisher", err);
+        await sendEmail({ to: email, subject, text, html }).catch((err) => {
+          console.error("[EMAIL_WORKFLOW_FAILED]", err);
+        });
+      }
+
+      // Telegram
+      const tgChatId = telegramChatId || telegramId;
+      if (tgChatId && isValidTelegramId(tgChatId)) {
+        const tgMessage = buildWorkflowTelegramMessage(evt, trackingCode);
+        await sendWorkflowTelegramAlert(tgChatId, tgMessage).catch((err) => {
+          console.error("[TELEGRAM_WORKFLOW_ERROR]", err);
         });
       }
     }
@@ -150,7 +300,6 @@ export async function getPublisherTelegramId(
   return result?.telegramId ?? null;
 }
 
-// Helper to escape HTML characters
 const escapeHtml = (text: string) =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
