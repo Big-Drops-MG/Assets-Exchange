@@ -152,6 +152,21 @@ export function AnnotationLayer({
     x: number;
     y: number;
   } | null>(null);
+  const dragListenersRef = useRef<{
+    onMove: (ev: globalThis.MouseEvent) => void;
+    onUp: (ev: globalThis.MouseEvent) => void;
+  } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      const pair = dragListenersRef.current;
+      if (pair) {
+        document.removeEventListener("mousemove", pair.onMove);
+        document.removeEventListener("mouseup", pair.onUp);
+        dragListenersRef.current = null;
+      }
+    };
+  }, []);
 
   const toPercent = useCallback((clientX: number, clientY: number) => {
     if (!containerRef.current) return null;
@@ -171,51 +186,45 @@ export function AnnotationLayer({
     (e: MouseEvent<HTMLDivElement>) => {
       if (readOnly || !isAddingMode || !containerRef.current) return;
       const point = toPercent(e.clientX, e.clientY);
-      if (point) {
-        setDragStart(point);
-        setDragCurrent(point);
-      }
-    },
-    [readOnly, isAddingMode, toPercent]
-  );
-
-  const handleMouseMove = useCallback(
-    (e: MouseEvent<HTMLDivElement>) => {
-      if (dragStart === null) return;
-      const point = toPercent(e.clientX, e.clientY);
-      if (point) setDragCurrent(point);
-    },
-    [dragStart, toPercent]
-  );
-
-  const handleMouseUp = useCallback(
-    (e: MouseEvent<HTMLDivElement>) => {
-      if (dragStart === null || dragCurrent === null) return;
-      const x1 = Math.min(dragStart.x, dragCurrent.x);
-      const y1 = Math.min(dragStart.y, dragCurrent.y);
-      const x2 = Math.max(dragStart.x, dragCurrent.x);
-      const y2 = Math.max(dragStart.y, dragCurrent.y);
-      let width = x2 - x1;
-      let height = y2 - y1;
-      if (width < 1 && height < 1) {
-        width = 0;
-        height = 0;
-      }
-      onAddAnnotation({ x: x1, y: y1, width, height });
-      setDragStart(null);
-      setDragCurrent(null);
+      if (!point) return;
       e.preventDefault();
-      e.stopPropagation();
-    },
-    [dragStart, dragCurrent, onAddAnnotation]
-  );
+      const start = point;
+      setDragStart(start);
+      setDragCurrent(start);
 
-  const handleMouseLeave = useCallback(() => {
-    if (dragStart !== null) {
-      setDragStart(null);
-      setDragCurrent(null);
-    }
-  }, [dragStart]);
+      const onMove = (ev: globalThis.MouseEvent) => {
+        ev.preventDefault();
+        const p = toPercent(ev.clientX, ev.clientY);
+        if (p) setDragCurrent(p);
+      };
+
+      const onUp = (ev: globalThis.MouseEvent) => {
+        ev.preventDefault();
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        dragListenersRef.current = null;
+        const end = toPercent(ev.clientX, ev.clientY) ?? start;
+        const x1 = Math.min(start.x, end.x);
+        const y1 = Math.min(start.y, end.y);
+        const x2 = Math.max(start.x, end.x);
+        const y2 = Math.max(start.y, end.y);
+        let width = x2 - x1;
+        let height = y2 - y1;
+        if (width < 1 && height < 1) {
+          width = 0;
+          height = 0;
+        }
+        onAddAnnotation({ x: x1, y: y1, width, height });
+        setDragStart(null);
+        setDragCurrent(null);
+      };
+
+      dragListenersRef.current = { onMove, onUp };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    },
+    [readOnly, isAddingMode, toPercent, onAddAnnotation]
+  );
 
   const drawingRect =
     dragStart && dragCurrent
@@ -233,9 +242,6 @@ export function AnnotationLayer({
       <div
         ref={containerRef}
         onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
         className={`relative w-full min-h-full select-none ${isAddingMode ? "cursor-crosshair" : "cursor-default"}`}
         style={{ userSelect: "none" }}
       >
@@ -289,6 +295,18 @@ export function AnnotationLayer({
               strokeDasharray="4 2"
             />
           )}
+          {pendingAnnotation && isRect(pendingAnnotation) && (
+            <rect
+              x={`${pendingAnnotation.x}%`}
+              y={`${pendingAnnotation.y}%`}
+              width={`${pendingAnnotation.width}%`}
+              height={`${pendingAnnotation.height}%`}
+              fill="rgba(59,130,246,0.15)"
+              stroke="rgba(59,130,246,0.9)"
+              strokeWidth={2}
+              strokeDasharray="4 2"
+            />
+          )}
           {annotations.map((note) => {
             const isSelected = selectedAnnotationId === note.id;
             const isHovered = hoveredAnnotationId === note.id;
@@ -325,19 +343,6 @@ export function AnnotationLayer({
             return null;
           })}
         </svg>
-
-        {pendingAnnotation && isRect(pendingAnnotation) && (
-          <rect
-            x={`${pendingAnnotation.x}%`}
-            y={`${pendingAnnotation.y}%`}
-            width={`${pendingAnnotation.width}%`}
-            height={`${pendingAnnotation.height}%`}
-            fill="rgba(59,130,246,0.15)"
-            stroke="rgba(59,130,246,0.9)"
-            strokeWidth={2}
-            strokeDasharray="4 2"
-          />
-        )}
 
         {pendingAnnotation && !isRect(pendingAnnotation) && (
           <div

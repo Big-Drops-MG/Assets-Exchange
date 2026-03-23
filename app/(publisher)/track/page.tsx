@@ -5,6 +5,7 @@ import {
   ArrowUpCircle,
   Eye,
   MessageSquare,
+  X,
   UserCheck,
   FileCheck,
   CheckCircle2,
@@ -21,7 +22,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { toast } from "sonner";
 
 import { Constants } from "@/app/Constants/Constants";
@@ -44,7 +45,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { PublisherAnnotationViewer } from "@/features/publisher/components/annotations/PublisherAnnotationViewer";
+import { CreativeReview } from "@/features/admin/components/annotations/CreativeReview";
 import FileUploadModal from "@/features/publisher/components/form/_modals/FileUploadModal";
 import MultipleCreativesModal from "@/features/publisher/components/form/_modals/MultipleCreativesModal";
 import SingleCreativeViewModal from "@/features/publisher/components/form/_modals/SingleCreativeViewModal";
@@ -106,6 +107,12 @@ const getStatusBadgeClass = (status: string) => {
     default:
       return "rounded-[20px] border border-[#D1D5DB] bg-[#F3F4F6] h-7 px-2 text-xs xl:text-sm font-inter font-medium text-[#6B7280]";
   }
+};
+
+const isUnderReviewPhase = (status: string, approvalStage: string) => {
+  const s = status.toLowerCase();
+  const stage = (approvalStage ?? "").toLowerCase();
+  return (s === "pending" || s === "new") && stage === "admin";
 };
 
 const getStatusLabel = (status: string, approvalStage: string) => {
@@ -267,6 +274,17 @@ function TrackPageContent() {
       fetchStatus(codeFromUrl);
     }
   }, [searchParams, fetchStatus]);
+
+  const creativesSortedByDate = useMemo(() => {
+    if (!data?.creatives?.length) return [];
+    return [...data.creatives].sort(
+      (a, b) =>
+        new Date(a.createdAt || 0).getTime() -
+        new Date(b.createdAt || 0).getTime()
+    );
+  }, [data?.creatives]);
+
+  const latestCreativeId = creativesSortedByDate.at(-1)?.id;
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -763,80 +781,122 @@ function TrackPageContent() {
                     <div className="grid grid-cols-1 gap-4">
                       {data.creatives.map((creative) => {
                         const fileType = getFileType(creative.name);
+                        const hasMultipleCreatives =
+                          (data.creatives?.length ?? 0) > 1;
+                        const isCurrentVersion =
+                          !hasMultipleCreatives ||
+                          creative.id === latestCreativeId;
+                        const isPastVersion =
+                          hasMultipleCreatives && !isCurrentVersion;
                         return (
                           <div
                             key={creative.id}
-                            className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-gray-300"
+                            title={
+                              isPastVersion
+                                ? "Previous submission (history)"
+                                : undefined
+                            }
+                            className={`rounded-lg border overflow-hidden transition-all ${
+                              isPastVersion
+                                ? "border-dashed border-gray-300 bg-gray-50/95 opacity-[0.88] shadow-none hover:opacity-100"
+                                : hasMultipleCreatives && isCurrentVersion
+                                  ? "border-blue-200 bg-white shadow-md ring-2 ring-blue-100/80 hover:shadow-lg hover:border-blue-300"
+                                  : "border-gray-200 bg-white shadow-sm hover:shadow-md hover:border-gray-300"
+                            }`}
                           >
                             <div className="p-5">
                               <div className="flex items-start gap-4 mb-4">
-                                <div className="shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center border border-blue-200">
+                                <div
+                                  className={`shrink-0 w-12 h-12 rounded-lg flex items-center justify-center border ${
+                                    isPastVersion
+                                      ? "bg-gray-100 border-gray-200"
+                                      : "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200"
+                                  }`}
+                                >
                                   {fileType === "image" ? (
-                                    <ImageIcon className="h-6 w-6 text-blue-600" />
+                                    <ImageIcon
+                                      className={`h-6 w-6 ${isPastVersion ? "text-gray-500" : "text-blue-600"}`}
+                                    />
                                   ) : fileType === "html" ? (
-                                    <FileText className="h-6 w-6 text-green-600" />
+                                    <FileText
+                                      className={`h-6 w-6 ${isPastVersion ? "text-gray-500" : "text-green-600"}`}
+                                    />
                                   ) : (
                                     <File className="h-6 w-6 text-gray-600" />
                                   )}
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <h5
-                                    className="font-inter font-semibold text-gray-900 truncate text-base mb-1"
+                                    className={`font-inter font-semibold truncate text-base mb-1 ${
+                                      isPastVersion
+                                        ? "text-gray-600"
+                                        : "text-gray-900"
+                                    }`}
                                     title={creative.name}
                                   >
                                     {creative.name}
                                   </h5>
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
+                                    <span
+                                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                                        isPastVersion
+                                          ? "bg-gray-100 text-gray-600 border-gray-200"
+                                          : "bg-purple-100 text-purple-700 border-purple-200"
+                                      }`}
+                                    >
                                       {creative.type
                                         ?.split("/")[1]
                                         ?.toUpperCase() || "FILE"}
                                     </span>
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200">
+                                    <span
+                                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                                        isPastVersion
+                                          ? "bg-gray-100 text-gray-600 border-gray-200"
+                                          : "bg-green-100 text-green-700 border-green-200"
+                                      }`}
+                                    >
                                       {formatFileSize(creative.size)}
                                     </span>
-                                    {data.creatives &&
-                                      data.creatives.length > 1 &&
-                                      (() => {
-                                        const sorted = [...data.creatives].sort(
-                                          (a, b) =>
-                                            new Date(
-                                              a.createdAt || 0
-                                            ).getTime() -
-                                            new Date(b.createdAt || 0).getTime()
-                                        );
-                                        const isLatest =
-                                          creative.id ===
-                                          sorted[sorted.length - 1]?.id;
-                                        if (isLatest) {
-                                          return (
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
-                                              Resubmitted
-                                            </span>
-                                          );
-                                        }
-                                        return (
-                                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 border border-orange-200">
-                                            Sent Back
-                                          </span>
-                                        );
-                                      })()}
+                                    {hasMultipleCreatives &&
+                                      (creative.id === latestCreativeId ? (
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                                          Resubmitted
+                                        </span>
+                                      ) : (
+                                        <span
+                                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                                            isPastVersion
+                                              ? "bg-gray-100 text-gray-600 border-gray-200"
+                                              : "bg-orange-100 text-orange-700 border-orange-200"
+                                          }`}
+                                        >
+                                          Sent Back
+                                        </span>
+                                      ))}
                                   </div>
                                 </div>
                                 <div className="shrink-0 flex gap-2">
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-10 px-6 font-inter text-sm font-medium rounded-md"
-                                    style={{
-                                      color:
-                                        variables.colors
-                                          .requestCardViewButtonTextColor,
-                                      backgroundColor:
-                                        variables.colors
-                                          .requestCardViewButtonBackgroundColor,
-                                      border: `1px solid ${variables.colors.requestCardViewButtonBorderColor}`,
-                                    }}
+                                    className={`h-10 px-6 font-inter text-sm font-medium rounded-md ${
+                                      isPastVersion
+                                        ? "border-gray-300 bg-white/80 text-gray-600 hover:bg-gray-100 hover:text-gray-800"
+                                        : ""
+                                    }`}
+                                    style={
+                                      isPastVersion
+                                        ? undefined
+                                        : {
+                                            color:
+                                              variables.colors
+                                                .requestCardViewButtonTextColor,
+                                            backgroundColor:
+                                              variables.colors
+                                                .requestCardViewButtonBackgroundColor,
+                                            border: `1px solid ${variables.colors.requestCardViewButtonBorderColor}`,
+                                          }
+                                    }
                                     onClick={() =>
                                       handleViewCreative(
                                         creative,
@@ -848,34 +908,31 @@ function TrackPageContent() {
                                     <Eye className="h-4 w-4 mr-2" />
                                     View Creative
                                   </Button>
-                                  {!(
-                                    data.creatives &&
-                                    data.creatives.length > 1 &&
-                                    (() => {
-                                      const sorted = [...data.creatives].sort(
-                                        (a, b) =>
-                                          new Date(a.createdAt || 0).getTime() -
-                                          new Date(b.createdAt || 0).getTime()
-                                      );
-                                      return (
-                                        creative.id ===
-                                        sorted[sorted.length - 1]?.id
-                                      );
-                                    })()
-                                  ) && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-10 px-6 font-inter text-sm font-medium rounded-md border-orange-300 text-orange-700 hover:bg-orange-50"
-                                      onClick={() => {
-                                        setAnnotationViewCreative(creative);
-                                        setIsAnnotationViewerOpen(true);
-                                      }}
-                                    >
-                                      <MessageSquare className="h-4 w-4 mr-2" />
-                                      View Annotations
-                                    </Button>
-                                  )}
+                                  {!isUnderReviewPhase(
+                                    data.status,
+                                    data.approvalStage
+                                  ) &&
+                                    !(
+                                      hasMultipleCreatives &&
+                                      creative.id === latestCreativeId
+                                    ) && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className={`h-10 px-6 font-inter text-sm font-medium rounded-md border-orange-300 text-orange-700 hover:bg-orange-50 ${
+                                          isPastVersion
+                                            ? "opacity-80 border-gray-300 text-gray-600 hover:bg-gray-100 hover:text-gray-800"
+                                            : ""
+                                        }`}
+                                        onClick={() => {
+                                          setAnnotationViewCreative(creative);
+                                          setIsAnnotationViewerOpen(true);
+                                        }}
+                                      >
+                                        <MessageSquare className="h-4 w-4 mr-2" />
+                                        View Annotations
+                                      </Button>
+                                    )}
                                   {data.status.toLowerCase() ===
                                     "sent-back" && (
                                     <Button
@@ -891,29 +948,89 @@ function TrackPageContent() {
                                 </div>
                               </div>
 
-                              <div className="border-t border-gray-100 pt-4">
+                              <div
+                                className={`border-t pt-4 ${
+                                  isPastVersion
+                                    ? "border-gray-200 opacity-80"
+                                    : "border-gray-100"
+                                }`}
+                              >
                                 <dl className="grid grid-cols-3 gap-3">
-                                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg px-3 py-3 border border-blue-200">
-                                    <dt className="text-xs font-medium text-blue-700 mb-1.5 font-inter uppercase tracking-wide">
+                                  <div
+                                    className={`rounded-lg px-3 py-3 border ${
+                                      isPastVersion
+                                        ? "bg-gray-100/80 border-gray-200"
+                                        : "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200"
+                                    }`}
+                                  >
+                                    <dt
+                                      className={`text-xs font-medium mb-1.5 font-inter uppercase tracking-wide ${
+                                        isPastVersion
+                                          ? "text-gray-500"
+                                          : "text-blue-700"
+                                      }`}
+                                    >
                                       Creative Type
                                     </dt>
-                                    <dd className="text-base font-bold text-blue-900 capitalize font-inter">
+                                    <dd
+                                      className={`text-base font-bold capitalize font-inter ${
+                                        isPastVersion
+                                          ? "text-gray-700"
+                                          : "text-blue-900"
+                                      }`}
+                                    >
                                       {data.creativeType ?? "—"}
                                     </dd>
                                   </div>
-                                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg px-3 py-3 border border-purple-200">
-                                    <dt className="text-xs font-medium text-purple-700 mb-1.5 font-inter uppercase tracking-wide">
+                                  <div
+                                    className={`rounded-lg px-3 py-3 border ${
+                                      isPastVersion
+                                        ? "bg-gray-100/80 border-gray-200"
+                                        : "bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200"
+                                    }`}
+                                  >
+                                    <dt
+                                      className={`text-xs font-medium mb-1.5 font-inter uppercase tracking-wide ${
+                                        isPastVersion
+                                          ? "text-gray-500"
+                                          : "text-purple-700"
+                                      }`}
+                                    >
                                       From Lines
                                     </dt>
-                                    <dd className="text-base font-bold text-purple-900 font-inter">
+                                    <dd
+                                      className={`text-base font-bold font-inter ${
+                                        isPastVersion
+                                          ? "text-gray-700"
+                                          : "text-purple-900"
+                                      }`}
+                                    >
                                       {data.fromLinesCount ?? "—"}
                                     </dd>
                                   </div>
-                                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg px-3 py-3 border border-green-200">
-                                    <dt className="text-xs font-medium text-green-700 mb-1.5 font-inter uppercase tracking-wide">
+                                  <div
+                                    className={`rounded-lg px-3 py-3 border ${
+                                      isPastVersion
+                                        ? "bg-gray-100/80 border-gray-200"
+                                        : "bg-gradient-to-br from-green-50 to-green-100 border-green-200"
+                                    }`}
+                                  >
+                                    <dt
+                                      className={`text-xs font-medium mb-1.5 font-inter uppercase tracking-wide ${
+                                        isPastVersion
+                                          ? "text-gray-500"
+                                          : "text-green-700"
+                                      }`}
+                                    >
                                       Subject Lines
                                     </dt>
-                                    <dd className="text-base font-bold text-green-900 font-inter">
+                                    <dd
+                                      className={`text-base font-bold font-inter ${
+                                        isPastVersion
+                                          ? "text-gray-700"
+                                          : "text-green-900"
+                                      }`}
+                                    >
                                       {data.subjectLinesCount ?? "—"}
                                     </dd>
                                   </div>
@@ -1090,24 +1207,63 @@ function TrackPageContent() {
         </Dialog>
       )}
 
-      {/* Publisher Annotation Viewer */}
       {annotationViewCreative && data && (
-        <PublisherAnnotationViewer
-          isOpen={isAnnotationViewerOpen}
-          onClose={() => {
-            setIsAnnotationViewerOpen(false);
-            setAnnotationViewCreative(null);
+        <Dialog
+          open={isAnnotationViewerOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setIsAnnotationViewerOpen(false);
+              setAnnotationViewCreative(null);
+            }
           }}
-          creativeUrl={annotationViewCreative.url}
-          creativeName={annotationViewCreative.name}
-          creativeId={annotationViewCreative.id}
-          trackingCode={data.trackingCode}
-          creativeType={
-            getFileType(annotationViewCreative.name) === "image"
-              ? "image"
-              : "html"
-          }
-        />
+        >
+          <DialogContent
+            className="max-w-screen! max-h-screen! w-screen h-screen m-0 p-0 gap-0 rounded-none flex flex-col overflow-hidden"
+            showCloseButton={false}
+          >
+            <DialogTitle className="sr-only">Annotations</DialogTitle>
+            <div className="flex items-center justify-between shrink-0 border-b px-4 py-3 bg-white">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Annotations
+              </h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                onClick={() => {
+                  setIsAnnotationViewerOpen(false);
+                  setAnnotationViewCreative(null);
+                }}
+                aria-label="Close annotations"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col bg-gray-50">
+              <CreativeReview
+                key={annotationViewCreative.id}
+                creativeId={annotationViewCreative.id}
+                creativeUrl={annotationViewCreative.url}
+                creativeType={
+                  getFileType(annotationViewCreative.name) === "image"
+                    ? "image"
+                    : "html"
+                }
+                fileName={annotationViewCreative.name}
+                fileTypeLabel={
+                  getFileType(annotationViewCreative.name) === "image"
+                    ? "Image"
+                    : getFileType(annotationViewCreative.name) === "html"
+                      ? "HTML"
+                      : "File"
+                }
+                fileSize={annotationViewCreative.size ?? 0}
+                readOnly
+                trackingCode={data.trackingCode}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* File Upload Modal for Sent-Back status */}

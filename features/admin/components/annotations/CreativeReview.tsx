@@ -18,6 +18,8 @@ interface CreativeReviewProps {
   isSubmitting?: boolean;
   hideHeader?: boolean;
   readOnly?: boolean;
+  /** When set with readOnly, loads annotations via the tracking page API (validates tracking code). */
+  trackingCode?: string;
 }
 
 export function CreativeReview({
@@ -32,6 +34,7 @@ export function CreativeReview({
   isSubmitting,
   hideHeader = false,
   readOnly = false,
+  trackingCode,
 }: CreativeReviewProps) {
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -86,9 +89,18 @@ export function CreativeReview({
   const fetchAnnotations = useCallback(async () => {
     try {
       setIsLoading(true);
-      const url = readOnly
-        ? `/api/annotations/${creativeId}`
-        : `/api/admin/annotations?creativeId=${creativeId}`;
+      let url: string;
+      if (!readOnly) {
+        url = `/api/admin/annotations?creativeId=${creativeId}`;
+      } else if (trackingCode) {
+        const q = new URLSearchParams({
+          creativeId,
+          trackingCode,
+        });
+        url = `/api/track/annotations?${q.toString()}`;
+      } else {
+        url = `/api/annotations/${creativeId}`;
+      }
       const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
@@ -100,31 +112,22 @@ export function CreativeReview({
     } finally {
       setIsLoading(false);
     }
-  }, [creativeId, readOnly, sortByCreatedAtAsc]);
+  }, [creativeId, readOnly, sortByCreatedAtAsc, trackingCode]);
 
   useEffect(() => {
     fetchAnnotations();
   }, [fetchAnnotations]);
 
-  const handleAddAnnotation = (position: AnnotationPositionData) => {
-    setPendingAnnotation(position);
-    setSelectedAnnotation(null);
-  };
-
-  const handleToggleAddingMode = () => {
-    setIsAddingMode((prev) => !prev);
-    setPendingAnnotation(null);
-  };
-
-  const handleSaveAnnotation = async (content: string) => {
-    if (!pendingAnnotation) return;
-
+  const persistNewAnnotation = async (
+    position: AnnotationPositionData,
+    content: string
+  ): Promise<void> => {
     const tempId = Math.random().toString();
     const newNote: Annotation = {
       id: tempId,
       creativeId,
       adminId: "me",
-      positionData: pendingAnnotation,
+      positionData: position,
       content,
       status: "active",
       createdAt: new Date().toISOString(),
@@ -132,6 +135,7 @@ export function CreativeReview({
 
     setAnnotations((prev) => sortByCreatedAtAsc([...prev, newNote]));
     setPendingAnnotation(null);
+    setSelectedAnnotation(newNote);
     setIsAddingMode(false);
 
     try {
@@ -140,7 +144,7 @@ export function CreativeReview({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           creativeId,
-          positionData: pendingAnnotation,
+          positionData: position,
           content,
         }),
       });
@@ -159,6 +163,21 @@ export function CreativeReview({
       toast.error("Failed to save annotation");
       setAnnotations((prev) => prev.filter((a) => a.id !== tempId));
     }
+  };
+
+  const handleAddAnnotation = (position: AnnotationPositionData) => {
+    setPendingAnnotation(position);
+    setSelectedAnnotation(null);
+  };
+
+  const handleToggleAddingMode = () => {
+    setIsAddingMode((prev) => !prev);
+    setPendingAnnotation(null);
+  };
+
+  const handleSaveAnnotation = async (content: string) => {
+    if (!pendingAnnotation) return;
+    await persistNewAnnotation(pendingAnnotation, content);
   };
 
   const handleResolve = async (id: string) => {
