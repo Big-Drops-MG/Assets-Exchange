@@ -149,7 +149,7 @@ const FromSubjectLinesModal: React.FC<FromSubjectLinesModalProps> = ({
                   placeholder="Enter from lines, one per line..."
                   value={fromLines}
                   onChange={(e) => handleFromLinesChange(e.target.value)}
-                  rows={5}
+                  rows={8}
                   className={`w-full font-inter from-subject-lines-textarea ${
                     errors.fromLines
                       ? "border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50"
@@ -197,7 +197,7 @@ const FromSubjectLinesModal: React.FC<FromSubjectLinesModalProps> = ({
                   placeholder="Enter subject lines, one per line..."
                   value={subjectLines}
                   onChange={(e) => handleSubjectLinesChange(e.target.value)}
-                  rows={5}
+                  rows={8}
                   className={`w-full font-inter from-subject-lines-textarea ${
                     errors.subjectLines
                       ? "border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50"

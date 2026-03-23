@@ -44,13 +44,28 @@ export function Response() {
   useEffect(() => {
     const load = async () => {
       try {
+        // Fetch all requests and filter client-side for advertiser responses,
+        // matching the same logic as the Manage Response page
         const res = await fetchRequests({
           page: 1,
-          limit: 3,
-          approvalStage: "advertiser",
+          limit: 100,
           sort: "submittedAt:desc",
         });
-        setResponses(res.data || []);
+
+        const allRequests = res.data || [];
+        const advertiserResponses = allRequests
+          .filter(
+            (r) =>
+              // Exclude "Forwarded to Advertiser" (pending + advertiser = awaiting response)
+              !(r.status === "pending" && r.approvalStage === "advertiser") &&
+              // Include items where advertiser has acted
+              (r.approvalStage === "advertiser" ||
+                r.approvalStage === "completed" ||
+                r.advertiserStatus != null)
+          )
+          .slice(0, 3);
+
+        setResponses(advertiserResponses);
       } catch (error) {
         console.error("Failed to fetch recent responses:", error);
       } finally {
@@ -73,16 +88,13 @@ export function Response() {
       newStatus: RequestStatus,
       newApprovalStage: ApprovalStage
     ) => {
-      setResponses((prev) => {
-        if (newApprovalStage !== "advertiser") {
-          return prev.filter((req) => req.id !== requestId);
-        }
-        return prev.map((req) =>
+      setResponses((prev) =>
+        prev.map((req) =>
           req.id === requestId
             ? { ...req, status: newStatus, approvalStage: newApprovalStage }
             : req
-        );
-      });
+        )
+      );
     },
     []
   );

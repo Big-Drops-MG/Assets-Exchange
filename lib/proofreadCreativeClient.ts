@@ -56,17 +56,19 @@ export async function proofreadCreative(
     });
 
     if (!response.ok) {
+      const text = await response.text();
       let errorMessage = "Proofreading failed";
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorData.message || errorMessage;
-      } catch {
-        const errorText = await response.text();
+      if (text.trimStart().startsWith("<") || text.includes("<!DOCTYPE")) {
+        errorMessage =
+          response.status >= 500
+            ? "Proofreading failed. The server encountered an error. Please try again later."
+            : "Proofreading failed.";
+      } else {
         try {
-          const parsed = JSON.parse(errorText);
+          const parsed = JSON.parse(text);
           errorMessage = parsed.error || parsed.message || errorMessage;
         } catch {
-          errorMessage = errorText || errorMessage;
+          errorMessage = text.slice(0, 200) || errorMessage;
         }
       }
       throw new Error(errorMessage);
@@ -75,7 +77,6 @@ export async function proofreadCreative(
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error("Proofread creative error:", error);
     throw error;
   }
 }
@@ -93,17 +94,19 @@ export async function checkProofreadStatus(
     );
 
     if (!response.ok) {
+      const text = await response.text();
       let errorMessage = "Status check failed";
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorData.message || errorMessage;
-      } catch {
-        const errorText = await response.text();
+      if (text.trimStart().startsWith("<") || text.includes("<!DOCTYPE")) {
+        errorMessage =
+          response.status >= 500
+            ? "Status check failed. The server encountered an error. Please try again later."
+            : "Status check failed.";
+      } else {
         try {
-          const parsed = JSON.parse(errorText);
+          const parsed = JSON.parse(text);
           errorMessage = parsed.error || parsed.message || errorMessage;
         } catch {
-          errorMessage = errorText || errorMessage;
+          errorMessage = text.slice(0, 200) || errorMessage;
         }
       }
       throw new Error(errorMessage);
@@ -112,7 +115,6 @@ export async function checkProofreadStatus(
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error("Check proofread status error:", error);
     throw error;
   }
 }

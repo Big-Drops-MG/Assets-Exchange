@@ -9,7 +9,7 @@ const PersonalDetails: React.FC<PersonalDetailProps> = ({
   formData,
   onDataChange,
   validation,
-  onNextOrSubmit,
+  onNextOrSubmit: _onNextOrSubmit,
 }) => {
   const variables = getVariables();
 
@@ -36,12 +36,6 @@ const PersonalDetails: React.FC<PersonalDetailProps> = ({
                 validation.handleFieldChange("affiliateId", numeric);
               }}
               onBlur={() => validation.handleFieldBlur("affiliateId")}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  onNextOrSubmit?.();
-                }
-              }}
               placeholder="Enter affiliate ID"
               className="w-full h-12 font-inter publisher-form-input"
               style={{

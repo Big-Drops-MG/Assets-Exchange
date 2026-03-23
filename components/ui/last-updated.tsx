@@ -2,7 +2,7 @@
 
 import { RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import { getVariables } from "@/components/_variables/variables";
 import { Button } from "@/components/ui/button";
@@ -11,36 +11,28 @@ export function dispatchDashboardRefresh() {
   window.dispatchEvent(new CustomEvent("dashboard-refresh"));
 }
 
+function getCurrentTime() {
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const ampm = hours >= 12 ? "PM" : "AM";
+  const displayHours = hours % 12 || 12;
+  const displayMinutes = minutes.toString().padStart(2, "0");
+  return `${displayHours} : ${displayMinutes} ${ampm}`;
+}
+
 export function LastUpdated() {
-  const [time, setTime] = useState<string>("");
+  const [time, setTime] = useState<string>(() => getCurrentTime());
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const variables = getVariables();
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      const hours = now.getHours();
-      const minutes = now.getMinutes();
-      const ampm = hours >= 12 ? "PM" : "AM";
-      const displayHours = hours % 12 || 12;
-      const displayMinutes = minutes.toString().padStart(2, "0");
-      setTime(`${displayHours} : ${displayMinutes} ${ampm}`);
-    };
-
-    updateTime();
-    const clockInterval = setInterval(updateTime, 1000);
-
-    return () => {
-      clearInterval(clockInterval);
-    };
-  }, []);
 
   const handleRefresh = () => {
     dispatchDashboardRefresh();
     startTransition(() => {
       router.refresh();
     });
+    setTime(getCurrentTime());
   };
 
   return (

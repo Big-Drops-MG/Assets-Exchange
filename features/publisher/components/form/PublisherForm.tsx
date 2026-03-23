@@ -111,6 +111,15 @@ export default function PublisherForm({ requestId }: PublisherFormProps = {}) {
         <Card
           className="w-full max-w-md lg:max-w-xl xl:max-w-3xl gap-6 xl:gap-8"
           style={{ backgroundColor: variables.colors.cardBackground }}
+          onKeyDown={(e) => {
+            if (
+              e.key === "Enter" &&
+              (e.target as HTMLElement).tagName !== "TEXTAREA"
+            ) {
+              e.preventDefault();
+              handleNextOrSubmit();
+            }
+          }}
         >
           <CardHeader className="flex flex-col items-start justify-start gap-2 lg:gap-4">
             <CardTitle

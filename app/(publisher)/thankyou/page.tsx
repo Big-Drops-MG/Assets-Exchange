@@ -1,11 +1,13 @@
 "use client";
 
-import { Mail, File, Smartphone, Copy, Check } from "lucide-react";
+import { Mail, File, Smartphone, Copy, Check, PlusCircle } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import React, { Suspense, useState } from "react";
 import { toast } from "sonner";
 
 import { Constants } from "@/app/Constants/Constants";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -169,6 +171,21 @@ function ThankYouPageContent() {
                     </li>
                   )}
                 </ul>
+              </div>
+
+              <div className="flex flex-col items-center pt-4">
+                <Button
+                  asChild
+                  className="w-full max-w-xs h-12 font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+                >
+                  <Link
+                    href="/form"
+                    className="flex items-center justify-center gap-2"
+                  >
+                    <PlusCircle className="w-5 h-5" />
+                    Submit another creative
+                  </Link>
+                </Button>
               </div>
             </div>
           </CardContent>

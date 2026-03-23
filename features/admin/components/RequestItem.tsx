@@ -196,7 +196,8 @@ const getStatusLabel = (
 
 const shouldShowActionButtons = (
   status: string,
-  approvalStage: string
+  approvalStage: string,
+  isAdvertiserView = false
 ): boolean => {
   const normalizedStatus = status.toLowerCase();
   const normalizedStage = approvalStage.toLowerCase();
@@ -217,9 +218,10 @@ const shouldShowActionButtons = (
     return true;
   }
 
-  // Show buttons for advertiser pending requests
+  // Show buttons for advertiser pending requests only in advertiser view
+  // (admin should not see action buttons when status is "Forwarded to Advertiser")
   if (normalizedStatus === "pending" && normalizedStage === "advertiser") {
-    return true;
+    return isAdvertiserView;
   }
 
   return false;
@@ -733,7 +735,11 @@ export function RequestItem({
                 </div>
               )}
             </div>
-          ) : shouldShowActionButtons(request.status, request.approvalStage) ? (
+          ) : shouldShowActionButtons(
+              request.status,
+              request.approvalStage,
+              isAdvertiserView
+            ) ? (
             <div className="flex flex-col gap-4 xl:gap-4 justify-self-end">
               <Popover
                 open={approvePopoverOpen}
@@ -906,18 +912,17 @@ export function RequestItem({
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="w-[500px] p-4"
+                  className="w-80 p-4"
                   align="end"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <h4 className="font-inter font-medium text-sm">
-                        Review Request
+                        What would you like to do?
                       </h4>
                       <p className="font-inter text-xs text-muted-foreground">
-                        Enter Visual Review Mode to provide specific feedback on
-                        this creative.
+                        Choose an action for this creative request.
                       </p>
                     </div>
 
@@ -925,13 +930,49 @@ export function RequestItem({
                       <Button
                         variant="destructive"
                         className="w-full font-inter text-xs xl:text-sm font-medium"
-                        disabled={isViewLoading}
-                        onClick={() => handleOpenReview("reject")}
+                        disabled={isRejecting}
+                        onClick={async () => {
+                          setRejectPopoverOpen(false);
+                          setIsRejecting(true);
+                          setError(null);
+                          try {
+                            if (isAdvertiserView) {
+                              await rejectResponse(request.id, "");
+                              onStatusUpdate?.(
+                                request.id,
+                                "rejected",
+                                "advertiser"
+                              );
+                            } else {
+                              await rejectRequest(request.id, "");
+                              onStatusUpdate?.(
+                                request.id,
+                                "rejected",
+                                "completed"
+                              );
+                            }
+                            toast.success("Request rejected", {
+                              description:
+                                "The request has been rejected successfully.",
+                            });
+                          } catch (err) {
+                            const errorMessage =
+                              err instanceof Error
+                                ? err.message
+                                : "Failed to reject request. Please try again.";
+                            setError(errorMessage);
+                            toast.error("Failed to reject request", {
+                              description: errorMessage,
+                            });
+                          } finally {
+                            setIsRejecting(false);
+                          }
+                        }}
                       >
-                        {isViewLoading ? (
+                        {isRejecting ? (
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         ) : (
-                          "Review & Reject"
+                          "Reject"
                         )}
                       </Button>
 
@@ -1104,7 +1145,7 @@ export function RequestItem({
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="w-[500px] p-4"
+                  className="w-80 p-4"
                   align="end"
                   onClick={(e) => e.stopPropagation()}
                 >

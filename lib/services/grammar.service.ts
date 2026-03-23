@@ -4,7 +4,6 @@ import type { LookupFunction } from "net";
 import { parse } from "url";
 
 import { eq } from "drizzle-orm";
-import sharp from "sharp";
 
 import { db } from "@/lib/db";
 import { saveBuffer } from "@/lib/fileStorage";
@@ -88,6 +87,7 @@ async function resizeImageIfNeeded(
     return { buffer, mimeType, filename };
   }
   try {
+    const sharp = (await import("sharp")).default;
     const out = await sharp(buffer)
       .resize(MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION, {
         fit: "inside",

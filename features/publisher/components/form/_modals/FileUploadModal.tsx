@@ -1,15 +1,7 @@
 "use client";
 
-import {
-  Upload,
-  CheckCircle,
-  AlertCircle,
-  FolderOpen,
-  X,
-  Loader2,
-} from "lucide-react";
+import { Upload, CheckCircle, AlertCircle, FolderOpen, X } from "lucide-react";
 import React from "react";
-
 
 import { getVariables } from "@/components/_variables/variables";
 import { Button } from "@/components/ui/button";
@@ -21,7 +13,6 @@ import {
   DialogTitle,
   DialogBody,
 } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import {
   useFileUploadModal,
   type UploadType,
@@ -67,53 +58,117 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
       : "Upload Multiple Creatives";
   };
 
+  const getUploadStatusMessage = (): { primary: string; secondary: string } => {
+    const pct = uploadProgress;
+    if (uploadType === "single") {
+      if (pct < 25)
+        return {
+          primary: "Preparing your creative…",
+          secondary: "Reading file and validating format",
+        };
+      if (pct < 50)
+        return {
+          primary: "Uploading creative…",
+          secondary: `${Math.round(pct)}% transferred`,
+        };
+      if (pct < 75)
+        return {
+          primary: "Processing file…",
+          secondary: "Optimizing for review",
+        };
+      if (pct < 100)
+        return { primary: "Almost there…", secondary: "Finalizing upload" };
+      return {
+        primary: "Upload complete",
+        secondary: "Your creative is ready",
+      };
+    }
+    if (pct < 25)
+      return {
+        primary: "Preparing ZIP archive…",
+        secondary: "Validating archive and file count",
+      };
+    if (pct < 50)
+      return {
+        primary: "Uploading archive…",
+        secondary: `${Math.round(pct)}% transferred`,
+      };
+    if (pct < 75)
+      return {
+        primary: "Extracting creatives…",
+        secondary: "Processing multiple files",
+      };
+    if (pct < 100) return { primary: "Finalizing…", secondary: "Almost done" };
+    return {
+      primary: "All creatives uploaded",
+      secondary: "ZIP processed successfully",
+    };
+  };
+
   const getDragDropContent = () => {
     if (uploadStatus === "uploading") {
+      const status = getUploadStatusMessage();
       return (
-        <div className="space-y-4">
-          <Loader2
-            className="h-10 w-10 mx-auto animate-spin"
-            style={{ color: variables.colors.titleColor }}
-          />
-
-          <Progress value={uploadProgress} />
-
-          <p
-            className="text-sm font-medium text-center"
-            style={{ color: variables.colors.titleColor }}
-          >
-            Uploading… {Math.round(uploadProgress)}%
-          </p>
-
-          <p
-            className="text-xs text-center"
-            style={{ color: variables.colors.descriptionColor }}
-          >
-            Please wait while your file is being uploaded
-          </p>
+        <div className="space-y-4 w-full">
+          <div className="space-y-2 w-full">
+            <div
+              className="h-2 w-full overflow-hidden rounded-full"
+              style={{
+                backgroundColor: `${variables.colors.inputRingColor}30`,
+              }}
+            >
+              <div
+                className="h-full rounded-full transition-all duration-300 ease-out"
+                style={{
+                  width: `${uploadProgress}%`,
+                  backgroundColor: variables.colors.inputRingColor,
+                }}
+              />
+            </div>
+            <p
+              className="text-sm font-medium text-center"
+              style={{ color: variables.colors.titleColor }}
+            >
+              {status.primary}
+            </p>
+            <p
+              className="text-xs text-center"
+              style={{ color: variables.colors.descriptionColor }}
+            >
+              {status.secondary}
+            </p>
+          </div>
         </div>
       );
     }
 
     if (uploadStatus === "success") {
+      const successTitle =
+        uploadType === "single"
+          ? "Creative uploaded successfully"
+          : "ZIP uploaded successfully";
+      const successDesc =
+        uploadType === "single"
+          ? "Your file is ready for review"
+          : "All creatives in the archive are ready for review";
       return (
-        <div className="space-y-3">
+        <div className="space-y-3 text-center">
           <CheckCircle
             className="h-12 w-12 mx-auto"
-            style={{ color: variables.colors.titleColor }}
+            style={{ color: variables.colors.inputRingColor }}
           />
-          <div>
+          <div className="space-y-1">
             <p
               className="text-sm font-medium"
               style={{ color: variables.colors.titleColor }}
             >
-              Upload Successful!
+              {successTitle}
             </p>
             <p
               className="text-xs"
               style={{ color: variables.colors.descriptionColor }}
             >
-              File uploaded successfully
+              {successDesc}
             </p>
           </div>
         </div>
@@ -122,14 +177,14 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
 
     if (selectedFile) {
       return (
-        <div className="space-y-3">
+        <div className="space-y-3 text-center">
           <CheckCircle
             className="h-12 w-12 mx-auto"
-            style={{ color: variables.colors.titleColor }}
+            style={{ color: variables.colors.inputRingColor }}
           />
-          <div>
+          <div className="space-y-1 min-w-0">
             <p
-              className="text-sm font-medium"
+              className="text-sm font-medium truncate px-2"
               style={{ color: variables.colors.titleColor }}
             >
               {selectedFile.name}
@@ -154,12 +209,12 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
     }
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 text-center">
         <Upload
           className="h-12 w-12 mx-auto"
           style={{ color: variables.colors.descriptionColor }}
         />
-        <div>
+        <div className="space-y-1">
           <p
             className="text-sm font-medium"
             style={{ color: variables.colors.titleColor }}
@@ -267,7 +322,7 @@ const FileUploadModal: React.FC<FileUploadModalProps> = ({
             )}
 
             <div
-              className="border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer"
+              className="border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer min-h-[180px] flex flex-col items-center justify-center"
               style={{
                 borderColor: getDragDropBorderColor(),
                 backgroundColor: getDragDropBackgroundColor(),

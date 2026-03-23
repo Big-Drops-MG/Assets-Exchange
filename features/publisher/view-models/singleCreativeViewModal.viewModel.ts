@@ -10,12 +10,19 @@ import {
   getCreativeMetadata,
   updateCreativeContent,
 } from "@/lib/creativeClient";
-
 import {
-  proofreadCreative,
   checkProofreadStatus,
+  proofreadCreative,
+  type ProofreadCreativeResponse,
 } from "@/lib/proofreadCreativeClient";
-import { type ProofreadCreativeResponse } from "@/lib/proofreadCreativeClient";
+
+const PROOFREAD_STATUS_MESSAGES = [
+  "Preparing your creative...",
+  "Sending to proofreading service...",
+  "Analyzing grammar and style...",
+  "Checking for issues and suggestions...",
+  "Finalizing results...",
+];
 
 export interface Creative {
   id: string;
@@ -101,18 +108,65 @@ export const useSingleCreativeViewModal = ({
     creative.metadata?.additionalNotes || ""
   );
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
-  const [complianceViolations, setComplianceViolations] = useState<Array<{rule_type?:string;evidence_text?:string;source?:string;confidence?:number;type?:string;original?:string;note?:string;}>>([]);
+  const [complianceViolations, _setComplianceViolations] = useState<
+    Array<{
+      rule_type?: string;
+      evidence_text?: string;
+      source?: string;
+      confidence?: number;
+      type?: string;
+      original?: string;
+      note?: string;
+    }>
+  >([]);
+  const [brandGuidelinesResponse, setBrandGuidelinesResponse] = useState<
+    | { message: string }
+    | {
+        message: Array<{
+          rule_type: string;
+          evidence_text: string;
+          source?: string;
+          confidence?: number;
+        }>;
+      }
+    | null
+  >(null);
+  const [isCheckingBrandGuidelines, setIsCheckingBrandGuidelines] =
+    useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [proofreadStatusMessage, setProofreadStatusMessage] = useState("");
   const [showOriginal, setShowOriginal] = useState(false);
   const [showOriginalFullscreen, setShowOriginalFullscreen] = useState(false);
   const [showOriginalHtmlFullscreen, setShowOriginalHtmlFullscreen] =
     useState(false);
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const proofreadStatusIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startProofreadStatusRotation = useCallback(() => {
+    setProofreadStatusMessage(PROOFREAD_STATUS_MESSAGES[0] ?? "Analyzing...");
+    let index = 0;
+    proofreadStatusIntervalRef.current = setInterval(() => {
+      index = (index + 1) % PROOFREAD_STATUS_MESSAGES.length;
+      setProofreadStatusMessage(
+        PROOFREAD_STATUS_MESSAGES[index] ?? "Analyzing..."
+      );
+    }, 3500);
+  }, []);
+
+  const stopProofreadStatusRotation = useCallback(() => {
+    if (proofreadStatusIntervalRef.current) {
+      clearInterval(proofreadStatusIntervalRef.current);
+      proofreadStatusIntervalRef.current = null;
+    }
+    setProofreadStatusMessage("");
+  }, []);
 
   useEffect(() => {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      if (proofreadStatusIntervalRef.current)
+        clearInterval(proofreadStatusIntervalRef.current);
     };
   }, []);
 
@@ -135,10 +189,7 @@ export const useSingleCreativeViewModal = ({
       return result.marked_image;
     }
     const oc = result.output_content;
-    if (
-      typeof oc === "string" &&
-      isModelImageUrl(oc)
-    ) {
+    if (typeof oc === "string" && isModelImageUrl(oc)) {
       return oc;
     }
     return null;
@@ -158,7 +209,10 @@ export const useSingleCreativeViewModal = ({
       !proofreadingData.result ||
       typeof proofreadingData.result !== "object"
     ) {
-      if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+      if (
+        typeof process !== "undefined" &&
+        process.env.NODE_ENV === "development"
+      ) {
         console.warn("[Proofread] getMarkedImageUrl: no result object", {
           hasProofreadingData: !!proofreadingData,
           hasResult: !!proofreadingData.result,
@@ -222,7 +276,8 @@ export const useSingleCreativeViewModal = ({
     if (
       typeof outputContent === "string" &&
       outputContent !== originalUrl &&
-      (outputContent.startsWith("https://") || outputContent.startsWith("data:image/")) &&
+      (outputContent.startsWith("https://") ||
+        outputContent.startsWith("data:image/")) &&
       (outputContent.includes("proofread") ||
         outputContent.includes("blob") ||
         /\.(jpe?g|png|webp|gif)(\?|$)/i.test(outputContent))
@@ -317,22 +372,36 @@ export const useSingleCreativeViewModal = ({
       }
     }
 
-    if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
-      console.warn("[Proofread] getMarkedImageUrl: no image URL found in result", {
-        resultKeys: Object.keys(result),
-        sampleValues: Object.fromEntries(
-          Object.entries(result).slice(0, 5).map(([k, v]) => [k, typeof v === "string" ? v.slice(0, 80) : typeof v])
-        ),
-      });
+    if (
+      typeof process !== "undefined" &&
+      process.env.NODE_ENV === "development"
+    ) {
+      console.warn(
+        "[Proofread] getMarkedImageUrl: no image URL found in result",
+        {
+          resultKeys: Object.keys(result),
+          sampleValues: Object.fromEntries(
+            Object.entries(result)
+              .slice(0, 5)
+              .map(([k, v]) => [
+                k,
+                typeof v === "string" ? v.slice(0, 80) : typeof v,
+              ])
+          ),
+        }
+      );
     }
     return null;
-  }, [proofreadingData, creative.url, creative.previewUrl]);
+  }, [
+    proofreadingData,
+    creative.url,
+    creative.previewUrl,
+    getMarkedImageUrlFromModel,
+  ]);
 
   const getOriginalImageUrl = useCallback((): string => {
     return (
-      creative.metadata?.originalImageUrl ??
-      creative.previewUrl ??
-      creative.url
+      creative.metadata?.originalImageUrl ?? creative.previewUrl ?? creative.url
     );
   }, [creative.url, creative.previewUrl, creative.metadata?.originalImageUrl]);
 
@@ -459,7 +528,8 @@ export const useSingleCreativeViewModal = ({
           typeof data.metadata.proofreadingData === "object" &&
           Object.keys(data.metadata.proofreadingData).length > 0
         ) {
-          const loaded = data.metadata.proofreadingData as ProofreadCreativeResponse;
+          const loaded = data.metadata
+            .proofreadingData as ProofreadCreativeResponse;
           const loadedHasResult =
             loaded.result != null && typeof loaded.result === "object";
           if (loadedHasResult) {
@@ -860,7 +930,7 @@ export const useSingleCreativeViewModal = ({
         body: formData,
       });
 
-      const result = await res.json() as {
+      const result = (await res.json()) as {
         success: boolean;
         data?: {
           fromLines: string;
@@ -871,15 +941,29 @@ export const useSingleCreativeViewModal = ({
       };
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || "Pipeline returned an unexpected response");
+        throw new Error(
+          result.error || "Pipeline returned an unexpected response"
+        );
       }
 
-      const { fromLines: newFrom, subjectLines: newSubject, analysis } = result.data;
+      const {
+        fromLines: newFrom,
+        subjectLines: newSubject,
+        analysis,
+      } = result.data;
 
       const mergeContent = (existing: string, incoming: string) => {
-        const existingLines = existing.split("\n").map((s) => s.trim()).filter(Boolean);
-        const incomingLines = incoming.split("\n").map((s) => s.trim()).filter(Boolean);
-        const merged = Array.from(new Set([...existingLines, ...incomingLines]));
+        const existingLines = existing
+          .split("\n")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const incomingLines = incoming
+          .split("\n")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const merged = Array.from(
+          new Set([...existingLines, ...incomingLines])
+        );
         return merged.join("\n");
       };
 
@@ -890,7 +974,10 @@ export const useSingleCreativeViewModal = ({
       setSubjectLines(mergedSubject);
 
       if (analysis && Object.keys(analysis).length > 0) {
-        const rawIssues = (analysis.violations ?? analysis.corrections ?? analysis.issues ?? []) as Array<{
+        const rawIssues = (analysis.violations ??
+          analysis.corrections ??
+          analysis.issues ??
+          []) as Array<{
           // Compliance API fields (/v1/analyze)
           rule_type?: string;
           evidence_text?: string;
@@ -925,8 +1012,11 @@ export const useSingleCreativeViewModal = ({
         const proofreadResult: ProofreadCreativeResponse = {
           success: true,
           issues: mappedIssues,
-          suggestions: (analysis.suggestions as ProofreadCreativeResponse["suggestions"]) ?? [],
-          qualityScore: analysis.qualityScore as ProofreadCreativeResponse["qualityScore"],
+          suggestions:
+            (analysis.suggestions as ProofreadCreativeResponse["suggestions"]) ??
+            [],
+          qualityScore:
+            analysis.qualityScore as ProofreadCreativeResponse["qualityScore"],
         };
 
         setProofreadingData(proofreadResult);
@@ -950,9 +1040,13 @@ export const useSingleCreativeViewModal = ({
         console.error("Failed to auto-save generated content:", saveError);
       }
 
-      const issueCount = (result.data.analysis?.corrections as unknown[] | undefined)?.length ?? 0;
+      const issueCount =
+        (result.data.analysis?.corrections as unknown[] | undefined)?.length ??
+        0;
       if (issueCount > 0) {
-        toast.success(`Generated! ${issueCount} issue${issueCount !== 1 ? "s" : ""} found.`);
+        toast.success(
+          `Generated! ${issueCount} issue${issueCount !== 1 ? "s" : ""} found.`
+        );
       } else {
         toast.success("From & Subject lines generated successfully!");
       }
@@ -966,9 +1060,21 @@ export const useSingleCreativeViewModal = ({
     }
   };
 
+  const handleAnalyzeBrandGuidelines = useCallback(async () => {
+    setIsCheckingBrandGuidelines(true);
+    try {
+      // TODO: call brand guidelines API, then setBrandGuidelinesResponse with:
+      // - success: { message: "All guidelines are followed" }
+      // - issues: { message: Array<{ rule_type, evidence_text, source?, confidence? }> }
+    } finally {
+      setIsCheckingBrandGuidelines(false);
+    }
+  }, []);
+
   const handleRegenerateAnalysis = async () => {
     try {
       setIsAnalyzing(true);
+      startProofreadStatusRotation();
       if (pollRef.current) clearInterval(pollRef.current);
 
       const isHtml =
@@ -981,11 +1087,13 @@ export const useSingleCreativeViewModal = ({
 
       if (isHtml) {
         if (!htmlContent) {
+          stopProofreadStatusRotation();
           setIsAnalyzing(false);
           return;
         }
         fileUrl = creative.url;
         if (!fileUrl) {
+          stopProofreadStatusRotation();
           setIsAnalyzing(false);
           return;
         }
@@ -995,6 +1103,7 @@ export const useSingleCreativeViewModal = ({
       } else if (isImg) {
         fileUrl = creative.previewUrl || creative.url;
         if (!fileUrl) {
+          stopProofreadStatusRotation();
           setIsAnalyzing(false);
           return;
         }
@@ -1004,6 +1113,7 @@ export const useSingleCreativeViewModal = ({
       }
 
       if (!fileUrl) {
+        stopProofreadStatusRotation();
         setIsAnalyzing(false);
         return;
       }
@@ -1026,14 +1136,21 @@ export const useSingleCreativeViewModal = ({
           resultData.result && typeof resultData.result === "object"
             ? (resultData.result as Record<string, unknown>)
             : resultData;
-        if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+        if (
+          typeof process !== "undefined" &&
+          process.env.NODE_ENV === "development"
+        ) {
           console.warn("[Proofread] Sync response:", {
             hasResult: !!result.result,
             resultDataKeys: Object.keys(resultData),
             payloadKeys: Object.keys(payload),
-            correctionsCount: Array.isArray(payload.corrections) ? payload.corrections.length : 0,
+            correctionsCount: Array.isArray(payload.corrections)
+              ? payload.corrections.length
+              : 0,
             hasMarkedImage: !!(payload as Record<string, unknown>).marked_image,
-            hasOutputContent: typeof (payload as Record<string, unknown>).output_content === "string",
+            hasOutputContent:
+              typeof (payload as Record<string, unknown>).output_content ===
+              "string",
           });
         }
         const rawCorrections = (payload.corrections ||
@@ -1041,15 +1158,15 @@ export const useSingleCreativeViewModal = ({
           resultData.corrections ||
           resultData.issues ||
           []) as Array<{
-            original_word?: string;
-            corrected_word?: string;
-            original_context?: string;
-            corrected_context?: string;
-            type?: string;
-            original?: string;
-            correction?: string;
-            note?: string;
-          }>;
+          original_word?: string;
+          corrected_word?: string;
+          original_context?: string;
+          corrected_context?: string;
+          type?: string;
+          original?: string;
+          correction?: string;
+          note?: string;
+        }>;
 
         const issues: ProofreadCreativeResponse["issues"] = rawCorrections.map(
           (c) => ({
@@ -1077,11 +1194,16 @@ export const useSingleCreativeViewModal = ({
             (resultData.qualityScore as ProofreadCreativeResponse["qualityScore"]),
         };
 
-        if (typeof process !== "undefined" && process.env.NODE_ENV === "development") {
+        if (
+          typeof process !== "undefined" &&
+          process.env.NODE_ENV === "development"
+        ) {
           console.warn("[Proofread] Setting proofreadingData:", {
             issuesCount: finalResult.issues?.length ?? 0,
             hasResult: !!finalResult.result,
-            resultKeys: finalResult.result ? Object.keys(finalResult.result as object) : [],
+            resultKeys: finalResult.result
+              ? Object.keys(finalResult.result as object)
+              : [],
           });
         }
         setProofreadingData(finalResult);
@@ -1098,7 +1220,9 @@ export const useSingleCreativeViewModal = ({
             creativeType: creative.type,
             fileName: creative.name,
           },
-        }).catch((err) => console.error("Failed to persist proofreading result:", err));
+        }).catch((err) =>
+          console.error("Failed to persist proofreading result:", err)
+        );
 
         const isHtmlFile =
           creative.html ||
@@ -1138,6 +1262,7 @@ export const useSingleCreativeViewModal = ({
         setShowOriginal(false);
         setShowOriginalFullscreen(false);
         setShowOriginalHtmlFullscreen(false);
+        stopProofreadStatusRotation();
         setIsAnalyzing(false);
 
         const issueCount = issues?.length || 0;
@@ -1171,15 +1296,15 @@ export const useSingleCreativeViewModal = ({
               const rawCorrections = (resultData.corrections ||
                 resultData.issues ||
                 []) as Array<{
-                  original_word?: string;
-                  corrected_word?: string;
-                  original_context?: string;
-                  corrected_context?: string;
-                  type?: string;
-                  original?: string;
-                  correction?: string;
-                  note?: string;
-                }>;
+                original_word?: string;
+                corrected_word?: string;
+                original_context?: string;
+                corrected_context?: string;
+                type?: string;
+                original?: string;
+                correction?: string;
+                note?: string;
+              }>;
 
               const issues: ProofreadCreativeResponse["issues"] =
                 rawCorrections.map((c) => ({
@@ -1242,6 +1367,7 @@ export const useSingleCreativeViewModal = ({
               setShowOriginal(false);
               setShowOriginalFullscreen(false);
               setShowOriginalHtmlFullscreen(false);
+              stopProofreadStatusRotation();
               setIsAnalyzing(false);
 
               const issueCount = issues?.length || 0;
@@ -1260,6 +1386,7 @@ export const useSingleCreativeViewModal = ({
               statusData.status === "failed"
             ) {
               if (pollRef.current) clearInterval(pollRef.current);
+              stopProofreadStatusRotation();
               setIsAnalyzing(false);
               setShowOriginal(true);
               setShowOriginalFullscreen(true);
@@ -1271,17 +1398,20 @@ export const useSingleCreativeViewModal = ({
           } catch (err) {
             console.error("Polling error:", err);
             if (pollRef.current) clearInterval(pollRef.current);
+            stopProofreadStatusRotation();
             setIsAnalyzing(false);
             toast.error("Failed to retrieve results");
           }
         }, 2000);
       } else {
+        stopProofreadStatusRotation();
         setIsAnalyzing(false);
         toast.error("No task ID received");
       }
     } catch (error) {
       console.error("Proofreading failed:", error);
       if (pollRef.current) clearInterval(pollRef.current);
+      stopProofreadStatusRotation();
       setIsAnalyzing(false);
       setShowOriginal(true);
       setShowOriginalFullscreen(true);
@@ -1560,12 +1690,12 @@ export const useSingleCreativeViewModal = ({
   const isProofreadComplete = !!proofreadingData && !isAnalyzing;
   const proofreadResult = proofreadingData
     ? {
-      issues: proofreadingData.issues || [],
-      suggestions: proofreadingData.suggestions || [],
-      qualityScore: proofreadingData.qualityScore,
-      marked_image: getMarkedImageUrl(),
-      success: proofreadingData.success,
-    }
+        issues: proofreadingData.issues || [],
+        suggestions: proofreadingData.suggestions || [],
+        qualityScore: proofreadingData.qualityScore,
+        marked_image: getMarkedImageUrl(),
+        success: proofreadingData.success,
+      }
     : null;
 
   return {
@@ -1580,12 +1710,17 @@ export const useSingleCreativeViewModal = ({
     isPreviewCollapsed,
     proofreadingData,
     complianceViolations,
+    brandGuidelinesResponse,
+    setBrandGuidelinesResponse,
+    isCheckingBrandGuidelines,
+    handleAnalyzeBrandGuidelines,
     htmlContent,
     isSaving,
     previewKey,
     additionalNotes,
     isGeneratingContent,
     isAnalyzing,
+    proofreadStatusMessage,
     imageZoom,
     imagePosition,
     isDragging,

@@ -16,6 +16,7 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  ShieldCheck,
 } from "lucide-react";
 import React, { useRef } from "react";
 
@@ -101,6 +102,14 @@ const getFileType = (fileName: string): "image" | "html" | "other" => {
   return "other";
 };
 
+const formatRuleType = (ruleType: string): string => {
+  if (!ruleType.trim()) return "—";
+  return ruleType
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
 const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
   isOpen,
   onClose,
@@ -183,7 +192,15 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
 
       hasSyncedRef.current = true;
     }
-  }, [isProofreadComplete, proofreadResult, onFileUpdate, creative?.url, viewModel.proofreadingData]);
+  }, [
+    isProofreadComplete,
+    proofreadResult,
+    onFileUpdate,
+    creative?.url,
+    creative?.previewUrl,
+    creative?.metadata,
+    viewModel.proofreadingData,
+  ]);
 
   if (!isOpen) return null;
 
@@ -500,8 +517,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                                   wait...
                                 </p>
                                 {viewModel.proofreadingData.issues &&
-                                  viewModel.complianceViolations.length >
-                                    0 && (
+                                  viewModel.complianceViolations.length > 0 && (
                                     <div className="mt-4 flex items-center justify-center gap-2">
                                       <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
                                         <X className="h-3 w-3" />
@@ -564,8 +580,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                                   Marked HTML is being processed. Please wait...
                                 </p>
                                 {viewModel.proofreadingData.issues &&
-                                  viewModel.complianceViolations.length >
-                                    0 && (
+                                  viewModel.complianceViolations.length > 0 && (
                                     <div className="mt-4 flex items-center justify-center gap-2">
                                       <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
                                         <X className="h-3 w-3" />
@@ -781,7 +796,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                                     viewModel.setFromLines(e.target.value)
                                   }
                                   placeholder="Enter from lines (one per line)"
-                                  rows={3}
+                                  rows={6}
                                   className="w-full resize-none text-xs sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500/20"
                                 />
                                 <p className="text-xs text-gray-500 mt-2">
@@ -808,7 +823,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                                     viewModel.setSubjectLines(e.target.value)
                                   }
                                   placeholder="Enter subject lines (one per line)"
-                                  rows={3}
+                                  rows={6}
                                   className="w-full resize-none text-xs sm:text-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500/20"
                                 />
                                 <p className="text-xs text-gray-500 mt-2">
@@ -817,39 +832,182 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                               </>
                             )}
                           </div>
-                           {/* Compliance Violations - populated after Generate is clicked */}
-                           {viewModel.complianceViolations && viewModel.complianceViolations.length > 0 && (
-                               <div className="mt-2">
-                                 <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-2">
-                                   Compliance Violations
-                                   <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-bold">
-                                     {viewModel.complianceViolations.length}
-                                   </span>
-                                 </p>
-                                 <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-                                   {(viewModel.complianceViolations as Array<{type?:string;rule_type?:string;note?:string;evidence_text?:string;original?:string;confidence?:number;source?:string;}>).map((v, i) => (
-                                     <div key={i} className="flex items-start gap-2 p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs">
-                                       <span className="shrink-0 px-1.5 py-0.5 bg-red-200 text-red-800 rounded font-semibold text-[10px] uppercase whitespace-nowrap">
-                                         {v.rule_type ?? v.type ?? "Violation"}
-                                       </span>
-                                       <div className="flex-1 min-w-0">
-                                         <p className="text-red-800 font-medium leading-snug">{v.evidence_text ?? v.note ?? v.original ?? "Issue detected"}</p>
-                                         {(v.confidence !== undefined || v.source) && (
-                                           <p className="text-red-400 mt-0.5">
-                                             {v.source && <span className="capitalize">{v.source}</span>}
-                                             {v.confidence !== undefined && v.source && "  "}
-                                             {v.confidence !== undefined && <span>{Math.round(v.confidence * 100)}% confidence</span>}
-                                           </p>
-                                         )}
-                                       </div>
-                                     </div>
-                                   ))}
-                                 </div>
-                               </div>
-                             )}
+                          {/* Compliance Violations - populated after Generate is clicked */}
+                          {viewModel.complianceViolations &&
+                            viewModel.complianceViolations.length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-2">
+                                  Compliance Violations
+                                  <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-bold">
+                                    {viewModel.complianceViolations.length}
+                                  </span>
+                                </p>
+                                <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                                  {(
+                                    viewModel.complianceViolations as Array<{
+                                      type?: string;
+                                      rule_type?: string;
+                                      note?: string;
+                                      evidence_text?: string;
+                                      original?: string;
+                                      confidence?: number;
+                                      source?: string;
+                                    }>
+                                  ).map((v, i) => (
+                                    <div
+                                      key={i}
+                                      className="flex items-start gap-2 p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs"
+                                    >
+                                      <span className="shrink-0 px-1.5 py-0.5 bg-red-200 text-red-800 rounded font-semibold text-[10px] uppercase whitespace-nowrap">
+                                        {v.rule_type ?? v.type ?? "Violation"}
+                                      </span>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-red-800 font-medium leading-snug">
+                                          {v.evidence_text ??
+                                            v.note ??
+                                            v.original ??
+                                            "Issue detected"}
+                                        </p>
+                                        {(v.confidence !== undefined ||
+                                          v.source) && (
+                                          <p className="text-red-400 mt-0.5">
+                                            {v.source && (
+                                              <span className="capitalize">
+                                                {v.source}
+                                              </span>
+                                            )}
+                                            {v.confidence !== undefined &&
+                                              v.source &&
+                                              "  "}
+                                            {v.confidence !== undefined && (
+                                              <span>
+                                                {Math.round(v.confidence * 100)}
+                                                % confidence
+                                              </span>
+                                            )}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                         </div>
                       </div>
                     )}
+
+                    {/* Brand Guidelines Compatibility */}
+                    <div className="p-4 sm:p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-gray-200 mb-4 gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-indigo-100 rounded-lg">
+                            <ShieldCheck className="h-5 w-5 text-indigo-600" />
+                          </div>
+                          <h3 className="text-sm sm:text-lg font-semibold text-gray-800">
+                            Brand Guidelines Compatibility
+                          </h3>
+                        </div>
+
+                        {!viewOnly && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={viewModel.handleAnalyzeBrandGuidelines}
+                            disabled={viewModel.isCheckingBrandGuidelines}
+                            className="flex items-center gap-2 w-full sm:w-auto h-9 disabled:opacity-50 bg-indigo-50 border-indigo-300 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 hover:border-indigo-400 font-medium shadow-sm"
+                          >
+                            {viewModel.isCheckingBrandGuidelines ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-indigo-700 border-t-transparent rounded-full animate-spin" />
+                                <span>Analyzing...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="h-4 w-4" />
+                                <span className="hidden sm:inline">
+                                  Analyze Brand Guidelines
+                                </span>
+                                <span className="sm:hidden">Analyze</span>
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="space-y-4">
+                        {viewModel.brandGuidelinesResponse == null ? (
+                          <p className="text-sm text-gray-500">
+                            Run a check to verify this creative against brand
+                            guidelines. Results will appear here.
+                          </p>
+                        ) : typeof viewModel.brandGuidelinesResponse
+                            ?.message === "string" ? (
+                          <div className="flex flex-col gap-2 p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <ShieldCheck className="h-5 w-5 text-green-600 shrink-0" />
+                              <span className="text-sm font-semibold text-green-800">
+                                All good
+                              </span>
+                            </div>
+                            <p className="text-sm text-green-700 pl-8">
+                              {viewModel.brandGuidelinesResponse?.message ?? ""}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                              <span className="w-2 h-2 bg-amber-500 rounded-full" />
+                              Guidelines issues
+                              {Array.isArray(
+                                viewModel.brandGuidelinesResponse?.message
+                              ) &&
+                                ` (${viewModel.brandGuidelinesResponse?.message.length ?? 0})`}
+                            </h4>
+                            <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                              {Array.isArray(
+                                viewModel.brandGuidelinesResponse?.message
+                              ) &&
+                                viewModel.brandGuidelinesResponse?.message.map(
+                                  (item, i) => (
+                                    <div
+                                      key={i}
+                                      className="flex flex-col gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs"
+                                    >
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="px-1.5 py-0.5 bg-amber-200 text-amber-800 rounded font-semibold text-[10px] uppercase whitespace-nowrap">
+                                          Rule type
+                                        </span>
+                                        <span className="font-medium text-gray-800">
+                                          {formatRuleType(item.rule_type ?? "")}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-gray-500 block mb-0.5">
+                                          Evidence text
+                                        </span>
+                                        <p className="text-gray-800 leading-snug">
+                                          {item.evidence_text ?? "—"}
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-gray-500">
+                                          Confidence
+                                        </span>
+                                        <span className="font-medium text-amber-800">
+                                          {item.confidence != null
+                                            ? `${(item.confidence * 100).toFixed(2)}%`
+                                            : "—"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )
+                                )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
                     {/* Proofreading */}
                     <div className="p-4 sm:p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
@@ -890,172 +1048,240 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                       </div>
 
                       <div className="space-y-4">
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                            <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                            Issues Found
-                            {viewModel.proofreadingData?.issues && viewModel.proofreadingData.issues.length > 0
-                              ? ` (${viewModel.proofreadingData.issues.length})`
-                              : ""}
-                          </h4>
+                        {viewModel.isAnalyzing && (
+                          <div className="flex flex-col items-center gap-3 py-4">
+                            <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                            <p className="text-sm font-medium text-gray-700 text-center">
+                              {viewModel.proofreadStatusMessage ||
+                                "Analyzing..."}
+                            </p>
+                            <p className="text-xs text-gray-500 text-center">
+                              This may take a minute. Please do not close this
+                              window.
+                            </p>
+                          </div>
+                        )}
 
-                          <div className="space-y-2">
-                            {viewModel.proofreadingData?.issues && viewModel.proofreadingData.issues.length > 0 ? (
-                              viewModel.proofreadingData.issues.map(
-                                (issue: unknown, index: number) => {
-                                  const issueData = issue as {
-                                    type?: string;
-                                    note?: string;
-                                    original?: string;
-                                    correction?: string;
-                                  };
-                                  return (
-                                    <div
-                                      key={index}
-                                      className="p-3 bg-red-50 border border-red-200 rounded-lg"
-                                    >
-                                      <div className="flex items-start gap-2">
-                                        <span className="text-xs px-2 py-1 rounded font-medium bg-red-200 text-red-800 w-max text-nowrap">
-                                          {issueData.type || "Issue"}
-                                        </span>
-                                        <div className="flex-1">
-                                          <p className="text-xs font-medium text-red-800">
-                                            {issueData.note ||
-                                              issueData.type ||
-                                              "Issue"}
-                                          </p>
-                                          {issueData.original && (
-                                            <p className="text-xs text-red-600 mt-1">
-                                              <span className="line-through">
-                                                {issueData.original}
+                        {!viewModel.isAnalyzing && (
+                          <div className="space-y-6">
+                            {viewModel.proofreadingData ? (
+                              <section className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className="flex h-6 w-1 rounded-full bg-red-500"
+                                    aria-hidden
+                                  />
+                                  <h4 className="text-sm font-semibold text-gray-800 tracking-tight">
+                                    Issues to fix
+                                  </h4>
+                                  {(viewModel.proofreadingData.issues?.length ??
+                                    0) > 0 && (
+                                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                                      {
+                                        viewModel.proofreadingData.issues
+                                          ?.length
+                                      }
+                                    </span>
+                                  )}
+                                </div>
+                                {viewModel.proofreadingData.issues &&
+                                viewModel.proofreadingData.issues.length > 0 ? (
+                                  <ul className="space-y-2" role="list">
+                                    {viewModel.proofreadingData.issues.map(
+                                      (issue: unknown, index: number) => {
+                                        const issueData = issue as {
+                                          type?: string;
+                                          note?: string;
+                                          original?: string;
+                                          correction?: string;
+                                        };
+                                        return (
+                                          <li
+                                            key={index}
+                                            className="flex rounded-lg border border-gray-200 bg-gray-50/80 pl-3 pr-4 py-3 border-l-4 border-l-red-500"
+                                          >
+                                            <div className="flex-1 min-w-0">
+                                              <span className="inline-block text-[10px] font-semibold uppercase tracking-wider text-red-600 mb-1">
+                                                {issueData.type || "Issue"}
                                               </span>
-                                            </p>
-                                          )}
-                                          {issueData.correction && (
-                                            <p className="text-xs text-green-600 mt-1">
-                                              <strong>Correction:</strong>{" "}
-                                              {issueData.correction}
-                                            </p>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                }
-                              )
+                                              <p className="text-sm text-gray-800 leading-snug">
+                                                {issueData.note ??
+                                                  issueData.type ??
+                                                  "Issue"}
+                                              </p>
+                                              {(issueData.original ??
+                                                issueData.correction) && (
+                                                <p className="mt-2 text-sm">
+                                                  {issueData.original && (
+                                                    <span className="text-gray-500 line-through mr-2">
+                                                      {issueData.original}
+                                                    </span>
+                                                  )}
+                                                  {issueData.correction && (
+                                                    <span className="text-emerald-600 font-medium">
+                                                      {issueData.correction}
+                                                    </span>
+                                                  )}
+                                                </p>
+                                              )}
+                                            </div>
+                                          </li>
+                                        );
+                                      }
+                                    )}
+                                  </ul>
+                                ) : (
+                                  <div className="rounded-lg border border-gray-200 bg-emerald-50/80 pl-3 pr-4 py-3 border-l-4 border-l-emerald-500">
+                                    <p className="text-sm font-medium text-emerald-800">
+                                      No issues found. Your creative looks good.
+                                    </p>
+                                  </div>
+                                )}
+                              </section>
                             ) : (
-                              <div className="p-4 text-center text-gray-500">
-                                <p className="text-sm">
-                                  {viewOnly
-                                    ? "No proofreading analysis available."
-                                    : 'Click the "Analyze Creative" button to start proofreading.'}
-                                </p>
-                              </div>
+                              <p className="text-sm text-gray-500">
+                                {viewOnly
+                                  ? "No proofreading analysis available."
+                                  : 'Click the "Analyze Creative" button to start proofreading.'}
+                              </p>
                             )}
                           </div>
-                        </div>
+                        )}
 
-                        {/* Suggestions - Always show when proofreading data exists */}
-                        {viewModel.proofreadingData && (
-                          <div className="space-y-3">
-                            <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                              Suggestions
-                              {viewModel.proofreadingData.suggestions &&
-                              viewModel.proofreadingData.suggestions.length > 0
-                                ? ` (${viewModel.proofreadingData.suggestions.length})`
-                                : ""}
-                            </h4>
-                            <div className="space-y-2">
+                        {/* Suggestions */}
+                        {viewModel.proofreadingData &&
+                          !viewModel.isAnalyzing && (
+                            <section className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="flex h-6 w-1 rounded-full bg-blue-500"
+                                  aria-hidden
+                                />
+                                <h4 className="text-sm font-semibold text-gray-800 tracking-tight">
+                                  Suggestions
+                                </h4>
+                                {viewModel.proofreadingData.suggestions &&
+                                  viewModel.proofreadingData.suggestions
+                                    .length > 0 && (
+                                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                                      {
+                                        viewModel.proofreadingData.suggestions
+                                          .length
+                                      }
+                                    </span>
+                                  )}
+                              </div>
                               {viewModel.proofreadingData.suggestions &&
                               viewModel.proofreadingData.suggestions.length >
                                 0 ? (
-                                viewModel.proofreadingData.suggestions.map(
-                                  (suggestion: unknown, index: number) => {
-                                    const suggestionData = suggestion as {
-                                      type?: string;
-                                      description?: string;
-                                    };
-                                    return (
-                                      <div
-                                        key={index}
-                                        className="p-3 bg-blue-50 border border-blue-200 rounded-lg"
-                                      >
-                                        <div className="flex items-start gap-2">
-                                          <span className="text-xs px-2 py-1 rounded font-medium bg-blue-200 text-blue-800 w-max text-nowrap">
-                                            {suggestionData.type ||
+                                <ul className="space-y-2" role="list">
+                                  {viewModel.proofreadingData.suggestions.map(
+                                    (suggestion: unknown, index: number) => {
+                                      const suggestionData = suggestion as {
+                                        type?: string;
+                                        description?: string;
+                                      };
+                                      return (
+                                        <li
+                                          key={index}
+                                          className="rounded-lg border border-gray-200 bg-gray-50/80 pl-3 pr-4 py-3 border-l-4 border-l-blue-500"
+                                        >
+                                          <span className="inline-block text-[10px] font-semibold uppercase tracking-wider text-blue-600 mb-1.5">
+                                            {suggestionData.type ??
                                               "Suggestion"}
                                           </span>
-                                          <p className="text-xs text-blue-800">
-                                            {suggestionData.description || ""}
+                                          <p className="text-sm text-gray-800 leading-snug">
+                                            {suggestionData.description ?? ""}
                                           </p>
-                                        </div>
-                                      </div>
-                                    );
-                                  }
-                                )
+                                        </li>
+                                      );
+                                    }
+                                  )}
+                                </ul>
                               ) : (
-                                <div className="p-4 text-center text-gray-500">
-                                  <p className="text-sm">
-                                    No suggestions available at this time.
+                                <div className="rounded-lg border border-gray-200 bg-gray-50/80 pl-3 pr-4 py-3 border-l-4 border-l-blue-500">
+                                  <p className="text-sm font-medium text-gray-700">
+                                    No suggestions. Your creative is in good
+                                    shape.
                                   </p>
                                 </div>
                               )}
-                            </div>
-                          </div>
-                        )}
+                            </section>
+                          )}
 
-                        {/* Quality Score - Always show when proofreading data exists */}
-                        {viewModel.proofreadingData && (
-                          <div className="space-y-3">
-                            <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                              <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
-                              Quality Score
-                            </h4>
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-center">
-                                <p className="text-xs text-purple-600 font-medium">
-                                  Grammar
-                                </p>
-                                <p className="text-lg font-bold text-purple-800">
-                                  {viewModel.proofreadingData.qualityScore
-                                    ?.grammar ?? 0}
-                                  /100
-                                </p>
+                        {/* Quality Score */}
+                        {viewModel.proofreadingData &&
+                          !viewModel.isAnalyzing && (
+                            <section className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="flex h-6 w-1 rounded-full bg-violet-500"
+                                  aria-hidden
+                                />
+                                <h4 className="text-sm font-semibold text-gray-800 tracking-tight">
+                                  Quality score
+                                </h4>
                               </div>
-                              <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-center">
-                                <p className="text-xs text-purple-600 font-medium">
-                                  Readability
-                                </p>
-                                <p className="text-lg font-bold text-purple-800">
-                                  {viewModel.proofreadingData.qualityScore
-                                    ?.readability ?? 0}
-                                  /100
-                                </p>
+                              <div className="rounded-lg border border-gray-200 bg-gray-50/80 p-4">
+                                <div className="grid grid-cols-2 gap-4 sm:gap-6">
+                                  {[
+                                    {
+                                      label: "Grammar",
+                                      value:
+                                        viewModel.proofreadingData.qualityScore
+                                          ?.grammar ?? 0,
+                                    },
+                                    {
+                                      label: "Readability",
+                                      value:
+                                        viewModel.proofreadingData.qualityScore
+                                          ?.readability ?? 0,
+                                    },
+                                    {
+                                      label: "Conversion",
+                                      value:
+                                        viewModel.proofreadingData.qualityScore
+                                          ?.conversion ?? 0,
+                                    },
+                                    {
+                                      label: "Brand alignment",
+                                      value:
+                                        viewModel.proofreadingData.qualityScore
+                                          ?.brandAlignment ?? 0,
+                                    },
+                                  ].map((item) => (
+                                    <div
+                                      key={item.label}
+                                      className="flex flex-col gap-1"
+                                    >
+                                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        {item.label}
+                                      </p>
+                                      <div className="flex items-baseline gap-1.5">
+                                        <span className="text-xl font-semibold tabular-nums text-gray-900">
+                                          {item.value}
+                                        </span>
+                                        <span className="text-sm text-gray-400">
+                                          / 100
+                                        </span>
+                                      </div>
+                                      <div
+                                        className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200"
+                                        role="presentation"
+                                      >
+                                        <div
+                                          className="h-full rounded-full bg-violet-500 transition-all"
+                                          style={{
+                                            width: `${Math.min(100, item.value)}%`,
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                              <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-center">
-                                <p className="text-xs text-purple-600 font-medium">
-                                  Conversion
-                                </p>
-                                <p className="text-lg font-bold text-purple-800">
-                                  {viewModel.proofreadingData.qualityScore
-                                    ?.conversion ?? 0}
-                                  /100
-                                </p>
-                              </div>
-                              <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-center">
-                                <p className="text-xs text-purple-600 font-medium">
-                                  Brand Alignment
-                                </p>
-                                <p className="text-lg font-bold text-purple-800">
-                                  {viewModel.proofreadingData.qualityScore
-                                    ?.brandAlignment ?? 0}
-                                  /100
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
+                            </section>
+                          )}
                       </div>
                     </div>
 
@@ -1232,9 +1458,9 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             viewModel.getMarkedImageUrl()) ||
                           creative.previewUrl ||
                           creative.url
-                        : (viewModel.getOriginalImageUrl?.() ||
-                            creative.previewUrl ||
-                            creative.url)
+                        : viewModel.getOriginalImageUrl?.() ||
+                          creative.previewUrl ||
+                          creative.url
                     }
                     alt={
                       viewModel.proofreadingData &&
@@ -1358,9 +1584,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                                 <div className="mt-4 flex items-center justify-center gap-2">
                                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
                                     <X className="h-3 w-3" />
-                                    {
-                                      viewModel.complianceViolations.length
-                                    }{" "}
+                                    {viewModel.complianceViolations.length}{" "}
                                     Issue
                                     {viewModel.proofreadingData.issues
                                       .length !== 1
