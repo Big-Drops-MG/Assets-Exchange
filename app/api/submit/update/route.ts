@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { logStatusChange } from "@/features/admin/services/statusHistory.service";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { creativeRequests, creatives } from "@/lib/schema";
 
 export async function POST(req: Request) {
@@ -62,7 +63,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (_error) {
-    console.error("Resubmit error:", _error);
+    logger.app.error({ error: _error }, "Resubmit error");
     return NextResponse.json({ error: "Failed to resubmit" }, { status: 500 });
   }
 }

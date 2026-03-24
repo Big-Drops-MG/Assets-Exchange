@@ -336,6 +336,102 @@ export function RequestItem({
   const _isRejectCommentsValid = rejectCommentsLength <= MAX_COMMENT_LENGTH;
   const isSendBackCommentsValid = sendBackCommentsLength <= MAX_COMMENT_LENGTH;
 
+  const handleCreativeDownload = useCallback(async () => {
+    setIsDownloading(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/admin/creative-requests/${request.id}/download`
+      );
+      if (!response.ok) {
+        const errJson = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(errJson.error || "Failed to download creative");
+      }
+      const blob = await response.blob();
+      const cd = response.headers.get("Content-Disposition");
+      let downloadName = `creative-${request.id}-${request.creativeType.toLowerCase().replace(/\s+/g, "-")}`;
+      if (cd) {
+        const match = /filename\*?=(?:UTF-8'')?["']?([^"';]+)/i.exec(cd);
+        if (match?.[1]) {
+          downloadName = decodeURIComponent(match[1].trim());
+        }
+      }
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = downloadName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success("Download started", {
+        description: "Your creative file download has completed.",
+      });
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Failed to download creative. Please try again.";
+      setError(errorMessage);
+      toast.error("Download failed", {
+        description: errorMessage,
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [request.id, request.creativeType]);
+
+  const handleNotifyClick = useCallback(async () => {
+    setIsNotifying(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/admin/creative-requests/${request.id}/notify`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: request.status,
+            approvalStage: request.approvalStage,
+            publisher: {
+              affiliateId: request.affiliateId,
+              clientName: request.clientName,
+            },
+            advertiser: {
+              name: request.advertiserName,
+              everflowOfferId: request.everflowOfferId ?? null,
+              advertiserEverflowId: request.advertiserEverflowId,
+            },
+          }),
+        }
+      );
+      if (!response.ok) {
+        const errJson = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(errJson.error || "Failed to send notification");
+      }
+      const statusLabel =
+        request.status === "approved" ? "approved" : "rejected";
+      toast.success("Notification sent", {
+        description: `The ${statusLabel} request notification has been sent successfully.`,
+      });
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Failed to send notification. Please try again.";
+      setError(errorMessage);
+      toast.error("Failed to send notification", {
+        description: errorMessage,
+      });
+    } finally {
+      setIsNotifying(false);
+    }
+  }, [request]);
+
   const hasUnsavedRejectComments = rejectComments.trim().length > 0;
   const hasUnsavedSendBackComments = sendBackComments.trim().length > 0;
 
@@ -638,79 +734,7 @@ export function RequestItem({
                     variables.colors.requestCardApproveButtonBackgroundColor,
                 }}
                 disabled={isNotifying}
-                onClick={async () => {
-                  setIsNotifying(true);
-                  setError(null);
-
-                  try {
-                    // TODO: BACKEND - Implement Notify Handler (UNIFIED MODEL)
-                    //
-                    // API Endpoint: POST /api/admin/creative-requests/:id/notify
-                    //
-                    // Request Body:
-                    // {
-                    //   actionBy: string (user ID),
-                    //   status: string ("approved" | "rejected"),
-                    //   approvalStage: string ("admin" | "advertiser" | "completed")
-                    // }
-                    //
-                    // Backend Requirements:
-                    // 1. Validate user has permission to send notifications
-                    // 2. Retrieve request details from creative_requests table
-                    // 3. Determine notification recipients based on status:
-                    //    - If approved: notify publisher and advertiser
-                    //    - If rejected: notify publisher
-                    // 4. Send email/notification to appropriate parties
-                    // 5. Log notification in notification_logs table (optional)
-                    // 6. Return success response with notification details
-                    //
-                    // Response Format:
-                    // {
-                    //   success: boolean,
-                    //   message: string,
-                    //   notificationId?: string,
-                    //   recipients?: string[]
-                    // }
-                    //
-                    // const response = await fetch(`/api/admin/creative-requests/${request.id}/notify`, {
-                    //   method: 'POST',
-                    //   headers: {
-                    //     'Content-Type': 'application/json',
-                    //     'Authorization': `Bearer ${getAuthToken()}`
-                    //   },
-                    //   body: JSON.stringify({
-                    //     actionBy: getCurrentUserId(),
-                    //     status: request.status,
-                    //     approvalStage: request.approvalStage
-                    //   })
-                    // });
-                    //
-                    // if (!response.ok) {
-                    //   const errorData = await response.json();
-                    //   throw new Error(errorData.message || 'Failed to send notification');
-                    // }
-
-                    // Simulate API call delay
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-                    const statusLabel =
-                      request.status === "approved" ? "approved" : "rejected";
-                    toast.success("Notification sent", {
-                      description: `The ${statusLabel} request notification has been sent successfully.`,
-                    });
-                  } catch (err) {
-                    const errorMessage =
-                      err instanceof Error
-                        ? err.message
-                        : "Failed to send notification. Please try again.";
-                    setError(errorMessage);
-                    toast.error("Failed to send notification", {
-                      description: errorMessage,
-                    });
-                  } finally {
-                    setIsNotifying(false);
-                  }
-                }}
+                onClick={handleNotifyClick}
                 aria-label="Notify about this request"
               >
                 {isNotifying ? (
@@ -969,95 +993,7 @@ export function RequestItem({
                       variables.colors.requestCardViewButtonBackgroundColor,
                     border: `1px solid ${variables.colors.requestCardViewButtonBorderColor}`,
                   }}
-                  onClick={async () => {
-                    // TODO: BACKEND - Implement Creative File Download (UNIFIED MODEL)
-                    //
-                    // Backend API Endpoint:
-                    // GET /api/admin/creative-requests/:id/download
-                    //
-                    // Backend should handle file type based on creative_type field:
-                    // - "Email" → .zip or .xlsx (if multiple creatives)
-                    // - "Display" → .zip (images/assets)
-                    // - "Social" → .zip (images/videos)
-                    // - Other types → appropriate file format
-                    //
-                    // Backend Implementation:
-                    // 1. Retrieve the creative file(s) associated with the request ID
-                    // 2. Determine file type based on creative_type field
-                    // 3. If multiple files, create a ZIP archive
-                    // 4. Set appropriate Content-Type header
-                    // 5. Set Content-Disposition header for download
-                    // 6. Stream file(s) to client
-                    //
-                    // Response Headers:
-                    // - Content-Type: application/zip | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet | image/* | etc.
-                    // - Content-Disposition: attachment; filename="creative-{requestId}-{creativeType}.{ext}"
-                    // - Content-Length: {fileSize}
-                    //
-                    // Implementation Example:
-                    // try {
-                    //   const response = await fetch(`/api/admin/creative-requests/${request.id}/download`, {
-                    //     method: 'GET',
-                    //     headers: {
-                    //       'Authorization': `Bearer ${getAuthToken()}`
-                    //     }
-                    //   });
-                    //
-                    //   if (!response.ok) {
-                    //     throw new Error('Failed to download creative');
-                    //   }
-                    //
-                    //   const blob = await response.blob();
-                    //   const url = window.URL.createObjectURL(blob);
-                    //   const a = document.createElement('a');
-                    //   a.href = url;
-                    //   a.download = `creative-${request.id}-${request.creativeType.toLowerCase()}.${getFileExtension(blob.type)}`;
-                    //   document.body.appendChild(a);
-                    //   a.click();
-                    //   window.URL.revokeObjectURL(url);
-                    //   document.body.removeChild(a);
-                    // } catch (error) {
-                    //   console.error('Error downloading creative:', error);
-                    //   toast.error('Failed to download creative. Please try again.');
-                    // }
-                    //
-                    // Database Schema Addition Needed:
-                    // ALTER TABLE creative_requests ADD COLUMN file_url VARCHAR(500);
-                    // ALTER TABLE creative_requests ADD COLUMN file_type VARCHAR(50);
-                    // ALTER TABLE creative_requests ADD COLUMN file_name VARCHAR(255);
-                    // ALTER TABLE creative_requests ADD COLUMN file_size BIGINT;
-                    //
-                    // OR if multiple files per creative:
-                    // CREATE TABLE creative_files (
-                    //   id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                    //   request_id VARCHAR(255) NOT NULL,
-                    //   file_url VARCHAR(500) NOT NULL,
-                    //   file_type VARCHAR(50) NOT NULL,
-                    //   file_name VARCHAR(255) NOT NULL,
-                    //   file_size BIGINT NOT NULL,
-                    //   file_order INT DEFAULT 0,
-                    //   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    //   FOREIGN KEY (request_id) REFERENCES creative_requests(id) ON DELETE CASCADE,
-                    //   INDEX idx_request_id (request_id)
-                    // );
-
-                    try {
-                      toast.success("Download started", {
-                        description: "Your creative file download has started.",
-                      });
-                    } catch (err) {
-                      const errorMessage =
-                        err instanceof Error
-                          ? err.message
-                          : "Failed to download creative. Please try again.";
-                      setError(errorMessage);
-                      toast.error("Download failed", {
-                        description: errorMessage,
-                      });
-                    } finally {
-                      setIsDownloading(false);
-                    }
-                  }}
+                  onClick={handleCreativeDownload}
                   aria-label="Download creative file"
                 >
                   {isDownloading ? (
@@ -1307,95 +1243,7 @@ export function RequestItem({
                       variables.colors.requestCardViewButtonBackgroundColor,
                     border: `1px solid ${variables.colors.requestCardViewButtonBorderColor}`,
                   }}
-                  onClick={async () => {
-                    // TODO: BACKEND - Implement Creative File Download (UNIFIED MODEL)
-                    //
-                    // Backend API Endpoint:
-                    // GET /api/admin/creative-requests/:id/download
-                    //
-                    // Backend should handle file type based on creative_type field:
-                    // - "Email" → .zip or .xlsx (if multiple creatives)
-                    // - "Display" → .zip (images/assets)
-                    // - "Social" → .zip (images/videos)
-                    // - Other types → appropriate file format
-                    //
-                    // Backend Implementation:
-                    // 1. Retrieve the creative file(s) associated with the request ID
-                    // 2. Determine file type based on creative_type field
-                    // 3. If multiple files, create a ZIP archive
-                    // 4. Set appropriate Content-Type header
-                    // 5. Set Content-Disposition header for download
-                    // 6. Stream file(s) to client
-                    //
-                    // Response Headers:
-                    // - Content-Type: application/zip | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet | image/* | etc.
-                    // - Content-Disposition: attachment; filename="creative-{requestId}-{creativeType}.{ext}"
-                    // - Content-Length: {fileSize}
-                    //
-                    // Implementation Example:
-                    // try {
-                    //   const response = await fetch(`/api/admin/creative-requests/${request.id}/download`, {
-                    //     method: 'GET',
-                    //     headers: {
-                    //       'Authorization': `Bearer ${getAuthToken()}`
-                    //     }
-                    //   });
-                    //
-                    //   if (!response.ok) {
-                    //     throw new Error('Failed to download creative');
-                    //   }
-                    //
-                    //   const blob = await response.blob();
-                    //   const url = window.URL.createObjectURL(blob);
-                    //   const a = document.createElement('a');
-                    //   a.href = url;
-                    //   a.download = `creative-${request.id}-${request.creativeType.toLowerCase()}.${getFileExtension(blob.type)}`;
-                    //   document.body.appendChild(a);
-                    //   a.click();
-                    //   window.URL.revokeObjectURL(url);
-                    //   document.body.removeChild(a);
-                    // } catch (error) {
-                    //   console.error('Error downloading creative:', error);
-                    //   toast.error('Failed to download creative. Please try again.');
-                    // }
-                    //
-                    // Database Schema Addition Needed:
-                    // ALTER TABLE creative_requests ADD COLUMN file_url VARCHAR(500);
-                    // ALTER TABLE creative_requests ADD COLUMN file_type VARCHAR(50);
-                    // ALTER TABLE creative_requests ADD COLUMN file_name VARCHAR(255);
-                    // ALTER TABLE creative_requests ADD COLUMN file_size BIGINT;
-                    //
-                    // OR if multiple files per creative:
-                    // CREATE TABLE creative_files (
-                    //   id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                    //   request_id VARCHAR(255) NOT NULL,
-                    //   file_url VARCHAR(500) NOT NULL,
-                    //   file_type VARCHAR(50) NOT NULL,
-                    //   file_name VARCHAR(255) NOT NULL,
-                    //   file_size BIGINT NOT NULL,
-                    //   file_order INT DEFAULT 0,
-                    //   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    //   FOREIGN KEY (request_id) REFERENCES creative_requests(id) ON DELETE CASCADE,
-                    //   INDEX idx_request_id (request_id)
-                    // );
-
-                    try {
-                      toast.success("Download started", {
-                        description: "Your creative file download has started.",
-                      });
-                    } catch (err) {
-                      const errorMessage =
-                        err instanceof Error
-                          ? err.message
-                          : "Failed to download creative. Please try again.";
-                      setError(errorMessage);
-                      toast.error("Download failed", {
-                        description: errorMessage,
-                      });
-                    } finally {
-                      setIsDownloading(false);
-                    }
-                  }}
+                  onClick={handleCreativeDownload}
                   aria-label="Download creative file"
                 >
                   {isDownloading ? (
@@ -1452,98 +1300,7 @@ export function RequestItem({
                     border: `1px solid ${variables.colors.requestCardViewButtonBorderColor}`,
                   }}
                   disabled={isDownloading}
-                  onClick={async () => {
-                    setIsDownloading(true);
-                    setError(null);
-
-                    try {
-                      // TODO: BACKEND - Implement Creative File Download (UNIFIED MODEL)
-                      //
-                      // Backend API Endpoint:
-                      // GET /api/admin/creative-requests/:id/download
-                      //
-                      // Backend should handle file type based on creative_type field:
-                      // - "Email" → .zip or .xlsx (if multiple creatives)
-                      // - "Display" → .zip (images/assets)
-                      // - "Social" → .zip (images/videos)
-                      // - Other types → appropriate file format
-                      //
-                      // Backend Implementation:
-                      // 1. Retrieve the creative file(s) associated with the request ID
-                      // 2. Determine file type based on creative_type field
-                      // 3. If multiple files, create a ZIP archive
-                      // 4. Set appropriate Content-Type header
-                      // 5. Set Content-Disposition header for download
-                      // 6. Stream file(s) to client
-                      //
-                      // Response Headers:
-                      // - Content-Type: application/zip | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet | image/* | etc.
-                      // - Content-Disposition: attachment; filename="creative-{requestId}-{creativeType}.{ext}"
-                      // - Content-Length: {fileSize}
-                      //
-                      // Implementation Example:
-                      // try {
-                      //   const response = await fetch(`/api/admin/creative-requests/${request.id}/download`, {
-                      //     method: 'GET',
-                      //     headers: {
-                      //       'Authorization': `Bearer ${getAuthToken()}`
-                      //     }
-                      //   });
-                      //
-                      //   if (!response.ok) {
-                      //     throw new Error('Failed to download creative');
-                      //   }
-                      //
-                      //   const blob = await response.blob();
-                      //   const url = window.URL.createObjectURL(blob);
-                      //   const a = document.createElement('a');
-                      //   a.href = url;
-                      //   a.download = `creative-${request.id}-${request.creativeType.toLowerCase()}.${getFileExtension(blob.type)}`;
-                      //   document.body.appendChild(a);
-                      //   a.click();
-                      //   window.URL.revokeObjectURL(url);
-                      //   document.body.removeChild(a);
-                      // } catch (error) {
-                      //   console.error('Error downloading creative:', error);
-                      //   toast.error('Failed to download creative. Please try again.');
-                      // }
-                      //
-                      // Database Schema Addition Needed:
-                      // ALTER TABLE creative_requests ADD COLUMN file_url VARCHAR(500);
-                      // ALTER TABLE creative_requests ADD COLUMN file_type VARCHAR(50);
-                      // ALTER TABLE creative_requests ADD COLUMN file_name VARCHAR(255);
-                      // ALTER TABLE creative_requests ADD COLUMN file_size BIGINT;
-                      //
-                      // OR if multiple files per creative:
-                      // CREATE TABLE creative_files (
-                      //   id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                      //   request_id VARCHAR(255) NOT NULL,
-                      //   file_url VARCHAR(500) NOT NULL,
-                      //   file_type VARCHAR(50) NOT NULL,
-                      //   file_name VARCHAR(255) NOT NULL,
-                      //   file_size BIGINT NOT NULL,
-                      //   file_order INT DEFAULT 0,
-                      //   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                      //   FOREIGN KEY (request_id) REFERENCES creative_requests(id) ON DELETE CASCADE,
-                      //   INDEX idx_request_id (request_id)
-                      // };
-
-                      toast.success("Download started", {
-                        description: "Your creative file download has started.",
-                      });
-                    } catch (err) {
-                      const errorMessage =
-                        err instanceof Error
-                          ? err.message
-                          : "Failed to download creative. Please try again.";
-                      setError(errorMessage);
-                      toast.error("Download failed", {
-                        description: errorMessage,
-                      });
-                    } finally {
-                      setIsDownloading(false);
-                    }
-                  }}
+                  onClick={handleCreativeDownload}
                   aria-label="Download creative file"
                 >
                   {isDownloading ? (

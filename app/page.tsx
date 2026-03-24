@@ -79,7 +79,7 @@ export default function Home() {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       handleTrackClick();
     }
@@ -147,7 +147,7 @@ export default function Home() {
                 className={`w-full h-12 font-inter bg-[#FFFFFF] ${error ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                 value={trackingId}
                 onChange={handleTrackingIdChange}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyDown}
                 maxLength={8}
                 disabled={isLoading}
                 aria-label="Tracking ID"

@@ -92,6 +92,7 @@ export function AnnotationLayer({
   const [iframeContentHeight, setIframeContentHeight] = useState<number | null>(
     null
   );
+  const FALLBACK_HEIGHT = 600;
 
   useEffect(() => {
     if (type !== "html") return;
@@ -111,6 +112,17 @@ export function AnnotationLayer({
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [type]);
+
+  useEffect(() => {
+    if (type !== "html") return;
+    if (iframeContentHeight != null) return;
+    const timeoutId = setTimeout(() => {
+      if (iframeContentHeight == null) {
+        setIframeContentHeight(FALLBACK_HEIGHT);
+      }
+    }, 2000);
+    return () => clearTimeout(timeoutId);
+  }, [type, htmlContent, iframeContentHeight]);
 
   const updateConnectionPoint = useCallback(() => {
     const id = connectionPointAnnotationId;
@@ -256,7 +268,7 @@ export function AnnotationLayer({
             style={
               iframeContentHeight != null
                 ? { height: iframeContentHeight }
-                : undefined
+                : { height: FALLBACK_HEIGHT }
             }
           >
             <iframe
@@ -267,6 +279,11 @@ export function AnnotationLayer({
               className={`w-full h-full border-0 ${isAddingMode ? "pointer-events-none" : "pointer-events-auto"}`}
               title="HTML Creative"
               sandbox="allow-scripts allow-same-origin"
+              onError={() => {
+                if (iframeContentHeight == null) {
+                  setIframeContentHeight(FALLBACK_HEIGHT);
+                }
+              }}
             />
             {isAddingMode && (
               <div className="absolute inset-0 cursor-crosshair pointer-events-auto" />

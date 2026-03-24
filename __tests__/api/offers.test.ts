@@ -1,16 +1,14 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
-
 import { GET } from "@/app/api/offers/route";
 import { listOffers } from "@/features/admin/services/offer.service";
 
 // Mock the service layer instead of the DB for a cleaner route test
-vi.mock("@/features/admin/services/offer.service", () => ({
-  listOffers: vi.fn(),
+jest.mock("@/features/admin/services/offer.service", () => ({
+  listOffers: jest.fn(),
 }));
 
 describe("GET /api/offers - Public Security Filter", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   it("should enforce Public + Active filter at the service call level", async () => {
@@ -22,7 +20,7 @@ describe("GET /api/offers - Public Security Filter", () => {
     ];
 
     // Mock listOffers to return only the allowed offer, assuming the implementation works
-    (listOffers as Mock).mockImplementation(
+    (listOffers as jest.Mock).mockImplementation(
       ({ status, visibility }: { status: string; visibility: string }) => {
         return mockData.filter(
           (o) => o.status === status && o.visibility === visibility
@@ -52,7 +50,7 @@ describe("GET /api/offers - Public Security Filter", () => {
   });
 
   it("should return only required public fields (id, offerId)", async () => {
-    (listOffers as Mock).mockResolvedValue([
+    (listOffers as jest.Mock).mockResolvedValue([
       { id: "1", offerId: "OFFER-A", status: "Active", visibility: "Public" },
     ]);
 

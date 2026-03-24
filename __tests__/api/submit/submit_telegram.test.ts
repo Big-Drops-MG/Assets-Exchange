@@ -1,56 +1,54 @@
 /// <reference types="next" />
-import { describe, it, expect, beforeEach, vi } from "vitest";
-
 import { POST } from "@/app/api/submit/route";
 import { getOffer } from "@/features/admin/services/offer.service";
 import { sendSubmissionTelegramAlert } from "@/features/notifications/notification.service";
 import { validateRequest } from "@/lib/middleware/validateRequest";
 
 // Mock dependencies
-vi.mock("@/lib/db", () => ({
+jest.mock("@/lib/db", () => ({
   db: {
-    insert: vi.fn().mockReturnThis(),
-    values: vi.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    values: jest.fn().mockReturnThis(),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    returning: vi.fn().mockResolvedValue([{ id: "req_123" } as any]),
+    returning: jest.fn().mockResolvedValue([{ id: "req_123" } as any]),
   },
 }));
 
-vi.mock("@/features/admin/services/offer.service", () => ({
-  getOffer: vi.fn(),
+jest.mock("@/features/admin/services/offer.service", () => ({
+  getOffer: jest.fn(),
 }));
 
-vi.mock("@/lib/middleware/validateRequest", () => ({
-  validateRequest: vi.fn(),
+jest.mock("@/lib/middleware/validateRequest", () => ({
+  validateRequest: jest.fn(),
 }));
 
-vi.mock("@/features/notifications/notification.service", () => ({
+jest.mock("@/features/notifications/notification.service", () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sendSubmissionTelegramAlert: vi.fn().mockResolvedValue(undefined as any),
+  sendSubmissionTelegramAlert: jest.fn().mockResolvedValue(undefined as any),
 }));
 
-vi.mock("@/lib/utils/tracking", () => ({
-  generateTrackingCode: vi.fn().mockReturnValue("TRACK-TEST-123"),
+jest.mock("@/lib/utils/tracking", () => ({
+  generateTrackingCode: jest.fn().mockReturnValue("TRACK-TEST-123"),
 }));
 
-vi.mock("@/lib/schema", () => ({
+jest.mock("@/lib/schema", () => ({
   creativeRequests: { id: "req_123" },
   assetsTable: {},
   creatives: {},
 }));
 
-vi.mock("@/lib/logger", () => ({
+jest.mock("@/lib/logger", () => ({
   logger: {
     app: {
-      info: vi.fn(),
-      error: vi.fn(),
+      info: jest.fn(),
+      error: jest.fn(),
     },
   },
 }));
 
 describe("POST /api/submit", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   it("should return 201 and trigger Telegram alert on valid submission with telegramId", async () => {
@@ -216,7 +214,9 @@ describe("POST /api/submit", () => {
     });
 
     // Mock console.error to track it and suppress output during test
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
     // Mock sendSubmissionTelegramAlert to fail
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

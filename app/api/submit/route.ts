@@ -227,18 +227,27 @@ export async function POST(req: NextRequest) {
         });
       }
     } catch (telegramError) {
-      console.error("Telegram send failed:", telegramError);
+      logger.app.error({ error: telegramError }, "Telegram send failed");
     }
     // ===== END TELEGRAM SECTION =====
 
+    // Send Telegram alert if telegramId is provided (non-critical)
     if (data.telegramId) {
-      sendSubmissionTelegramAlert(
-        data.telegramId,
-        trackingCode,
-        offer.offerName
-      ).catch((err) => console.error("[TELEGRAM_NOTIFY_ERROR]:", err));
+      try {
+        await sendSubmissionTelegramAlert(
+          data.telegramId,
+          trackingCode,
+          offer.offerName
+        );
+      } catch (telegramAlertError) {
+        logger.app.error(
+          { error: telegramAlertError },
+          "[TELEGRAM_NOTIFY_ERROR]"
+        );
+      }
     }
 
+    // Send email alert (non-critical)
     try {
       const h = await headers();
       const host = h.get("x-forwarded-host") ?? h.get("host");
@@ -253,7 +262,7 @@ export async function POST(req: NextRequest) {
         proto,
       });
     } catch (emailError) {
-      console.error("[SUBMISSION_EMAIL_FAILED]", emailError);
+      logger.app.error({ error: emailError }, "[SUBMISSION_EMAIL_FAILED]");
     }
 
     return NextResponse.json(
@@ -261,7 +270,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Submit error:", error);
+    logger.app.error({ error }, "Submit error");
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

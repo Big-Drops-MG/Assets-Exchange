@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { creativeRequests, creatives } from "@/lib/schema";
 
 export async function GET(
@@ -75,7 +76,7 @@ export async function GET(
       creatives: creativeRows,
     });
   } catch (error) {
-    console.error("Get publisher request error:", error);
+    logger.app.error({ error }, "Get publisher request error");
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

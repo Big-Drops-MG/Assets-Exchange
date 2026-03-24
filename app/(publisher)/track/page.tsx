@@ -237,10 +237,16 @@ function TrackPageContent() {
   const [isRevisionMode, setIsRevisionMode] = useState(false);
   const [pendingCreatives, setPendingCreatives] = useState<
     Array<{
+      id: string;
       name: string;
       url: string;
       type: string;
       size: number;
+      metadata?: {
+        fromLines?: string;
+        subjectLines?: string;
+        additionalNotes?: string;
+      };
     }>
   >([]);
 
@@ -620,30 +626,80 @@ function TrackPageContent() {
     }
   };
 
-  const handleRemoveCreative = (_id: string) => {
-    // For read-only view in track page
+  const handleRemoveCreative = (id: string) => {
+    setModalCreatives((prev) => prev.filter((c) => c.id !== id));
+    setPendingCreatives((prev) => prev.filter((c) => c.id !== id));
   };
 
-  const handleFileNameChange = (_fileId: string, _newFileName: string) => {
-    // For sent-back, allow file name changes
+  const handleFileNameChange = (fileId: string, newFileName: string) => {
+    setModalCreatives((prev) =>
+      prev.map((c) => (c.id === fileId ? { ...c, name: newFileName } : c))
+    );
+    setSingleCreative((prev) =>
+      prev && prev.id === fileId ? { ...prev, name: newFileName } : prev
+    );
+    setPendingCreatives((prev) =>
+      prev.map((c) => (c.id === fileId ? { ...c, name: newFileName } : c))
+    );
   };
 
   const handleMetadataChange = (
-    _fileId: string,
-    _metadata: {
+    fileId: string,
+    metadata: {
       fromLines?: string;
       subjectLines?: string;
       additionalNotes?: string;
     }
   ) => {
-    // For sent-back, allow metadata changes
+    setModalCreatives((prev) =>
+      prev.map((c) =>
+        c.id === fileId ? { ...c, metadata: { ...c.metadata, ...metadata } } : c
+      )
+    );
+    setSingleCreative((prev) =>
+      prev && prev.id === fileId
+        ? { ...prev, metadata: { ...prev.metadata, ...metadata } }
+        : prev
+    );
+    setPendingCreatives((prev) =>
+      prev.map((c) =>
+        c.id === fileId ? { ...c, metadata: { ...c.metadata, ...metadata } } : c
+      )
+    );
   };
 
-  const handleFileUpdate = (_updates: {
+  const handleFileUpdate = (updates: {
     url?: string;
     metadata?: Record<string, unknown>;
   }) => {
-    // Handle file updates after proofreading or edits
+    const id = singleCreative?.id;
+    if (!id) return;
+
+    setSingleCreative((prev) => {
+      if (!prev || prev.id !== id) return prev;
+      const nextMeta = updates.metadata
+        ? {
+            ...prev.metadata,
+            ...(updates.metadata as SingleCreative["metadata"]),
+          }
+        : prev.metadata;
+      return {
+        ...prev,
+        ...(updates.url ? { url: updates.url } : {}),
+        ...(updates.metadata ? { metadata: nextMeta } : {}),
+      };
+    });
+
+    setPendingCreatives((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              ...(updates.url ? { url: updates.url } : {}),
+            }
+          : c
+      )
+    );
   };
 
   return (

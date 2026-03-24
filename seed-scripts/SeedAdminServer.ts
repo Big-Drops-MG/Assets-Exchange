@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 
 import { env } from "../env";
+import { logger } from "../lib/logger";
 import { user } from "../lib/schema";
 
 const pool = new Pool({ connectionString: env.DATABASE_URL });
@@ -16,38 +17,38 @@ async function seedAdmin() {
   const adminName = env.ADMIN_NAME || "Admin User";
 
   try {
-    console.log("[APP] Starting admin seed script...");
-    console.log(`[APP] Email: ${adminEmail}`);
-    console.log(`[APP] Name: ${adminName}`);
+    logger.app.info("[APP] Starting admin seed script...");
+    logger.app.info(`[APP] Email: ${adminEmail}`);
+    logger.app.info(`[APP] Name: ${adminName}`);
 
     const existingUser = await db
       .select()
       .from(user)
       .where(eq(user.email, adminEmail))
       .limit(1);
-    console.log("[APP] ✓ User check completed");
+    logger.app.info("[APP] ✓ User check completed");
 
     if (existingUser.length > 0) {
-      console.warn("[APP] ⚠ Admin user already exists!");
+      logger.app.warn("[APP] ⚠ Admin user already exists!");
 
       if (existingUser[0].role !== "admin") {
-        console.log("[APP] Updating user role to admin...");
+        logger.app.info("[APP] Updating user role to admin...");
         await db
           .update(user)
           .set({ role: "admin", updatedAt: new Date() })
           .where(eq(user.id, existingUser[0].id));
-        console.log("[APP] ✓ User role updated to admin");
+        logger.app.info("[APP] ✓ User role updated to admin");
       } else {
-        console.log("[APP] ✓ Admin user already has admin role");
+        logger.app.info("[APP] ✓ Admin user already has admin role");
       }
 
-      console.log(
+      logger.app.info(
         `\nℹ️  Info\n\nAdmin user already exists!\n\nEmail: ${adminEmail}\nRole: admin\n`
       );
       return;
     }
 
-    console.log("[APP] Creating admin user via Better Auth API...");
+    logger.app.info("[APP] Creating admin user via Better Auth API...");
 
     const baseURL =
       env.BETTER_AUTH_URL ||
@@ -55,7 +56,7 @@ async function seedAdmin() {
       process.env.NEXT_PUBLIC_APP_URL ||
       (env.VERCEL_URL ? `https://${env.VERCEL_URL}` : "http://localhost:3000");
 
-    console.log(`[APP] Using baseURL: ${baseURL}`);
+    logger.app.info(`[APP] Using baseURL: ${baseURL}`);
 
     const signUpResponse = await fetch(`${baseURL}/api/auth/sign-up/email`, {
       method: "POST",
@@ -82,23 +83,25 @@ async function seedAdmin() {
       throw new Error("User creation failed: No user data returned");
     }
 
-    console.log("[APP] User created via Better Auth, updating role to admin...");
+    logger.app.info(
+      "[APP] User created via Better Auth, updating role to admin..."
+    );
 
     await db
       .update(user)
       .set({ role: "admin", updatedAt: new Date() })
       .where(eq(user.id, signUpResult.user.id));
 
-    console.log("[APP] ✓ Admin user created successfully!");
+    logger.app.info("[APP] ✓ Admin user created successfully!");
 
-    console.log(
+    logger.app.info(
       `\n✅ Admin User Created\n\nEmail: ${adminEmail}\nPassword: ${adminPassword}\n\n⚠️  Please change the password after first login!\n`
     );
 
-    console.log(`[APP] User ID: ${signUpResult.user.id}`);
-    console.log(`[APP] Role: admin`);
+    logger.app.info(`[APP] User ID: ${signUpResult.user.id}`);
+    logger.app.info(`[APP] Role: admin`);
   } catch (error) {
-    console.error("[APP] ✗ Error seeding admin user:", error);
+    logger.app.error({ error }, "[APP] ✗ Error seeding admin user");
     process.exit(1);
   } finally {
     await pool.end();

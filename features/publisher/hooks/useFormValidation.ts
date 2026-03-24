@@ -28,11 +28,6 @@ export const useFormValidation = (_initialFormData: PublisherFormData) => {
   const [hasUploadedFiles, setHasUploadedFiles] = useState(false);
   const [hasFromSubjectLines, setHasFromSubjectLines] = useState(false);
 
-  const updateFormData = useCallback(
-    (_updates: Partial<PublisherFormData>) => {},
-    []
-  );
-
   const markFieldAsTouched = useCallback((fieldName: string) => {
     setValidationState((prev) => ({
       ...prev,
@@ -280,6 +275,25 @@ export const useFormValidation = (_initialFormData: PublisherFormData) => {
       };
     },
     [keepValidation]
+  );
+
+  const updateFormData = useCallback(
+    (updates: Partial<PublisherFormData>) => {
+      const merged: PublisherFormData = {
+        ..._initialFormData,
+        ...updates,
+      };
+      if (keepValidation) {
+        validateCompleteFormData(merged, hasUploadedFiles, hasFromSubjectLines);
+      }
+    },
+    [
+      _initialFormData,
+      keepValidation,
+      validateCompleteFormData,
+      hasUploadedFiles,
+      hasFromSubjectLines,
+    ]
   );
 
   const clearErrors = useCallback(() => {

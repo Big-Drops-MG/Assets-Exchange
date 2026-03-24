@@ -1,5 +1,3 @@
-import { describe, it, expect, vi } from "vitest";
-
 // Note: These tests use simplified versions of the extraction logic
 // for unit testing. In production, use the actual GrammarService methods.
 
@@ -155,15 +153,13 @@ describe("Grammar Feedback Extraction", () => {
       it("should handle null resultData", () => {
         const resultData = null;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const feedback = extractGrammarFeedback(resultData as any);
+        const feedback = extractGrammarFeedback(resultData);
 
         expect(feedback).toEqual([]);
       });
 
       it("should handle resultData as string", () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const resultData = "invalid" as any;
+        const resultData = "invalid";
 
         const feedback = extractGrammarFeedback(resultData);
 
@@ -339,22 +335,37 @@ describe("Grammar Feedback Extraction", () => {
 
     describe("5️⃣ Business Logic Wrapper", () => {
       it("should return null for non-completed tasks", () => {
-        const resultData = { corrections: [{ original: "teh", correction: "the" }] };
+        const resultData = {
+          corrections: [{ original: "teh", correction: "the" }],
+        };
 
-        expect(extractGrammarFeedbackWithBusinessLogic(resultData, "pending")).toBeNull();
-        expect(extractGrammarFeedbackWithBusinessLogic(resultData, "processing")).toBeNull();
-        expect(extractGrammarFeedbackWithBusinessLogic(resultData, "failed")).toBeNull();
+        expect(
+          extractGrammarFeedbackWithBusinessLogic(resultData, "pending")
+        ).toBeNull();
+        expect(
+          extractGrammarFeedbackWithBusinessLogic(resultData, "processing")
+        ).toBeNull();
+        expect(
+          extractGrammarFeedbackWithBusinessLogic(resultData, "failed")
+        ).toBeNull();
       });
 
       it("should return null for completed tasks with no resultData", () => {
-        expect(extractGrammarFeedbackWithBusinessLogic(null, "completed")).toBeNull();
-        expect(extractGrammarFeedbackWithBusinessLogic(undefined, "completed")).toBeNull();
+        expect(
+          extractGrammarFeedbackWithBusinessLogic(null, "completed")
+        ).toBeNull();
+        expect(
+          extractGrammarFeedbackWithBusinessLogic(undefined, "completed")
+        ).toBeNull();
       });
 
       it("should return empty array for completed tasks with no issues", () => {
         const resultData = { corrections: [], issues: [] };
 
-        const feedback = extractGrammarFeedbackWithBusinessLogic(resultData, "completed");
+        const feedback = extractGrammarFeedbackWithBusinessLogic(
+          resultData,
+          "completed"
+        );
 
         expect(feedback).toEqual([]);
       });
@@ -365,7 +376,10 @@ describe("Grammar Feedback Extraction", () => {
           issues: [],
         };
 
-        const feedback = extractGrammarFeedbackWithBusinessLogic(resultData, "completed");
+        const feedback = extractGrammarFeedbackWithBusinessLogic(
+          resultData,
+          "completed"
+        );
 
         expect(feedback).toHaveLength(1);
         expect(feedback?.[0].originalText).toBe("teh");
@@ -376,65 +390,116 @@ describe("Grammar Feedback Extraction", () => {
           corrections: [{ original: "teh", correction: "the" }],
         };
 
-        vi.spyOn(console, "error").mockImplementation(() => { });
+        jest.spyOn(console, "error").mockImplementation(() => {});
 
-        const originalExtract = extractGrammarFeedback;
-        (global as any).extractGrammarFeedback = vi.fn(() => {
-          throw new Error("Extraction failed");
-        });
+        const spy = jest
+          .spyOn(grammarFeedbackExtract, "extract")
+          .mockImplementation(() => {
+            throw new Error("Extraction failed");
+          });
 
-        const feedback = extractGrammarFeedbackWithBusinessLogic(resultData, "completed");
+        const feedback = extractGrammarFeedbackWithBusinessLogic(
+          resultData,
+          "completed"
+        );
 
         expect(feedback).toBeNull();
 
-        (global as any).extractGrammarFeedback = originalExtract;
-        vi.restoreAllMocks();
+        spy.mockRestore();
+        jest.restoreAllMocks();
       });
     });
   });
 });
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function extractGrammarFeedback(resultData: any): any[] {
+type GrammarFeedbackItem = {
+  category?: string;
+  message: string;
+  severity?: "info" | "warning" | "error";
+  originalText?: string;
+  suggestedText?: string;
+  location?: {
+    line?: number;
+    column?: number;
+    offset?: number;
+  };
+};
+
+type RawGrammarRow = {
+  original?: string;
+  incorrect?: string;
+  wrong?: string;
+  error?: string;
+  error_text?: string;
+  original_text?: string;
+  text?: string;
+  before?: string;
+  correction?: string;
+  corrected?: string;
+  correct?: string;
+  replacement?: string;
+  suggested?: string;
+  suggestion?: string;
+  corrected_text?: string;
+  after?: string;
+  fix?: string;
+  message?: string;
+  category?: string;
+  type?: string;
+  severity?: string;
+  line?: number;
+  column?: number;
+  offset?: number;
+};
+
+function extractGrammarFeedbackImpl(
+  resultData: unknown
+): GrammarFeedbackItem[] {
   if (!resultData || typeof resultData !== "object") {
     return [];
   }
 
-  const feedback: any[] = [];
-  const corrections = Array.isArray(resultData.corrections) ? resultData.corrections : [];
-  const issues = Array.isArray(resultData.issues) ? resultData.issues : [];
+  const data = resultData as Record<string, unknown>;
+  const feedback: GrammarFeedbackItem[] = [];
+  const corrections = Array.isArray(data.corrections) ? data.corrections : [];
+  const issues = Array.isArray(data.issues) ? data.issues : [];
 
-  const processItem = (item: any, source: "correction" | "issue") => {
+  const processItem = (
+    item: unknown,
+    source: "correction" | "issue"
+  ): GrammarFeedbackItem | null => {
     if (!item || typeof item !== "object") {
       return null;
     }
 
+    const row = item as RawGrammarRow;
+
     const originalText =
-      item.original ||
-      item.incorrect ||
-      item.wrong ||
-      item.error ||
-      item.error_text ||
-      item.original_text ||
-      item.text ||
-      item.before;
+      row.original ||
+      row.incorrect ||
+      row.wrong ||
+      row.error ||
+      row.error_text ||
+      row.original_text ||
+      row.text ||
+      row.before;
 
     const suggestedText =
-      item.correction ||
-      item.corrected ||
-      item.correct ||
-      item.replacement ||
-      item.suggested ||
-      item.suggestion ||
-      item.corrected_text ||
-      item.after ||
-      item.fix;
+      row.correction ||
+      row.corrected ||
+      row.correct ||
+      row.replacement ||
+      row.suggested ||
+      row.suggestion ||
+      row.corrected_text ||
+      row.after ||
+      row.fix;
 
-    if (!originalText && !suggestedText && !item.message) {
+    if (!originalText && !suggestedText && !row.message) {
       return null;
     }
 
-    let message = item.message;
+    let message = row.message;
     if (!message) {
       if (originalText && suggestedText) {
         message = `"${originalText}" should be "${suggestedText}"`;
@@ -447,14 +512,15 @@ function extractGrammarFeedback(resultData: any): any[] {
       }
     }
 
-    let category = item.category || item.type;
+    let category = row.category || row.type;
     if (!category) {
-      category = source === "correction" ? "grammar_correction" : "grammar_issue";
+      category =
+        source === "correction" ? "grammar_correction" : "grammar_issue";
     }
 
     let severity: "info" | "warning" | "error" = "warning";
-    if (item.severity) {
-      const sev = String(item.severity).toLowerCase();
+    if (row.severity) {
+      const sev = String(row.severity).toLowerCase();
       if (sev === "error" || sev === "critical") {
         severity = "error";
       } else if (sev === "info" || sev === "information") {
@@ -466,16 +532,15 @@ function extractGrammarFeedback(resultData: any): any[] {
       severity = source === "correction" ? "warning" : "info";
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const location: any = {};
-    if (typeof item.line === "number") {
-      location.line = item.line;
+    const location: NonNullable<GrammarFeedbackItem["location"]> = {};
+    if (typeof row.line === "number") {
+      location.line = row.line;
     }
-    if (typeof item.column === "number") {
-      location.column = item.column;
+    if (typeof row.column === "number") {
+      location.column = row.column;
     }
-    if (typeof item.offset === "number") {
-      location.offset = item.offset;
+    if (typeof row.offset === "number") {
+      location.offset = row.offset;
     }
 
     return {
@@ -505,11 +570,18 @@ function extractGrammarFeedback(resultData: any): any[] {
   return feedback;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const grammarFeedbackExtract = {
+  extract: extractGrammarFeedbackImpl,
+};
+
+function extractGrammarFeedback(resultData: unknown): GrammarFeedbackItem[] {
+  return grammarFeedbackExtract.extract(resultData);
+}
+
 function extractGrammarFeedbackWithBusinessLogic(
-  resultData: any,
+  resultData: unknown,
   taskStatus: string
-): any[] | null {
+): GrammarFeedbackItem[] | null {
   if (taskStatus !== "completed") {
     return null;
   }
@@ -529,4 +601,3 @@ function extractGrammarFeedbackWithBusinessLogic(
     return null;
   }
 }
-/* eslint-enable @typescript-eslint/no-explicit-any */

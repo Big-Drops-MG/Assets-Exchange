@@ -11,6 +11,7 @@ const customJestConfig = {
     "^@/(.*)$": "<rootDir>/$1",
     "^@/features/(.*)$": "<rootDir>/features/$1",
   },
+  moduleDirectories: ["node_modules", "<rootDir>"],
   testMatch: ["**/__tests__/**/*.[jt]s?(x)", "**/?(*.)+(spec|test).[jt]s?(x)"],
   collectCoverageFrom: [
     "app/**/*.{js,jsx,ts,tsx}",

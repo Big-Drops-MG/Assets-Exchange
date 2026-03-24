@@ -298,6 +298,7 @@ const creativeTypeOptions = [
 const priorityLevels = [
   { name: "High", value: "high" },
   { name: "Medium", value: "medium" },
+  { name: "Low", value: "low" },
 ];
 
 const CreativeDetails: React.FC<CreativeDetailsProps> = ({
