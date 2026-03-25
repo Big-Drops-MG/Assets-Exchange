@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { sendAlert } from "@/lib/alerts";
 import { auth } from "@/lib/auth";
 import { classifyJobError } from "@/lib/classifyJobError";
+import { logCronFailure } from "@/lib/cron-logger";
 import { db } from "@/lib/db";
 import { logger, withJobContext } from "@/lib/logger";
 import { backgroundJobs, creatives } from "@/lib/schema";
@@ -163,51 +164,52 @@ async function handleJobError(
 const MAX_EXECUTION_TIME_MS = 240000;
 
 export async function GET(req: Request) {
-  const vercelCronHeader = req.headers.get("x-vercel-cron");
-  const authHeader = req.headers.get("Authorization");
-  const userAgent = req.headers.get("user-agent") || "";
-  const cronSecret = process.env.CRON_SECRET;
-
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  const isAdmin = session?.user?.role === "admin";
-
-  if (!isAdmin) {
-    const isVercelCron =
-      vercelCronHeader === "1" || userAgent.includes("vercel-cron");
-    const isAuthorizedSecret =
-      cronSecret && authHeader === `Bearer ${cronSecret}`;
-
-    if (!isVercelCron && !isAuthorizedSecret) {
-      console.warn("Cron endpoint accessed without authorization", {
-        hasHeader: !!vercelCronHeader,
-        headerValue: vercelCronHeader,
-        userAgent,
-        hasAuthHeader: !!authHeader,
-        hasCronSecret: !!cronSecret,
-        isProduction: process.env.NODE_ENV === "production",
-      });
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
-
-  const startTime = Date.now();
-
-  const pausedState = await getSystemState<{ paused: boolean; reason: string }>(
-    "jobQueuePaused"
-  );
-  if (pausedState?.paused) {
-    console.warn("Job queue is paused:", pausedState.reason);
-    return NextResponse.json({
-      message: "Job queue is paused",
-      reason: pausedState.reason,
-    });
-  }
-
-  let processedCount = 0;
-
   try {
+    const vercelCronHeader = req.headers.get("x-vercel-cron");
+    const authHeader = req.headers.get("Authorization");
+    const userAgent = req.headers.get("user-agent") || "";
+    const cronSecret = process.env.CRON_SECRET;
+
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    const isAdmin = session?.user?.role === "admin";
+
+    if (!isAdmin) {
+      const isVercelCron =
+        vercelCronHeader === "1" || userAgent.includes("vercel-cron");
+      const isAuthorizedSecret =
+        cronSecret && authHeader === `Bearer ${cronSecret}`;
+
+      if (!isVercelCron && !isAuthorizedSecret) {
+        console.warn("Cron endpoint accessed without authorization", {
+          hasHeader: !!vercelCronHeader,
+          headerValue: vercelCronHeader,
+          userAgent,
+          hasAuthHeader: !!authHeader,
+          hasCronSecret: !!cronSecret,
+          isProduction: process.env.NODE_ENV === "production",
+        });
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
+
+    const startTime = Date.now();
+
+    const pausedState = await getSystemState<{
+      paused: boolean;
+      reason: string;
+    }>("jobQueuePaused");
+    if (pausedState?.paused) {
+      console.warn("Job queue is paused:", pausedState.reason);
+      return NextResponse.json({
+        message: "Job queue is paused",
+        reason: pausedState.reason,
+      });
+    }
+
+    let processedCount = 0;
+
     while (Date.now() - startTime < MAX_EXECUTION_TIME_MS) {
       const lockedJob = await db.execute(sql`
                 UPDATE background_jobs
@@ -296,6 +298,7 @@ export async function GET(req: Request) {
     });
   } catch (error) {
     console.error("Worker error:", error);
+    await logCronFailure("process-jobs", error);
     return NextResponse.json({ error: "Worker failed" }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
+import { logCronFailure } from "@/lib/cron-logger";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { backgroundJobs, creatives } from "@/lib/schema";
@@ -32,7 +33,7 @@ async function discoverPendingCreatives() {
       .where(
         and(
           eq(creatives.status, "pending"),
-          sql`${creatives.statusUpdatedAt} > now() - interval '${DISCOVERY_WINDOW_HOURS} hours'`,
+          sql`${creatives.statusUpdatedAt} > now() - interval '1 hour' * ${DISCOVERY_WINDOW_HOURS}`,
           sql`NOT EXISTS (
             SELECT 1 FROM ${backgroundJobs}
             WHERE ${backgroundJobs.type} = 'creative_scan'
@@ -120,34 +121,34 @@ async function discoverPendingCreatives() {
 }
 
 export async function GET(req: Request) {
-  const vercelCronHeader = req.headers.get("x-vercel-cron");
-  const authHeader = req.headers.get("Authorization");
-  const userAgent = req.headers.get("user-agent") || "";
-  const cronSecret = process.env.CRON_SECRET;
-
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  const isAdmin = session?.user?.role === "admin";
-
-  if (!isAdmin) {
-    const isVercelCron =
-      vercelCronHeader === "1" || userAgent.includes("vercel-cron");
-    const isAuthorizedSecret =
-      cronSecret && authHeader === `Bearer ${cronSecret}`;
-
-    if (!isVercelCron && !isAuthorizedSecret) {
-      logger.warn({
-        action: "discover_pending_creatives",
-        message: "Unauthorized access attempt",
-        hasHeader: !!vercelCronHeader,
-        userAgent,
-      });
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
-
   try {
+    const vercelCronHeader = req.headers.get("x-vercel-cron");
+    const authHeader = req.headers.get("Authorization");
+    const userAgent = req.headers.get("user-agent") || "";
+    const cronSecret = process.env.CRON_SECRET;
+
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    const isAdmin = session?.user?.role === "admin";
+
+    if (!isAdmin) {
+      const isVercelCron =
+        vercelCronHeader === "1" || userAgent.includes("vercel-cron");
+      const isAuthorizedSecret =
+        cronSecret && authHeader === `Bearer ${cronSecret}`;
+
+      if (!isVercelCron && !isAuthorizedSecret) {
+        logger.warn({
+          action: "discover_pending_creatives",
+          message: "Unauthorized access attempt",
+          hasHeader: !!vercelCronHeader,
+          userAgent,
+        });
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
+
     const result = await discoverPendingCreatives();
 
     return NextResponse.json({
@@ -155,11 +156,7 @@ export async function GET(req: Request) {
       ...result,
     });
   } catch (error) {
-    logger.error({
-      action: "discover_pending_creatives",
-      error: error instanceof Error ? error.message : String(error),
-      message: "Discovery endpoint failed",
-    });
+    await logCronFailure("discover-pending-creatives", error);
 
     return NextResponse.json(
       {
