@@ -536,6 +536,29 @@ export const useSingleCreativeViewModal = ({
             setProofreadingData(loaded);
           }
         }
+
+        if (data.metadata.metadata?.brandGuidelinesData) {
+          const bgData = data.metadata.metadata.brandGuidelinesData;
+          const violations = (bgData.violations ?? []).filter(
+            (
+              v
+            ): v is {
+              rule_type: string;
+              evidence_text: string;
+              confidence?: number;
+              source?: string;
+            } =>
+              typeof v.rule_type === "string" &&
+              typeof v.evidence_text === "string"
+          );
+          if (violations.length === 0) {
+            setBrandGuidelinesResponse({
+              message: "All guidelines are followed. No violations detected.",
+            });
+          } else {
+            setBrandGuidelinesResponse({ message: violations });
+          }
+        }
         if (data.metadata.htmlContent) {
           setHtmlContent(processHtmlContent(data.metadata.htmlContent));
         }
@@ -785,6 +808,14 @@ export const useSingleCreativeViewModal = ({
   const handleSaveAll = useCallback(async () => {
     try {
       setIsSaving(true);
+
+      let existingMetadata: Record<string, unknown> = {};
+      try {
+        const existing = await getCreativeMetadata(creative.id);
+        existingMetadata =
+          (existing.metadata?.metadata as Record<string, unknown>) || {};
+      } catch {}
+
       await saveCreativeMetadata({
         creativeId: creative.id,
         fromLines,
@@ -793,6 +824,7 @@ export const useSingleCreativeViewModal = ({
         htmlContent,
         additionalNotes,
         metadata: {
+          ...existingMetadata,
           lastSaved: new Date().toISOString(),
           creativeType: creative.type,
           fileName: creative.name,
@@ -1063,13 +1095,100 @@ export const useSingleCreativeViewModal = ({
   const handleAnalyzeBrandGuidelines = useCallback(async () => {
     setIsCheckingBrandGuidelines(true);
     try {
-      // TODO: call brand guidelines API, then setBrandGuidelinesResponse with:
-      // - success: { message: "All guidelines are followed" }
-      // - issues: { message: Array<{ rule_type, evidence_text, source?, confidence? }> }
+      const isHtml =
+        creative.html ||
+        creative.type === "html" ||
+        /\.html?$/i.test(creative.name);
+
+      let fileToSend: File | null = null;
+
+      if (isHtml && htmlContent) {
+        fileToSend = new File([htmlContent], creative.name || "creative.html", {
+          type: "text/html",
+        });
+      } else {
+        try {
+          const fileResponse = await fetch(creative.url);
+          if (fileResponse.ok) {
+            const blob = await fileResponse.blob();
+            fileToSend = new File([blob], creative.name, {
+              type: creative.type || blob.type,
+            });
+          }
+        } catch {
+          console.error("Could not fetch creative file for analysis");
+        }
+      }
+
+      if (!fileToSend) {
+        toast.error("Could not read the creative file.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("creative", fileToSend);
+      if (fromLines) formData.append("fromLines", fromLines);
+      if (subjectLines) formData.append("subjectLines", subjectLines);
+
+      const res = await fetch("/api/publisher/analyze-brand-guidelines", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await res.json();
+
+      if (!res.ok || !result.success || !result.data) {
+        throw new Error(result.error || "Brand guidelines analysis failed");
+      }
+
+      const data = result.data as {
+        status?: string;
+        violations?: Array<{
+          rule_type: string;
+          evidence_text: string;
+          confidence?: number;
+          source?: string;
+        }>;
+      };
+
+      try {
+        const existing = await getCreativeMetadata(creative.id);
+        const currentMetadata = existing.metadata?.metadata || {};
+
+        await saveCreativeMetadata({
+          creativeId: creative.id,
+          fromLines: existing.metadata?.fromLines,
+          subjectLines: existing.metadata?.subjectLines,
+          proofreadingData: existing.metadata?.proofreadingData,
+          htmlContent: existing.metadata?.htmlContent,
+          additionalNotes: existing.metadata?.additionalNotes,
+          metadata: {
+            ...currentMetadata,
+            brandGuidelinesData: data,
+            lastBrandGuidelines: new Date().toISOString(),
+          },
+        });
+      } catch (err) {
+        console.error("Failed to persist brand guidelines result:", err);
+      }
+      if (!data.violations || data.violations.length === 0) {
+        setBrandGuidelinesResponse({
+          message: "All guidelines are followed. No violations detected.",
+        });
+        toast.success("Brand Guidelines followed!");
+      } else {
+        setBrandGuidelinesResponse({ message: data.violations });
+        toast.warning(`Found ${data.violations.length} brand guideline issues`);
+      }
+    } catch (error) {
+      console.error("Brand Guidelines Analysis failed:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to analyze guidelines";
+      toast.error(`Analysis failed: ${errorMessage}`);
     } finally {
       setIsCheckingBrandGuidelines(false);
     }
-  }, []);
+  }, [creative, htmlContent, fromLines, subjectLines]);
 
   const handleRegenerateAnalysis = async () => {
     try {

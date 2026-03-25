@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -17,7 +17,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Helper to build the response from a creativeMetadata row
     function buildFromMetadataRow(record: (typeof result)[number]) {
       return NextResponse.json({
         success: true,
@@ -42,8 +41,6 @@ export async function GET(req: NextRequest) {
       return buildFromMetadataRow(result[0]);
     }
 
-    // creativeIdParam may be a DB CUID — look up the creative's blob URL and
-    // retry so we can find metadata saved by the publisher (who used blob URL).
     const [creativeRow] = await db
       .select({ url: creatives.url, metadata: creatives.metadata })
       .from(creatives)
@@ -62,7 +59,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Last resort: use the metadata column stored on the creatives row
     if (creativeRow?.metadata) {
       const meta = creativeRow.metadata as Record<string, unknown>;
 
@@ -134,6 +130,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const metadataMergeExpr = metadata
+      ? sql`COALESCE(${creativeMetadata.metadata}, '{}'::jsonb) || ${JSON.stringify(metadata)}::jsonb`
+      : sql`${creativeMetadata.metadata}`;
+
     await db
       .insert(creativeMetadata)
       .values({
@@ -149,12 +149,20 @@ export async function POST(req: NextRequest) {
       .onConflictDoUpdate({
         target: creativeMetadata.creativeId,
         set: {
-          fromLines: fromLines ?? null,
-          subjectLines: subjectLines ?? null,
-          proofreadingData: proofreadingData ?? null,
-          htmlContent: htmlContent ?? null,
-          additionalNotes: additionalNotes ?? null,
-          metadata: metadata ?? null,
+          ...(fromLines !== undefined ? { fromLines: fromLines ?? null } : {}),
+          ...(subjectLines !== undefined
+            ? { subjectLines: subjectLines ?? null }
+            : {}),
+          ...(proofreadingData !== undefined
+            ? { proofreadingData: proofreadingData ?? null }
+            : {}),
+          ...(htmlContent !== undefined
+            ? { htmlContent: htmlContent ?? null }
+            : {}),
+          ...(additionalNotes !== undefined
+            ? { additionalNotes: additionalNotes ?? null }
+            : {}),
+          metadata: metadataMergeExpr as unknown as Record<string, unknown>,
           updatedAt: new Date(),
         },
       });

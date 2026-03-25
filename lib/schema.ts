@@ -312,8 +312,8 @@ export const backgroundJobs = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => createId()),
-    type: text("type").notNull(), // 'everflow_sync'
-    status: text("status").notNull(), // 'pending', 'running', 'completed', 'failed', 'cancelled'
+    type: text("type").notNull(),
+    status: text("status").notNull(),
     progress: integer("progress").default(0),
     total: integer("total").default(0),
     payload: jsonb("payload"),
@@ -531,7 +531,7 @@ export const creativeMetadata = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => createId()),
-    creativeId: text("creative_id").notNull().unique(), // File URL from blob storage
+    creativeId: text("creative_id").notNull().unique(),
     fromLines: text("from_lines"),
     subjectLines: text("subject_lines"),
     proofreadingData: jsonb("proofreading_data"),
@@ -541,6 +541,17 @@ export const creativeMetadata = pgTable(
       lastSaved?: string;
       lastGenerated?: string;
       lastProofread?: string;
+      lastBrandGuidelines?: string;
+      brandGuidelinesData?: {
+        status?: string;
+        violations?: Array<{
+          rule_type?: string;
+          evidence_text?: string;
+          confidence?: number;
+          source?: string;
+          [key: string]: unknown;
+        }>;
+      };
       creativeType?: string;
       fileName?: string;
     }>(),
@@ -581,6 +592,17 @@ export const creatives = pgTable(
       lastSaved?: string;
       lastGenerated?: string;
       lastProofread?: string;
+      lastBrandGuidelines?: string;
+      brandGuidelinesData?: {
+        status?: string;
+        violations?: Array<{
+          rule_type?: string;
+          evidence_text?: string;
+          confidence?: number;
+          source?: string;
+          [key: string]: unknown;
+        }>;
+      };
       creativeType?: string;
       fileName?: string;
     }>(),

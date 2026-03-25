@@ -35,6 +35,17 @@ interface CreativeMetadata {
     lastSaved?: string;
     lastGenerated?: string;
     lastProofread?: string;
+    lastBrandGuidelines?: string;
+    brandGuidelinesData?: {
+      status?: string;
+      violations?: Array<{
+        rule_type?: string;
+        evidence_text?: string;
+        confidence?: number;
+        source?: string;
+        [key: string]: unknown;
+      }>;
+    };
     creativeType?: string;
     fileName?: string;
   };
@@ -178,12 +189,13 @@ export async function getCreativeMetadata(
 ): Promise<GetCreativeMetadataResponse> {
   try {
     const response = await fetch(
-      `/api/creative/metadata?creativeId=${encodeURIComponent(creativeId)}`,
+      `/api/creative/metadata?creativeId=${encodeURIComponent(creativeId)}&_t=${Date.now()}`,
       {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
+        cache: "no-store",
       }
     );
 
