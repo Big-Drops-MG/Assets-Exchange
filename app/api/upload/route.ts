@@ -83,7 +83,6 @@ export async function POST(req: NextRequest) {
       let htmlCount = 0;
 
       for (const entry of entries) {
-        // Safe path normalization
         const normalizedPath = entry.name
           .replace(/\\/g, "/")
           .replace(/^\/+/, "")
@@ -94,7 +93,16 @@ export async function POST(req: NextRequest) {
         const fileNameOnly = pathParts.pop() || "file";
         const subPath = pathParts.length > 0 ? pathParts.join("/") : "";
 
-        //  validate actual file content BEFORE saving
+        if (
+          fileNameOnly === ".DS_Store" ||
+          fileNameOnly === "Thumbs.db" ||
+          fileNameOnly === "desktop.ini" ||
+          normalizedPath.startsWith("__MACOSX/") ||
+          fileNameOnly.startsWith("._")
+        ) {
+          continue;
+        }
+
         const v = await validateBufferMagicBytes(entry.content);
 
         if (!v.ok) {

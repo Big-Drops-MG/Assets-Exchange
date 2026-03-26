@@ -1,15 +1,187 @@
+import dns from "dns";
+import http from "http";
+import type { LookupFunction } from "net";
+import { parse } from "url";
+
 import { eq } from "drizzle-orm";
+import sharp from "sharp";
 
 import { db } from "@/lib/db";
 import { saveBuffer } from "@/lib/fileStorage";
 import { externalTasks } from "@/lib/schema";
 
 const AI_BASE_URL = process.env.GRAMMAR_AI_URL;
-const AI_TIMEOUT_MS = 300000; // 5 minutes for image processing (24/7 plan - no cold starts)
-const MAX_RETRIES = 3; // Retries for temporary issues (reduced since 24/7 plan)
-const RETRY_DELAY_MS = 15000; // 15 seconds between retries (reduced for 24/7 plan)
-const OPENAI_API_KEY = process.env.Open_AI;
+const AI_TIMEOUT_MS = 600000;
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 15000;
+const MAX_IMAGE_SIZE_BYTES =
+  typeof process.env.GRAMMAR_MAX_IMAGE_BYTES !== "undefined"
+    ? Math.max(
+        256 * 1024,
+        parseInt(process.env.GRAMMAR_MAX_IMAGE_BYTES, 10) || 1024 * 1024
+      )
+    : 1024 * 1024;
+const MAX_IMAGE_DIMENSION =
+  typeof process.env.GRAMMAR_MAX_IMAGE_DIMENSION !== "undefined"
+    ? Math.min(
+        4096,
+        Math.max(
+          640,
+          parseInt(process.env.GRAMMAR_MAX_IMAGE_DIMENSION, 10) || 1920
+        )
+      )
+    : 1920;
+
+function lookupIPv4(
+  hostname: string,
+  options: dns.LookupAllOptions | dns.LookupOneOptions,
+  callback: (
+    err: NodeJS.ErrnoException | null,
+    address: string | dns.LookupAddress[],
+    family: number
+  ) => void
+): void {
+  const opts = Object.assign({}, options, { family: 4 });
+  dns.lookup(hostname, opts, callback);
+}
+
+function grammarHealthGet(baseUrl: string, timeoutMs = 8000): Promise<boolean> {
+  const url = `${baseUrl.replace(/\/$/, "")}/health`;
+  const parsed = parse(url);
+  const path = (parsed.pathname || "/") + (parsed.search || "");
+  const port = parsed.port ? parseInt(parsed.port) : 80;
+  return new Promise((resolve) => {
+    const req = http.get(
+      {
+        hostname: parsed.hostname ?? undefined,
+        port,
+        path,
+        agent: false,
+        lookup: lookupIPv4 as LookupFunction,
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk: Buffer) => (data += chunk.toString()));
+        res.on("end", () => resolve(res.statusCode === 200));
+      }
+    );
+    req.setTimeout(timeoutMs, () => {
+      req.destroy();
+      resolve(false);
+    });
+    req.on("error", () => resolve(false));
+  });
+}
+
+async function resizeImageIfNeeded(
+  buffer: Buffer,
+  mimeType: string,
+  filename: string
+): Promise<{ buffer: Buffer; mimeType: string; filename: string }> {
+  const isImage =
+    mimeType.startsWith("image/") &&
+    (mimeType.includes("jpeg") ||
+      mimeType.includes("jpg") ||
+      mimeType.includes("png") ||
+      mimeType.includes("webp"));
+  if (!isImage || buffer.length <= MAX_IMAGE_SIZE_BYTES) {
+    return { buffer, mimeType, filename };
+  }
+  try {
+    const out = await sharp(buffer)
+      .resize(MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION, {
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+    const newName = filename.replace(/\.[^.]+$/i, ".jpg");
+    console.warn(
+      `Resized image for grammar API: ${(buffer.length / 1024).toFixed(0)}KB -> ${(out.length / 1024).toFixed(0)}KB`
+    );
+    return { buffer: out, mimeType: "image/jpeg", filename: newName };
+  } catch (err) {
+    console.warn("Image resize failed, sending original:", err);
+    return { buffer, mimeType, filename };
+  }
+}
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.Open_AI;
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
+
+async function nativeHttpPost(
+  url: string,
+  fileBuffer: Buffer,
+  filename: string,
+  mimeType: string,
+  extraFields: Record<string, string> = {},
+  timeoutMs = 300000
+): Promise<{ status: number; body: string }> {
+  const boundary = `----NodeFormBoundary${Date.now().toString(16)}`;
+
+  const buildPart = (name: string, value: string): Buffer =>
+    Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`
+    );
+
+  const escapedFilename = filename.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const fileFieldName = process.env.GRAMMAR_AI_FILE_FIELD ?? "file";
+  const filePart = Buffer.concat([
+    Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="${fileFieldName}"; filename="${escapedFilename}"\r\nContent-Type: ${mimeType}\r\n\r\n`
+    ),
+    fileBuffer,
+    Buffer.from("\r\n"),
+  ]);
+
+  const fieldParts = Object.entries(extraFields).map(([k, v]) =>
+    buildPart(k, v)
+  );
+  const closingBoundary = Buffer.from(`--${boundary}--\r\n`);
+
+  const body = Buffer.concat([filePart, ...fieldParts, closingBoundary]);
+
+  const parsed = parse(url);
+  const path = (parsed.pathname || "/") + (parsed.search || "");
+  const port = parsed.port ? parseInt(parsed.port) : 80;
+  const hostHeader =
+    parsed.hostname && parsed.port
+      ? `${parsed.hostname}:${parsed.port}`
+      : (parsed.hostname ?? "");
+
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        hostname: parsed.hostname ?? undefined,
+        port,
+        path,
+        method: "POST",
+        agent: false,
+        lookup: lookupIPv4 as LookupFunction,
+        headers: {
+          "Content-Type": `multipart/form-data; boundary=${boundary}`,
+          "Content-Length": body.length,
+          ...(hostHeader && { Host: hostHeader }),
+          "User-Agent": "GrammarBot/1.0 (Assets-Exchange)",
+        },
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk: Buffer) => (data += chunk.toString()));
+        res.on("end", () =>
+          resolve({ status: res.statusCode ?? 0, body: data })
+        );
+      }
+    );
+
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`Request timed out after ${timeoutMs}ms`));
+    });
+
+    req.on("error", reject);
+    req.write(body);
+    req.end();
+  });
+}
 
 interface ExtractedImage {
   url: string;
@@ -36,13 +208,10 @@ async function extractImagesFromHtml(
   for (let i = 0; i < matches.length; i++) {
     const imgUrl = matches[i][1];
 
-    // Skip if already base64 - can't process these
     if (imgUrl.startsWith("data:")) {
       console.warn(`Skipping base64 image (model doesn't support base64)`);
       continue;
     }
-
-    // Skip relative URLs that aren't HTTP
     if (!imgUrl.startsWith("http://") && !imgUrl.startsWith("https://")) {
       console.warn(`Skipping non-HTTP URL: ${imgUrl.substring(0, 50)}`);
       continue;
@@ -70,7 +239,6 @@ async function extractImagesFromHtml(
       const arrayBuffer = await imgResponse.arrayBuffer();
       const blob = new Blob([arrayBuffer], { type: contentType });
 
-      // Generate filename from URL or index
       let filename = `image-${i + 1}`;
       try {
         const urlPath = new URL(imgUrl).pathname;
@@ -103,6 +271,11 @@ async function callOpenAI(
     | string
     | Array<{ type: string; text?: string; image_url?: { url: string } }>
 ): Promise<Record<string, unknown>> {
+  if (typeof content !== "string") {
+    console.warn(
+      "[OpenAI] callOpenAI: only string (text) content is used in this codebase; images are never sent to OpenAI."
+    );
+  }
   console.warn(
     "[OpenAI] callOpenAI function invoked, API key present:",
     !!OPENAI_API_KEY
@@ -146,46 +319,71 @@ async function processImageWithAI(
 ): Promise<Record<string, unknown> | null> {
   if (!AI_BASE_URL) return null;
 
-  const timeouts = [30000, 45000, 50000]; // 30s, 45s, 50s for each retry
+  const timeouts = [300000, 300000, 300000];
 
   for (let attempt = 0; attempt < timeouts.length; attempt++) {
     const timeout = timeouts[attempt];
-
-    const formData = new FormData();
-    formData.append("file", blob, filename);
-    formData.append("async_processing", "true");
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
       console.warn(
         `Processing image: ${filename} (attempt ${attempt + 1}/${timeouts.length}, timeout ${timeout / 1000}s)...`
       );
-      const response = await fetch(`${AI_BASE_URL}/process?format=json`, {
-        method: "POST",
-        body: formData,
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        console.warn(`AI response error for ${filename}: ${response.status}`);
+      const fileBuffer = Buffer.from(await blob.arrayBuffer());
+      const mt = blob.type || "image/jpeg";
+      const {
+        buffer: sendBuffer,
+        mimeType: sendMimeType,
+        filename: sendFilename,
+      } = await resizeImageIfNeeded(fileBuffer, mt, filename);
+      const base = AI_BASE_URL?.replace(/\/$/, "") ?? "";
+      const path = process.env.GRAMMAR_AI_PROCESS_PATH || "/process";
+      const processUrl = `${base}${path.startsWith("/") ? path : `/${path}`}${path.includes("?") ? "&" : "?"}format=json`;
+      let res = await nativeHttpPost(
+        processUrl,
+        sendBuffer,
+        sendFilename,
+        sendMimeType,
+        { async_processing: "true" },
+        timeout
+      );
+      if (res.status === 404 && !path.includes("v1")) {
+        res = await nativeHttpPost(
+          `${base}/v1/process?format=json`,
+          sendBuffer,
+          sendFilename,
+          sendMimeType,
+          { async_processing: "true" },
+          timeout
+        );
+      }
+
+      if (res.status < 200 || res.status >= 300) {
+        console.warn(`AI response error for ${filename}: ${res.status}`);
         if (attempt < timeouts.length - 1) {
+          const retryDelay =
+            res.status === 503 || res.status === 502 || res.status === 504
+              ? 5000 * (attempt + 1)
+              : 0;
+          if (retryDelay > 0) {
+            console.warn(
+              `Service unavailable (${res.status}), waiting ${retryDelay / 1000}s before retry...`
+            );
+            await new Promise((resolve) => setTimeout(resolve, retryDelay));
+          }
           console.warn(`Retrying ${filename}...`);
           continue;
         }
         return null;
       }
 
-      const data = await response.json();
+      const data = JSON.parse(res.body) as Record<string, unknown>;
       const resultData = (data.result || data) as Record<string, unknown>;
       const allKeys = Object.keys(resultData);
       console.warn(
         `AI response for ${filename}: status=${data.status}, keys=${allKeys.join(", ")}`
       );
 
-      // Log any fields that might contain images
       for (const key of allKeys) {
         const val = resultData[key];
         if (
@@ -202,8 +400,8 @@ async function processImageWithAI(
 
       return data;
     } catch (err) {
-      clearTimeout(timeoutId);
-      const isTimeout = err instanceof Error && err.name === "AbortError";
+      const isTimeout =
+        err instanceof Error && err.message?.includes("timed out");
       console.warn(
         `${isTimeout ? "Timeout" : "Error"} processing ${filename} (attempt ${attempt + 1}):`,
         err
@@ -239,6 +437,28 @@ interface CorrectionItem {
   corrected_text?: string;
   after?: string;
   fix?: string;
+}
+
+function grammarScoreFromErrorCount(errorCount: number): number {
+  if (errorCount <= 0) return 100;
+  return Math.max(0, Math.min(100, Math.round(100 - errorCount * 6)));
+}
+
+function sanitizeBase64ForDB(value: unknown): unknown {
+  if (typeof value === "string" && value.startsWith("data:image/")) {
+    return null;
+  }
+  if (Array.isArray(value)) {
+    return value.map(sanitizeBase64ForDB);
+  }
+  if (value !== null && typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      result[k] = sanitizeBase64ForDB(v);
+    }
+    return result;
+  }
+  return value;
 }
 
 function applyCorrectionsToHtml(html: string, corrections: unknown[]): string {
@@ -539,16 +759,6 @@ function extractGrammarFeedback(
   }
 }
 
-/**
- * Extracts grammar feedback from result data with business logic rules.
- *
- * Business Logic:
- * - null = not available / not processed (task not completed, no result data, or parsing failed)
- * - [] = processed successfully, no issues found
- * - [items] = processed successfully, issues found
- *
- * Only extracts feedback for completed tasks. Failed tasks use errorMessage instead.
- */
 function extractGrammarFeedbackWithBusinessLogic(
   resultData: Record<string, unknown> | null | undefined,
   taskStatus: string
@@ -580,7 +790,6 @@ export const GrammarService = {
     }
 
     try {
-      // Try health check with retries to ensure service is actually ready
       let lastError: Error | null = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
@@ -594,7 +803,6 @@ export const GrammarService = {
           clearTimeout(timeoutId);
 
           if (response.ok) {
-            // With 24/7 plan, service should always be ready - no need to wait
             return { success: true, message: "Service is warm and ready" };
           }
           lastError = new Error(`Health check returned ${response.status}`);
@@ -671,24 +879,25 @@ export const GrammarService = {
         };
       }
 
+      const grammarBaseUrl = AI_BASE_URL?.replace(/\/$/, "") ?? "";
+      const healthOk = await grammarHealthGet(grammarBaseUrl, 8000);
+      if (!healthOk) {
+        throw new Error(
+          `Grammar API unreachable. Check ${grammarBaseUrl}/health and GRAMMAR_AI_URL.`
+        );
+      }
+
       console.warn(
         `Starting Grammar Analysis for: ${fileUrl.substring(0, 100)}...`
       );
 
-      // ... (health check) ...
-
-      // Fetch the file and send as FormData (Render doesn't support URL parameter)
       let blob: Blob;
       let filename: string;
-
-      // If custom HTML content is provided (e.g. from client with resolved asset URLs), use it directly
       if (htmlContent) {
         console.warn("Using provided HTML content for analysis");
         blob = new Blob([htmlContent], { type: "text/html" });
         filename = "creative.html";
       } else if (fileUrl.startsWith("data:")) {
-        // ...
-
         const matches = fileUrl.match(/^data:([^;]+);base64,(.*)$/);
         if (!matches) {
           throw new Error("Invalid data URL format");
@@ -696,12 +905,8 @@ export const GrammarService = {
         const mimeType = matches[1];
         const base64Data = matches[2];
 
-        const binaryString = atob(base64Data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        blob = new Blob([bytes], { type: mimeType });
+        const buffer = Buffer.from(base64Data, "base64");
+        blob = new Blob([buffer], { type: mimeType });
 
         const ext = mimeType.split("/").pop() || "png";
         filename = `creative.${ext}`;
@@ -709,7 +914,6 @@ export const GrammarService = {
           `Data URL detected, filename: ${filename}, MIME type: ${mimeType}`
         );
       } else {
-        // Fetch file from URL
         console.warn(`Fetching file from: ${fileUrl}`);
         const fileRes = await fetch(fileUrl);
         if (!fileRes.ok) {
@@ -719,13 +923,10 @@ export const GrammarService = {
         }
         blob = await fileRes.blob();
 
-        // Extract filename from URL
         const urlObj = new URL(fileUrl);
         const pathParts = urlObj.pathname.split("/");
         const rawFilename = pathParts[pathParts.length - 1] || "file";
         filename = rawFilename;
-
-        // Clean up filename (remove hash prefixes)
         const lastHyphenIdx = rawFilename.lastIndexOf("-");
         if (lastHyphenIdx > 0) {
           filename = rawFilename.substring(lastHyphenIdx + 1);
@@ -740,16 +941,14 @@ export const GrammarService = {
         );
       }
 
-      // For HTML files, extract images and process them separately
       const isHtml =
         filename.endsWith(".html") ||
         filename.endsWith(".htm") ||
         blob.type === "text/html";
       const extractedImageResults: Array<Record<string, unknown>> = [];
       let modifiedHtmlContent: string | null = null;
-      let originalHtmlText: string | null = null; // Store original HTML for applying corrections later
+      let originalHtmlText: string | null = null;
 
-      // Track original URL to marked URL mapping (for HTML with images)
       const urlReplacements: Map<string, string> = new Map();
 
       if (isHtml) {
@@ -758,11 +957,10 @@ export const GrammarService = {
         );
         try {
           let htmlText = await blob.text();
-          originalHtmlText = htmlText; // Keep original for applying corrections later
+          originalHtmlText = htmlText;
           const extractedImages = await extractImagesFromHtml(htmlText);
 
           if (extractedImages.length > 0) {
-            // Process each image with the AI model
             for (const img of extractedImages) {
               const imgResult = await processImageWithAI(
                 img.blob,
@@ -771,7 +969,6 @@ export const GrammarService = {
               if (imgResult) {
                 extractedImageResults.push(imgResult);
 
-                // Get marked image URL from result
                 const resultData = (imgResult.result || imgResult) as Record<
                   string,
                   unknown
@@ -780,7 +977,6 @@ export const GrammarService = {
 
                 const imgResultKeys = Object.keys(resultData);
 
-                // Check various possible field names for marked image
                 if (typeof resultData.marked_image === "string") {
                   markedUrl = resultData.marked_image;
                 } else if (typeof resultData.annotated_image === "string") {
@@ -790,7 +986,6 @@ export const GrammarService = {
                 } else if (typeof resultData.processed_image === "string") {
                   markedUrl = resultData.processed_image;
                 } else {
-                  // Try to find any field with image data
                   for (const key of imgResultKeys) {
                     const val = resultData[key];
                     if (
@@ -808,7 +1003,6 @@ export const GrammarService = {
                   }
                 }
 
-                // If marked image is base64, convert to URL
                 if (markedUrl && markedUrl.startsWith("data:image/")) {
                   try {
                     const matches = markedUrl.match(
@@ -843,21 +1037,15 @@ export const GrammarService = {
               }
             }
 
-            // Replace original image URLs with marked image URLs in HTML
             if (urlReplacements.size > 0) {
               for (const [originalUrl, markedUrl] of urlReplacements) {
                 htmlText = htmlText.split(originalUrl).join(markedUrl);
               }
-              // Save modified HTML content for the result
               modifiedHtmlContent = htmlText;
             }
           } else {
-            // No images found, use original HTML for corrections
             modifiedHtmlContent = originalHtmlText;
           }
-
-          // For HTML text analysis, strip images to focus on text content
-          // This ensures the AI analyzes text without being distracted by images
           const textOnlyHtml = originalHtmlText.replace(
             /<img[^>]*>/gi,
             "<!-- image placeholder -->"
@@ -871,76 +1059,126 @@ export const GrammarService = {
         }
       }
 
-      const formData = new FormData();
-      formData.append("file", blob, filename);
-      formData.append("async_processing", "true");
-
       let lastError: Error | null = null;
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
+          const attemptHealthOk = await grammarHealthGet(grammarBaseUrl, 5000);
+          if (!attemptHealthOk) {
+            console.warn(
+              `Grammar API health failed before attempt ${attempt}, trying /process anyway...`
+            );
+          }
+
+          const startTime = Date.now();
+          const fileBuffer = Buffer.from(await blob.arrayBuffer());
+          const mimeType = blob.type || "application/octet-stream";
+          const {
+            buffer: sendBuffer,
+            mimeType: sendMimeType,
+            filename: sendFilename,
+          } = await resizeImageIfNeeded(fileBuffer, mimeType, filename);
+
+          const processPath = process.env.GRAMMAR_AI_PROCESS_PATH || "/process";
+          const processUrl = `${grammarBaseUrl}${processPath.startsWith("/") ? processPath : `/${processPath}`}${processPath.includes("?") ? "&" : "?"}format=json`;
+
           console.warn(
-            `Sending file to AI service (attempt ${attempt}/${MAX_RETRIES}): ${AI_BASE_URL}/process?format=json`
+            `Sending file to AI service (attempt ${attempt}/${MAX_RETRIES}): ${processUrl} [field: ${process.env.GRAMMAR_AI_FILE_FIELD ?? "file"}]`
           );
 
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
-
-          let response: Response;
+          let res: { status: number; body: string };
           try {
-            const startTime = Date.now();
-
-            response = await fetch(`${AI_BASE_URL}/process?format=json`, {
-              method: "POST",
-              body: formData,
-              signal: controller.signal,
-              keepalive: true,
-            });
-            clearTimeout(timeoutId);
+            res = await nativeHttpPost(
+              processUrl,
+              sendBuffer,
+              sendFilename,
+              sendMimeType,
+              { async_processing: "true" },
+              AI_TIMEOUT_MS
+            );
+            if (res.status === 404 && !processPath.includes("v1")) {
+              console.warn("404 on /process, retrying with /v1/process...");
+              res = await nativeHttpPost(
+                `${grammarBaseUrl}/v1/process?format=json`,
+                sendBuffer,
+                sendFilename,
+                sendMimeType,
+                { async_processing: "true" },
+                AI_TIMEOUT_MS
+              );
+            }
             const duration = ((Date.now() - startTime) / 1000).toFixed(2);
             console.warn(
-              `Fetch completed in ${duration}s with status ${response.status}`
+              `Request completed in ${duration}s with status ${res.status}`
             );
           } catch (fetchErr) {
-            clearTimeout(timeoutId);
-            const fetchError = fetchErr as Error;
+            const fetchError = fetchErr as Error & {
+              cause?: { code?: string };
+            };
+            const causeMsg =
+              fetchError.cause && fetchError.cause instanceof Error
+                ? fetchError.cause.message
+                : String(fetchError.cause ?? "");
             console.error(
-              `Fetch error after attempt ${attempt}:`,
+              `Request error after attempt ${attempt}:`,
               fetchError.name,
-              fetchError.message
+              fetchError.message,
+              causeMsg ? `(cause: ${causeMsg})` : ""
             );
-            if (fetchError.name === "AbortError") {
-              throw fetchErr;
+            const isTimeout =
+              fetchError.name === "AbortError" ||
+              fetchError.message?.includes("timed out");
+            const isRetryableNetwork =
+              fetchError.message?.includes("socket hang up") ||
+              fetchError.message?.includes("fetch failed") ||
+              fetchError.message?.includes("ECONNRESET") ||
+              fetchError.message?.includes("ECONNREFUSED") ||
+              (causeMsg &&
+                /ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENOTFOUND/i.test(causeMsg));
+
+            if (isTimeout || isRetryableNetwork) {
+              lastError = fetchError;
+              const delay = RETRY_DELAY_MS * attempt;
+              if (attempt < MAX_RETRIES) {
+                console.warn(
+                  `Retrying in ${delay / 1000}s (attempt ${attempt}/${MAX_RETRIES})...`
+                );
+                await new Promise((resolve) => setTimeout(resolve, delay));
+                continue;
+              }
+              const base = isTimeout
+                ? `AI Service request timed out after ${AI_TIMEOUT_MS / 1000} seconds.`
+                : `Network error: ${fetchError.message}`;
+              throw new Error(
+                `${base} Verify the grammar API is reachable (e.g. open ${AI_BASE_URL?.replace(/\/$/, "")}/health in a browser).`
+              );
             }
             throw new Error(`Network error: ${fetchError.message}`);
           }
 
-          console.warn(
-            `AI Response: status=${response.status}, statusText=${response.statusText}`
-          );
+          console.warn(`AI Response: status=${res.status}`);
 
-          if (
-            response.status === 502 ||
-            response.status === 503 ||
-            response.status === 504
-          ) {
-            const delay = RETRY_DELAY_MS * attempt; // Exponential backoff
+          if (res.status === 502 || res.status === 503 || res.status === 504) {
+            const delay = RETRY_DELAY_MS * attempt;
             console.warn(
-              `AI Service temporarily unavailable (${response.status}), attempt ${attempt}/${MAX_RETRIES}. Waiting ${delay / 1000}s...`
+              `AI Service temporarily unavailable (${res.status}), attempt ${attempt}/${MAX_RETRIES}. Waiting ${delay / 1000}s...`
             );
             if (attempt < MAX_RETRIES) {
               await new Promise((resolve) => setTimeout(resolve, delay));
               continue;
             }
             throw new Error(
-              `AI Service temporarily unavailable (${response.status}). The service may be starting up - please try again in a few moments.`
+              `AI Service temporarily unavailable (${res.status}). The service may be starting up - please try again in a few moments.`
             );
           }
 
-          if (!response.ok) {
-            const err = await response.text();
-            console.error(`AI Service Error Response Body: "${err}"`);
+          if (res.status < 200 || res.status >= 300) {
+            console.error(`AI Service Error Response Body: "${res.body}"`);
+            const pathHint =
+              res.status === 404
+                ? " Check the API docs (e.g. GRAMMAR_AI_URL/docs) for the correct path and set GRAMMAR_AI_PROCESS_PATH if needed."
+                : "";
             throw new Error(
-              `AI Service Error (${response.status}): ${err || "Empty response"}`
+              `AI Service Error (${res.status}): ${res.body || "Empty response"}${pathHint}`
             );
           }
 
@@ -955,26 +1193,63 @@ export const GrammarService = {
           };
 
           try {
-            data = (await response.json()) as typeof data;
+            data = JSON.parse(res.body) as typeof data;
+            const raw = data as unknown as Record<string, unknown>;
             console.warn(`AI Response data:`, {
               task_id: data.task_id,
               status: data.status,
               hasResult: !!data.result,
               resultKeys: data.result ? Object.keys(data.result) : [],
-              topLevelKeys: Object.keys(data),
+              topLevelKeys: Object.keys(raw),
               hasMarkedImage:
                 !!(data.result as Record<string, unknown>)?.marked_image ||
                 !!data.marked_image,
+              messagePreview:
+                typeof raw.message === "string"
+                  ? raw.message.substring(0, 300)
+                  : undefined,
             });
           } catch (_jsonError) {
-            const text = await response.text();
             console.error(
               `Failed to parse AI response as JSON:`,
-              text.substring(0, 500)
+              res.body.substring(0, 500)
             );
             throw new Error(
-              `AI Service returned invalid JSON: ${text.substring(0, 200)}`
+              `AI Service returned invalid JSON: ${res.body.substring(0, 200)}`
             );
+          }
+
+          const raw = data as unknown as Record<string, unknown>;
+
+          // Map new compliance API format → legacy grammar service format
+          if (!data.corrections && !data.issues && !data.result) {
+            if (Array.isArray(raw.violations)) {
+              data.issues = raw.violations as unknown[];
+            }
+            if (
+              typeof raw.status === "string" &&
+              (raw.status === "pass" || raw.status === "fail")
+            ) {
+              data.status = raw.status === "fail" ? "SUCCESS" : raw.status;
+            }
+            // message field is a base64 image
+            if (
+              typeof raw.message === "string" &&
+              raw.message.startsWith("data:image/")
+            ) {
+              data.marked_image = raw.message;
+              if (!data.issues) data.issues = [];
+            }
+            // message field is a plain URL to an image
+            if (
+              typeof raw.message === "string" &&
+              (raw.message.startsWith("http://") ||
+                raw.message.startsWith("https://")) &&
+              /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(raw.message)
+            ) {
+              data.marked_image = raw.message;
+              if (!data.issues) data.issues = [];
+            }
           }
 
           const isSync =
@@ -983,20 +1258,18 @@ export const GrammarService = {
             data.corrections ||
             data.issues ||
             data.corrected_html ||
-            data.result;
+            data.result ||
+            data.marked_image ||
+            raw.status === "pass" ||
+            raw.status === "fail";
 
           if (isSync) {
-            // For images, marked_image might be at top level or in result
             let resultData = (data.result || data) as Record<string, unknown>;
 
-            // If marked_image is at top level, move it to result
             if (data.marked_image && typeof data.marked_image === "string") {
               resultData = { ...resultData, marked_image: data.marked_image };
             }
-
-            // Process HTML text corrections (with or without images)
             if (isHtml && (modifiedHtmlContent || originalHtmlText)) {
-              // Collect all corrections/issues from images (if any)
               const allCorrections: unknown[] = [];
               const allIssues: unknown[] = [];
               const imageMarkedUrls: string[] = [];
@@ -1015,14 +1288,12 @@ export const GrammarService = {
                     allIssues.push(...imgData.issues);
                   }
 
-                  // Collect marked images from each processed image
                   if (typeof imgData.marked_image === "string") {
                     imageMarkedUrls.push(imgData.marked_image);
                   }
                 }
               }
 
-              // Get HTML text analysis results
               const htmlCorrections = Array.isArray(resultData.corrections)
                 ? resultData.corrections
                 : [];
@@ -1037,21 +1308,16 @@ export const GrammarService = {
                 `Image analysis found: ${allCorrections.length} corrections, ${allIssues.length} issues`
               );
 
-              // Build final HTML: Start with HTML that has marked images (or original if no images)
               let finalHtml: string | null =
                 modifiedHtmlContent || originalHtmlText;
 
-              // Apply text corrections from AI to the HTML (highlighting instead of replacing)
               if (finalHtml && htmlCorrections.length > 0) {
                 finalHtml = applyCorrectionsToHtml(finalHtml, htmlCorrections);
               }
 
-              // Also try to apply corrections from issues array (some AI responses put corrections there)
               if (finalHtml && htmlIssues.length > 0) {
                 finalHtml = applyCorrectionsToHtml(finalHtml, htmlIssues);
               }
-
-              // Inject CSS styles for grammar highlights if any highlights were added
               if (
                 finalHtml &&
                 finalHtml.includes('class="grammar-highlight"')
@@ -1073,7 +1339,6 @@ export const GrammarService = {
                   </style>
                 `;
 
-                // Insert styles in the head if it exists, otherwise at the beginning
                 if (finalHtml.includes("</head>")) {
                   finalHtml = finalHtml.replace(
                     "</head>",
@@ -1093,22 +1358,66 @@ export const GrammarService = {
                 ...resultData,
                 corrections: [...htmlCorrections, ...allCorrections],
                 issues: [...htmlIssues, ...allIssues],
-                image_results: extractedImageResults,
+                image_results: extractedImageResults.map(
+                  (r) => sanitizeBase64ForDB(r) as Record<string, unknown>
+                ),
                 image_marked_urls: imageMarkedUrls,
               };
 
-              // Add final HTML content with text corrections (and marked images if present)
               if (finalHtml) {
                 resultData.output_content = finalHtml;
                 resultData.marked_html = finalHtml;
               }
-
-              // Call OpenAI for suggestions and quality scores
               console.warn(
                 "[OpenAI] Starting analysis for suggestions and quality scores..."
               );
               try {
-                const openAiPrompt = `Analyze the following HTML content for marketing effectiveness. Return JSON with:
+                const totalErrorsForPrompt =
+                  htmlCorrections.length +
+                  htmlIssues.length +
+                  allCorrections.length +
+                  allIssues.length;
+                const correctionsSummary =
+                  totalErrorsForPrompt > 0
+                    ? [
+                        ...htmlCorrections,
+                        ...allCorrections,
+                        ...htmlIssues,
+                        ...allIssues,
+                      ]
+                        .slice(0, 30)
+                        .map((c: unknown) => {
+                          const o = c as Record<string, unknown>;
+                          const orig =
+                            o.original ??
+                            o.original_word ??
+                            o.incorrect ??
+                            o.error_text ??
+                            "";
+                          const fix =
+                            o.correction ??
+                            o.corrected_word ??
+                            o.correct ??
+                            o.suggested ??
+                            "";
+                          return typeof orig === "string" &&
+                            typeof fix === "string"
+                            ? `"${orig}" -> "${fix}"`
+                            : JSON.stringify(o);
+                        })
+                        .join("\n")
+                    : "None.";
+                const openAiPrompt = `You are a strict quality scorer for marketing copy. Analyze the HTML content and the list of spelling/grammar errors that were already found.
+
+SCORING RULES (follow strictly):
+- grammar: We will compute this from the error count; still return a value 0-100 (it will be overwritten). Many errors = low score.
+- readability: 0-100. Penalize unclear phrasing, long sentences, jargon. Be strict.
+- conversion: 0-100. How likely the copy is to drive action (click, sign-up). Weak or repeated CTAs = lower score.
+- brandAlignment: 0-100. Consistency, tone, trust. Generic or off-brand = lower score.
+
+Do not inflate scores. 70 is average; reserve 85+ for genuinely strong copy.
+
+Return ONLY valid JSON (no markdown):
 {
   "suggestions": [
     { "type": "improvement" | "conversion", "description": "suggestion text" }
@@ -1120,15 +1429,19 @@ export const GrammarService = {
     "brandAlignment": 0-100
   }
 }
-Focus on marketing impact, NOT grammar (that's handled separately).`;
+
+Spelling/grammar corrections already found (use to gauge quality; grammar score will be overwritten by error count):
+${correctionsSummary}
+
+HTML content to analyze:`;
 
                 const htmlTextForOpenAI =
                   modifiedHtmlContent || originalHtmlText || "";
                 console.warn(
-                  `[OpenAI] Sending ${htmlTextForOpenAI.length} chars to OpenAI...`
+                  `[OpenAI] Sending ${htmlTextForOpenAI.length} chars to OpenAI (text only; no image)...`
                 );
                 const aiResult = await callOpenAI(
-                  openAiPrompt + "\n\nHTML Content:\n" + htmlTextForOpenAI
+                  openAiPrompt + "\n" + htmlTextForOpenAI
                 );
 
                 console.warn(
@@ -1152,18 +1465,164 @@ Focus on marketing impact, NOT grammar (that's handled separately).`;
                   );
                   resultData.qualityScore = aiResult.qualityScore;
                 }
+                const totalErr =
+                  (Array.isArray(resultData.corrections)
+                    ? resultData.corrections.length
+                    : 0) +
+                  (Array.isArray(resultData.issues)
+                    ? resultData.issues.length
+                    : 0);
+                if (
+                  resultData.qualityScore &&
+                  typeof resultData.qualityScore === "object"
+                ) {
+                  (resultData.qualityScore as Record<string, number>).grammar =
+                    grammarScoreFromErrorCount(totalErr);
+                }
               } catch (err) {
                 console.error("OpenAI integration failed:", err);
-                // Continue with external grammar service results even if OpenAI fails
               }
             }
 
-            // IMAGE OPTIMIZATION: Convert Base64 images to URLs for sync responses
+            if (
+              !isHtml &&
+              resultData &&
+              typeof resultData === "object" &&
+              !Array.isArray(resultData)
+            ) {
+              const originalText = (resultData.original_text as string) || "";
+              const correctedText = (resultData.corrected_text as string) || "";
+              const textForAnalysis = [originalText, correctedText]
+                .filter(Boolean)
+                .join("\n\n--- Corrected ---\n\n");
+              if (textForAnalysis.trim().length > 0) {
+                console.warn(
+                  "[OpenAI] Starting suggestions and quality scores for image/text creative (text only; image is NOT sent to OpenAI)..."
+                );
+                try {
+                  const imgCorrections = Array.isArray(resultData.corrections)
+                    ? resultData.corrections
+                    : [];
+                  const imgIssues = Array.isArray(resultData.issues)
+                    ? resultData.issues
+                    : [];
+                  const imgErrorsSummary =
+                    imgCorrections.length + imgIssues.length > 0
+                      ? [...imgCorrections, ...imgIssues]
+                          .slice(0, 30)
+                          .map((c: unknown) => {
+                            const o = c as Record<string, unknown>;
+                            const orig =
+                              o.original ??
+                              o.original_word ??
+                              o.incorrect ??
+                              "";
+                            const fix =
+                              o.correction ??
+                              o.corrected_word ??
+                              o.correct ??
+                              "";
+                            return typeof orig === "string" &&
+                              typeof fix === "string"
+                              ? `"${orig}" -> "${fix}"`
+                              : JSON.stringify(o);
+                          })
+                          .join("\n")
+                      : "None.";
+                  const openAiPrompt = `You are a strict quality scorer for marketing copy. This copy was extracted from an image or creative (we only send the extracted text to you; the image is not sent). Spelling/grammar corrections have already been applied; below are the errors that were found.
+
+SCORING RULES (follow strictly):
+- grammar: We will compute this from the error count; still return 0-100 (it will be overwritten).
+- readability: 0-100. Be strict. Unclear or awkward phrasing = lower.
+- conversion: 0-100. Weak or repeated CTAs = lower.
+- brandAlignment: 0-100. Generic or off-brand = lower.
+
+Do not inflate scores. 70 is average; 85+ only for strong copy.
+
+Return ONLY valid JSON (no markdown):
+{
+  "suggestions": [
+    { "type": "improvement" | "conversion", "description": "suggestion text" }
+  ],
+  "qualityScore": {
+    "grammar": 0-100,
+    "readability": 0-100,
+    "conversion": 0-100,
+    "brandAlignment": 0-100
+  }
+}
+
+Spelling/grammar errors that were found (grammar score will be overwritten by error count):
+${imgErrorsSummary}
+
+Copy to analyze:`;
+
+                  const aiResult = await callOpenAI(
+                    openAiPrompt + "\n" + textForAnalysis.slice(0, 8000)
+                  );
+                  if (
+                    aiResult.suggestions &&
+                    Array.isArray(aiResult.suggestions)
+                  ) {
+                    resultData.suggestions = aiResult.suggestions;
+                    console.warn(
+                      `[OpenAI] Added ${aiResult.suggestions.length} suggestions for image creative`
+                    );
+                  }
+                  if (
+                    aiResult.qualityScore &&
+                    typeof aiResult.qualityScore === "object"
+                  ) {
+                    resultData.qualityScore = aiResult.qualityScore as Record<
+                      string,
+                      number
+                    >;
+                    console.warn(
+                      "[OpenAI] Added quality scores for image creative"
+                    );
+                  }
+                  const totalErrImg = imgCorrections.length + imgIssues.length;
+                  if (
+                    resultData.qualityScore &&
+                    typeof resultData.qualityScore === "object"
+                  ) {
+                    (
+                      resultData.qualityScore as Record<string, number>
+                    ).grammar = grammarScoreFromErrorCount(totalErrImg);
+                  }
+                } catch (err) {
+                  console.error("OpenAI (image creative) failed:", err);
+                }
+              }
+            }
+
             if (
               resultData &&
               typeof resultData === "object" &&
               !Array.isArray(resultData)
             ) {
+              const totalErrors =
+                (Array.isArray(resultData.corrections)
+                  ? resultData.corrections.length
+                  : 0) +
+                (Array.isArray(resultData.issues)
+                  ? resultData.issues.length
+                  : 0);
+              if (totalErrors >= 0) {
+                if (
+                  !resultData.qualityScore ||
+                  typeof resultData.qualityScore !== "object"
+                ) {
+                  resultData.qualityScore = {
+                    grammar: 100,
+                    readability: 85,
+                    conversion: 70,
+                    brandAlignment: 75,
+                  };
+                }
+                (resultData.qualityScore as Record<string, number>).grammar =
+                  grammarScoreFromErrorCount(totalErrors);
+              }
               const keys = Object.keys(resultData);
               console.warn(
                 `Processing sync response with ${keys.length} keys:`,
@@ -1194,6 +1653,14 @@ Focus on marketing impact, NOT grammar (that's handled separately).`;
                         "proofread-results"
                       );
                       resultData[key] = uploaded.url;
+                      if (
+                        key === "output_content" ||
+                        typeof (resultData as Record<string, unknown>)
+                          .marked_image !== "string"
+                      ) {
+                        (resultData as Record<string, unknown>).marked_image =
+                          uploaded.url;
+                      }
                       console.warn(`✅ Converted & Saved: ${uploaded.url}`);
                     } else {
                       console.warn(
@@ -1220,6 +1687,11 @@ Focus on marketing impact, NOT grammar (that's handled separately).`;
               "completed"
             );
 
+            const dbSafeResult = sanitizeBase64ForDB(resultData) as Record<
+              string,
+              unknown
+            >;
+
             const [task] = await db
               .insert(externalTasks)
               .values({
@@ -1228,7 +1700,7 @@ Focus on marketing impact, NOT grammar (that's handled separately).`;
                 source: "grammar_ai",
                 externalTaskId: data.task_id || `sync-${Date.now()}`,
                 status: "completed",
-                result: resultData,
+                result: dbSafeResult,
                 grammarFeedback,
                 startedAt: new Date(),
                 finishedAt: new Date(),
@@ -1264,7 +1736,7 @@ Focus on marketing impact, NOT grammar (that's handled separately).`;
               : new Error(String(fetchError));
 
           if (lastError.name === "AbortError") {
-            const delay = RETRY_DELAY_MS * attempt; // Exponential backoff
+            const delay = RETRY_DELAY_MS * attempt;
             console.warn(
               `Request timed out (attempt ${attempt}/${MAX_RETRIES}). Waiting ${delay / 1000}s...`
             );
@@ -1296,14 +1768,12 @@ Focus on marketing impact, NOT grammar (that's handled separately).`;
       };
 
       if (data.status === "SUCCESS") {
-        // IMAGE OPTIMIZATION: Scan result for Base64 images and upload to blob storage
         if (data.result && typeof data.result === "object") {
           const keys = Object.keys(data.result);
 
           for (const key of keys) {
             const value = data.result[key];
 
-            // Detect Base64 Image string (starts with data:image/...)
             if (typeof value === "string" && value.startsWith("data:image/")) {
               try {
                 console.warn(
@@ -1326,14 +1796,12 @@ Focus on marketing impact, NOT grammar (that's handled separately).`;
                     "proofread-results"
                   );
 
-                  // Replace huge Base64 string with the URL
                   data.result[key] = uploaded.url;
 
                   console.warn(`Converted & Saved: ${uploaded.url}`);
                 }
               } catch (err) {
                 console.error(`Failed to save image for ${key}:`, err);
-                // Keep original base64 as fallback so it still works
               }
             }
           }

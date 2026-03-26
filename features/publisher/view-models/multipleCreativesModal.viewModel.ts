@@ -1,6 +1,7 @@
 import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import { getCreativeMetadata } from "@/lib/creativeClient";
 import { bulkDeleteByIds, parseIdsFromUrl } from "@/lib/filesClient";
 
 export interface CreativeFile {
@@ -20,6 +21,13 @@ export interface CreativeFile {
     subjectLines?: string;
     additionalNotes?: string;
   };
+}
+
+export interface CreativeAnalysisStatus {
+  ai_issues?: Array<unknown>;
+  ai_score?: number;
+  ai_status?: "clean" | "flagged" | string;
+  last_checked?: string;
 }
 
 interface UseMultipleCreativesModalProps {
@@ -46,30 +54,91 @@ export const useMultipleCreativesModal = ({
     useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [htmlContent, setHtmlContent] = useState<Record<string, string>>({});
+  const fetchingIdsRef = useRef(new Set<string>());
   const [isHtmlEditorFullscreen, setIsHtmlEditorFullscreen] = useState(false);
   const [isImagePreviewFullscreen, setIsImagePreviewFullscreen] =
     useState(false);
   const [currentEditingCreative, setCurrentEditingCreative] =
     useState<CreativeFile | null>(null);
 
-  // ZIP file name editing state
   const [isEditingZipFileName, setIsEditingZipFileName] = useState(false);
   const [editableZipFileName, setEditableZipFileName] = useState("");
   const [editableZipNameOnly, setEditableZipNameOnly] = useState("");
 
-  // Load HTML content for HTML creatives
+  const [analysisStatusMap, setAnalysisStatusMap] = useState<
+    Record<string, CreativeAnalysisStatus>
+  >({});
+
+  useEffect(() => {
+    if (!isOpen) {
+      fetchingIdsRef.current.clear();
+      statusLoadedRef.current.clear();
+      setAnalysisStatusMap({});
+    }
+  }, [isOpen]);
+
+  const statusLoadedRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (!isOpen || typeof window === "undefined") return;
+
+    const loadStatus = async (creative: CreativeFile) => {
+      if (statusLoadedRef.current.has(creative.id)) return;
+      const isHtml = creative.html || /\.html?$/i.test(creative.name);
+      if (!isHtml) return;
+
+      statusLoadedRef.current.add(creative.id);
+
+      try {
+        const data = await getCreativeMetadata(creative.id);
+        const pd = data.metadata?.proofreadingData as
+          | Record<string, unknown>
+          | undefined;
+        if (!pd) return;
+
+        const issues = Array.isArray(pd.issues) ? pd.issues : [];
+        const rawScore =
+          typeof pd.qualityScore === "object" && pd.qualityScore !== null
+            ? ((pd.qualityScore as Record<string, unknown>).grammar as number)
+            : typeof pd.qualityScore === "number"
+              ? pd.qualityScore
+              : undefined;
+
+        setAnalysisStatusMap((prev) => ({
+          ...prev,
+          [creative.id]: {
+            ai_issues: issues,
+            ai_score: rawScore,
+            ai_status: issues.length === 0 ? "clean" : "flagged",
+            last_checked: (
+              data.metadata?.metadata as Record<string, unknown> | undefined
+            )?.lastProofread as string | undefined,
+          },
+        }));
+      } catch {
+        statusLoadedRef.current.delete(creative.id);
+      }
+    };
+
+    creatives.forEach((creative) => {
+      loadStatus(creative).catch(() => {
+        statusLoadedRef.current.delete(creative.id);
+      });
+    });
+  }, [isOpen, creatives]);
+
   useEffect(() => {
     if (!isOpen || typeof window === "undefined") return;
 
     const loadHtmlContent = async (creative: CreativeFile) => {
-      // Skip if already loaded
-      if (htmlContent[creative.id]) return;
+      if (fetchingIdsRef.current.has(creative.id)) return;
 
       const isHtml = creative.html || /\.html?$/i.test(creative.name);
       if (!isHtml) return;
 
+      fetchingIdsRef.current.add(creative.id);
+
       try {
-        // Check for embedded HTML first
         if ((creative as { embeddedHtml?: string }).embeddedHtml) {
           const embedded = (creative as { embeddedHtml?: string })
             .embeddedHtml!;
@@ -79,7 +148,6 @@ export const useMultipleCreativesModal = ({
           }
         }
 
-        // Try API endpoint first
         try {
           const encodedFileUrl = encodeURIComponent(creative.url);
           let apiUrl = `/api/files?fileId=${creative.id}&fileUrl=${encodedFileUrl}&processAssets=true`;
@@ -103,21 +171,17 @@ export const useMultipleCreativesModal = ({
             }
           }
         } catch (apiError) {
-          // API fetch failed, try fallback
           console.warn("API fetch failed for creative:", creative.id, apiError);
         }
 
-        // Fallback to direct fetch - only for absolute URLs (not relative paths)
-        // Skip relative paths as they won't work with CORS
         if (
           creative.url &&
           (creative.url.startsWith("http://") ||
             creative.url.startsWith("https://"))
         ) {
           try {
-            // Use AbortController for timeout compatibility
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
 
             const directResponse = await fetch(creative.url, {
               method: "GET",
@@ -142,8 +206,6 @@ export const useMultipleCreativesModal = ({
               }
             }
           } catch (fetchError) {
-            // Silently fail - this is a fallback, so it's okay if it fails
-            // Only log if it's not a timeout or abort error
             if (
               fetchError instanceof Error &&
               fetchError.name !== "AbortError" &&
@@ -158,7 +220,7 @@ export const useMultipleCreativesModal = ({
           }
         }
       } catch (error) {
-        // Catch any unexpected errors
+        fetchingIdsRef.current.delete(creative.id);
         if (error instanceof Error) {
           console.warn(
             "Failed to load HTML content for creative:",
@@ -169,10 +231,8 @@ export const useMultipleCreativesModal = ({
       }
     };
 
-    // Load HTML content for each creative
     creatives.forEach((creative) => {
       loadHtmlContent(creative).catch((error) => {
-        // Ensure no unhandled promise rejections
         console.warn(
           "Unhandled error loading HTML for creative:",
           creative.id,
@@ -180,8 +240,7 @@ export const useMultipleCreativesModal = ({
         );
       });
     });
-     
-  }, [isOpen, creatives, htmlContent]);
+  }, [isOpen, creatives]);
 
   const openSingleCreativeView = useCallback((creative: CreativeFile) => {
     setSelectedCreative(creative);
@@ -223,7 +282,6 @@ export const useMultipleCreativesModal = ({
 
         await bulkDeleteByIds(Array.from(ids));
 
-        // Remove HTML content from state
         setHtmlContent((prev) => {
           const updated = { ...prev };
           delete updated[creative.id];
@@ -232,7 +290,6 @@ export const useMultipleCreativesModal = ({
 
         onRemoveCreative?.(creative.id);
 
-        // Close single view if deleting the selected creative
         if (selectedCreative?.id === creative.id) {
           closeSingleCreativeView();
         }
@@ -249,7 +306,6 @@ export const useMultipleCreativesModal = ({
   const handleSaveHtml = useCallback(
     async (creativeId: string, html: string) => {
       try {
-        // Save HTML content
         const response = await fetch("/api/creative/metadata", {
           method: "POST",
           headers: {
@@ -268,7 +324,6 @@ export const useMultipleCreativesModal = ({
           throw new Error("Failed to save HTML");
         }
 
-        // Update local state
         setHtmlContent((prev) => ({ ...prev, [creativeId]: html }));
       } catch (error) {
         console.error("Failed to save HTML:", error);
@@ -368,6 +423,32 @@ export const useMultipleCreativesModal = ({
     [handleZipFileNameSave, handleZipFileNameCancel]
   );
 
+  const handleCreativeFileUpdate = useCallback(
+    (
+      fileId: string,
+      updates: {
+        metadata?: {
+          ai_issues?: Array<unknown>;
+          ai_score?: number;
+          ai_status?: string;
+          last_checked?: string;
+        };
+      }
+    ) => {
+      if (!updates.metadata) return;
+      setAnalysisStatusMap((prev) => ({
+        ...prev,
+        [fileId]: {
+          ai_issues: updates.metadata?.ai_issues,
+          ai_score: updates.metadata?.ai_score,
+          ai_status: updates.metadata?.ai_status,
+          last_checked: updates.metadata?.last_checked,
+        },
+      }));
+    },
+    []
+  );
+
   return {
     selectedCreative,
     isSingleCreativeViewOpen,
@@ -379,9 +460,11 @@ export const useMultipleCreativesModal = ({
     isEditingZipFileName,
     editableZipFileName,
     editableZipNameOnly,
+    analysisStatusMap,
     openSingleCreativeView,
     closeSingleCreativeView,
     handleFileNameChangeFromSingle,
+    handleCreativeFileUpdate,
     handleDeleteCreative,
     handleSaveHtml,
     toggleHtmlEditorFullscreen,

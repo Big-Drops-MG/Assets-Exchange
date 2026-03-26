@@ -54,13 +54,22 @@ export async function POST(req: NextRequest) {
     let htmlCount = 0;
 
     for (const entry of entries) {
-      // safe path normalization
       const normalizedName = entry.name
-        .replace(/^\/+/, "") // remove leading "/"
-        .replace(/\.\.\//g, "") // prevent "../"
-        .replace(/\/+/g, "/"); // collapse multiple slashes
+        .replace(/^\/+/, "")
+        .replace(/\.\.\//g, "")
+        .replace(/\/+/g, "/");
 
-      // validating each extracted file before saving it
+      const basename = normalizedName.split("/").pop() ?? "";
+      if (
+        basename === ".DS_Store" ||
+        basename === "Thumbs.db" ||
+        basename === "desktop.ini" ||
+        normalizedName.startsWith("__MACOSX/") ||
+        basename.startsWith("._")
+      ) {
+        continue;
+      }
+
       const v = await validateBufferMagicBytes(entry.content);
 
       if (!v.ok) {

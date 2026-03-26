@@ -13,6 +13,7 @@ export type ViewCreative = {
   type: string;
   previewUrl?: string;
   html?: boolean;
+  isHidden?: boolean;
   metadata?: {
     fromLines?: string;
     subjectLines?: string;

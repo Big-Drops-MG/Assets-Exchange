@@ -7,7 +7,7 @@ import { GrammarService } from "@/lib/services/grammar.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 5 minutes - needed for AI image processing which can take 90+ seconds
+export const maxDuration = 600;
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,9 +57,9 @@ export async function POST(req: NextRequest) {
     // Return 502/503 for AI service unavailable errors
     const statusCode =
       errorMessage.includes("temporarily unavailable") ||
-        errorMessage.includes("502") ||
-        errorMessage.includes("503") ||
-        errorMessage.includes("504")
+      errorMessage.includes("502") ||
+      errorMessage.includes("503") ||
+      errorMessage.includes("504")
         ? 502
         : 500;
 

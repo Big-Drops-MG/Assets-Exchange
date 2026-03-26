@@ -1,6 +1,15 @@
 "use client";
 
-import { FileArchive, FileText, File, X, Edit3, Check } from "lucide-react";
+import {
+  FileArchive,
+  FileText,
+  File,
+  X,
+  Edit3,
+  Check,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
 import React, { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -277,6 +286,13 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                   const fileType = viewModel.getFileType(creative.name);
                   const isImage = fileType === "image";
                   const isHtml = fileType === "html";
+                  const analysisStatus =
+                    viewModel.analysisStatusMap[creative.id];
+                  const isClean = analysisStatus?.ai_status === "clean";
+                  const isFlagged = analysisStatus?.ai_status === "flagged";
+                  const issueCount = Array.isArray(analysisStatus?.ai_issues)
+                    ? analysisStatus.ai_issues.length
+                    : 0;
 
                   return (
                     <div
@@ -312,7 +328,24 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                           </div>
                         )}
 
-                        {/* Action Buttons - Top Right */}
+                        {/* Analysis status badge — top-left */}
+                        {analysisStatus && (
+                          <div className="absolute top-2 left-2">
+                            {isClean ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200 shadow-sm">
+                                <CheckCircle className="w-3 h-3" />
+                                No issues
+                              </span>
+                            ) : isFlagged ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200 shadow-sm">
+                                <AlertCircle className="w-3 h-3" />
+                                {issueCount} issue{issueCount !== 1 ? "s" : ""}
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
+
+                        {/* Delete button - Top Right */}
                         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
                           <Button
                             variant="outline"
@@ -359,6 +392,22 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                               {formatFileSize(creative.size)}
                             </span>
                           </div>
+                          {/* Score badge */}
+                          {analysisStatus?.ai_score !== undefined && (
+                            <div className="mt-1.5">
+                              <span
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                                  analysisStatus.ai_score >= 80
+                                    ? "bg-green-50 text-green-700"
+                                    : analysisStatus.ai_score >= 60
+                                      ? "bg-yellow-50 text-yellow-700"
+                                      : "bg-red-50 text-red-700"
+                                }`}
+                              >
+                                Score: {analysisStatus.ai_score}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         {/* View Button */}
@@ -389,6 +438,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
       {/* SingleCreativeViewModal - Opens when View Creative is clicked */}
       {viewModel.selectedCreative && (
         <SingleCreativeViewModal
+          key={viewModel.selectedCreative.id}
           isOpen={viewModel.isSingleCreativeViewOpen}
           onClose={viewModel.closeSingleCreativeView}
           creative={{
@@ -402,6 +452,12 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
             metadata: viewModel.selectedCreative.metadata,
           }}
           onFileNameChange={viewModel.handleFileNameChangeFromSingle}
+          onFileUpdate={(updates) =>
+            viewModel.handleCreativeFileUpdate(
+              viewModel.selectedCreative!.id,
+              updates
+            )
+          }
           showAdditionalNotes={true}
           creativeType={creativeType}
           siblingCreatives={creatives.map((c) => ({
