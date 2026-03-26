@@ -9,7 +9,10 @@ import {
   Check,
   CheckCircle,
   AlertCircle,
+  Loader2,
+  Undo2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -53,6 +56,14 @@ interface MultipleCreativesModalProps {
     subjectLines: string;
     additionalNotes: string;
   }) => Promise<void>;
+  /** When set, "View Creative" runs this instead of opening the embedded single modal (e.g. admin navigate to annotate). */
+  onViewCreativeNavigate?: (creative: CreativeFile) => void;
+  /** Passed to embedded SingleCreativeViewModal for admin send-back: opens annotate with return path in sessionStorage. */
+  annotateForSendBackRequestId?: string;
+  annotateReturnPath?: string;
+  /** Called when admin clicks "Send Back" in the multi-creative send-back flow. */
+  onSendBack?: () => void;
+  isSendingBack?: boolean;
 }
 
 const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
@@ -66,7 +77,17 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
   creativeType = "email",
   viewOnly = false,
   onSaveAndSubmit,
+  onViewCreativeNavigate,
+  annotateForSendBackRequestId,
+  annotateReturnPath,
+  onSendBack,
+  isSendingBack = false,
 }) => {
+  const router = useRouter();
+  const navigateMode = Boolean(onViewCreativeNavigate);
+  const creativeCardActionLabel = annotateForSendBackRequestId
+    ? "Review"
+    : "View Creative";
   const viewModel = useMultipleCreativesModal({
     isOpen,
     creatives,
@@ -129,6 +150,21 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
 
   if (!isOpen) return null;
 
+  const visibleCreatives = creatives.filter((c) => !c.isHidden);
+  const primaryCreativeFile =
+    visibleCreatives.length === 0
+      ? null
+      : (visibleCreatives.find((c) => c.html || /\.html?$/i.test(c.name)) ??
+        visibleCreatives[0]);
+  const archiveDisplayName =
+    uploadedZipFileName ?? primaryCreativeFile?.name ?? "Multiple Creatives";
+
+  const zipNameForEditFallback =
+    uploadedZipFileName ??
+    (primaryCreativeFile
+      ? `${primaryCreativeFile.name.replace(/\.[^/.]+$/, "") || primaryCreativeFile.name}.zip`
+      : "Multiple Creatives.zip");
+
   const htmlFiles = creatives.filter(
     (c) => (c.html || /\.html?$/i.test(c.name)) && !c.isHidden
   );
@@ -158,7 +194,16 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="min-w-0">
-                    {viewModel.isEditingZipFileName ? (
+                    {navigateMode ? (
+                      <div className="min-w-0">
+                        <DialogTitle className="text-sm sm:text-lg lg:text-xl font-semibold text-gray-900 truncate">
+                          Review creatives
+                        </DialogTitle>
+                        <p className="text-xs text-gray-600 mt-1 max-w-xl">
+                          Choose a file to open in the annotation workspace.
+                        </p>
+                      </div>
+                    ) : viewModel.isEditingZipFileName ? (
                       <div className="flex items-center gap-2 sm:gap-3 mb-0.5 sm:mb-1">
                         <div className="flex items-center">
                           <Input
@@ -166,13 +211,13 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                             onChange={(e) =>
                               viewModel.handleZipFileNameChange(
                                 e,
-                                uploadedZipFileName || "Multiple Creatives.zip"
+                                zipNameForEditFallback
                               )
                             }
                             onKeyDown={(e) =>
                               viewModel.handleZipFileNameKeyDown(
                                 e,
-                                uploadedZipFileName || "Multiple Creatives.zip"
+                                zipNameForEditFallback
                               )
                             }
                             className="text-xs sm:text-sm font-medium h-8 sm:h-9 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white px-3 py-2 w-auto min-w-0"
@@ -180,11 +225,9 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                             placeholder="Filename"
                           />
                           <span className="text-xs sm:text-sm text-gray-700 font-medium px-2 py-2 h-8 sm:h-9 flex items-center whitespace-nowrap">
-                            {uploadedZipFileName
-                              ? uploadedZipFileName.substring(
-                                  uploadedZipFileName.lastIndexOf(".")
-                                )
-                              : ".zip"}
+                            {zipNameForEditFallback.substring(
+                              zipNameForEditFallback.lastIndexOf(".")
+                            )}
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
@@ -193,7 +236,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                             size="sm"
                             onClick={() =>
                               viewModel.handleZipFileNameSave(
-                                uploadedZipFileName || "Multiple Creatives.zip"
+                                zipNameForEditFallback
                               )
                             }
                             className="h-9 w-9 bg-green-600 hover:bg-green-700 text-white rounded-lg"
@@ -205,7 +248,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                             size="sm"
                             onClick={() =>
                               viewModel.handleZipFileNameCancel(
-                                uploadedZipFileName || "Multiple Creatives.zip"
+                                zipNameForEditFallback
                               )
                             }
                             className="h-9 w-9 border-red-200 text-red-600 hover:bg-red-50"
@@ -217,14 +260,14 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                     ) : (
                       <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
                         <DialogTitle className="text-sm sm:text-lg lg:text-xl font-semibold text-gray-900 truncate">
-                          {uploadedZipFileName || "Multiple Creatives"}
+                          {archiveDisplayName}
                         </DialogTitle>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() =>
                             viewModel.handleZipFileNameEdit(
-                              uploadedZipFileName || "Multiple Creatives.zip"
+                              zipNameForEditFallback
                             )
                           }
                           className="h-9 w-9 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg shrink-0"
@@ -238,20 +281,49 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                     <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                       {creatives.length} files
                     </span>
-                    <span className="text-gray-600 text-xs">•</span>
-                    <span className="text-xs text-gray-600">ZIP Archive</span>
+                    {!navigateMode && (
+                      <>
+                        <span className="text-gray-600 text-xs">•</span>
+                        <span className="text-xs text-gray-600">
+                          ZIP Archive
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <Button
-                variant="default"
-                size="sm"
-                onClick={onClose}
-                className="h-9 px-3 sm:px-4 bg-blue-500 hover:bg-blue-600 text-white text-xs sm:text-sm shrink-0"
-              >
-                <span>Save and Continue</span>
-              </Button>
+              <div className="flex items-center gap-2">
+                {annotateForSendBackRequestId && onSendBack && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={onSendBack}
+                    disabled={isSendingBack}
+                    className="h-9 px-3 sm:px-4 text-xs sm:text-sm shrink-0"
+                  >
+                    {isSendingBack ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Undo2 className="h-4 w-4 mr-1.5" />
+                        Send Back
+                      </>
+                    )}
+                  </Button>
+                )}
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={onClose}
+                  className="h-9 px-3 sm:px-4 bg-blue-500 hover:bg-blue-600 text-white text-xs sm:text-sm shrink-0"
+                >
+                  <span>{navigateMode ? "Close" : "Save and Continue"}</span>
+                </Button>
+              </div>
             </div>
           </DialogHeader>
 
@@ -345,25 +417,26 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                           </div>
                         )}
 
-                        {/* Delete button - Top Right */}
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              viewModel.handleDeleteCreative(creative);
-                            }}
-                            disabled={viewModel.isDeleting === creative.id}
-                            className="h-9 px-2 bg-white/95 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300 text-xs font-medium shadow-sm"
-                          >
-                            {viewModel.isDeleting === creative.id ? (
-                              <div className="w-3 h-3 border border-red-600 border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <X className="w-3 h-3 sm:w-4 sm:h-4" />
-                            )}
-                          </Button>
-                        </div>
+                        {!navigateMode && (
+                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                viewModel.handleDeleteCreative(creative);
+                              }}
+                              disabled={viewModel.isDeleting === creative.id}
+                              className="h-9 px-2 bg-white/95 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300 text-xs font-medium shadow-sm"
+                            >
+                              {viewModel.isDeleting === creative.id ? (
+                                <div className="w-3 h-3 border border-red-600 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                              )}
+                            </Button>
+                          </div>
+                        )}
                       </div>
 
                       {/* Content Section */}
@@ -412,12 +485,29 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
 
                         {/* View Button */}
                         <Button
-                          onClick={() =>
-                            viewModel.openSingleCreativeView(creative)
-                          }
+                          onClick={() => {
+                            if (onViewCreativeNavigate) {
+                              onViewCreativeNavigate(creative);
+                              return;
+                            }
+                            if (
+                              annotateForSendBackRequestId &&
+                              annotateReturnPath
+                            ) {
+                              sessionStorage.setItem(
+                                "annotateReturnPathAfterSendBack",
+                                annotateReturnPath
+                              );
+                              router.push(
+                                `/annotate/${creative.id}?requestId=${encodeURIComponent(annotateForSendBackRequestId)}&multi=1`
+                              );
+                              return;
+                            }
+                            viewModel.openSingleCreativeView(creative);
+                          }}
                           className="w-full h-9 bg-blue-400 hover:bg-blue-600 text-white font-medium px-3 sm:px-4 rounded-md text-xs sm:text-sm transition-colors duration-200"
                         >
-                          <span>View Creative</span>
+                          <span>{creativeCardActionLabel}</span>
                         </Button>
                       </div>
                     </div>
@@ -435,46 +525,51 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* SingleCreativeViewModal - Opens when View Creative is clicked */}
-      {viewModel.selectedCreative && (
-        <SingleCreativeViewModal
-          key={viewModel.selectedCreative.id}
-          isOpen={viewModel.isSingleCreativeViewOpen}
-          onClose={viewModel.closeSingleCreativeView}
-          creative={{
-            id: viewModel.selectedCreative.id,
-            name: viewModel.selectedCreative.name,
-            url: viewModel.selectedCreative.url,
-            size: viewModel.selectedCreative.size,
-            type: viewModel.selectedCreative.type || "application/octet-stream",
-            previewUrl: viewModel.selectedCreative.previewUrl,
-            html: viewModel.selectedCreative.html,
-            metadata: viewModel.selectedCreative.metadata,
-          }}
-          onFileNameChange={viewModel.handleFileNameChangeFromSingle}
-          onFileUpdate={(updates) =>
-            viewModel.handleCreativeFileUpdate(
-              viewModel.selectedCreative!.id,
-              updates
-            )
-          }
-          showAdditionalNotes={true}
-          creativeType={creativeType}
-          siblingCreatives={creatives.map((c) => ({
-            id: c.id,
-            name: c.name,
-            url: c.url,
-            size: c.size,
-            type: c.type || "application/octet-stream",
-            previewUrl: c.previewUrl,
-            html: c.html,
-            uploadId: c.uploadId,
-            metadata: c.metadata,
-          }))}
-          viewOnly={viewOnly}
-          onSaveAndSubmit={onSaveAndSubmit}
-        />
-      )}
+      {/* SingleCreativeViewModal - Opens when View Creative is clicked (not send-back Review → annotate) */}
+      {!navigateMode &&
+        !annotateForSendBackRequestId &&
+        viewModel.selectedCreative && (
+          <SingleCreativeViewModal
+            key={viewModel.selectedCreative.id}
+            isOpen={viewModel.isSingleCreativeViewOpen}
+            onClose={viewModel.closeSingleCreativeView}
+            creative={{
+              id: viewModel.selectedCreative.id,
+              name: viewModel.selectedCreative.name,
+              url: viewModel.selectedCreative.url,
+              size: viewModel.selectedCreative.size,
+              type:
+                viewModel.selectedCreative.type || "application/octet-stream",
+              previewUrl: viewModel.selectedCreative.previewUrl,
+              html: viewModel.selectedCreative.html,
+              metadata: viewModel.selectedCreative.metadata,
+            }}
+            onFileNameChange={viewModel.handleFileNameChangeFromSingle}
+            onFileUpdate={(updates) =>
+              viewModel.handleCreativeFileUpdate(
+                viewModel.selectedCreative!.id,
+                updates
+              )
+            }
+            showAdditionalNotes={true}
+            creativeType={creativeType}
+            siblingCreatives={creatives.map((c) => ({
+              id: c.id,
+              name: c.name,
+              url: c.url,
+              size: c.size,
+              type: c.type || "application/octet-stream",
+              previewUrl: c.previewUrl,
+              html: c.html,
+              uploadId: c.uploadId,
+              metadata: c.metadata,
+            }))}
+            viewOnly={viewOnly}
+            onSaveAndSubmit={onSaveAndSubmit}
+            annotateForSendBackRequestId={annotateForSendBackRequestId}
+            annotateReturnPath={annotateReturnPath}
+          />
+        )}
     </>
   );
 };

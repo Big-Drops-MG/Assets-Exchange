@@ -84,7 +84,12 @@ export async function getRequestViewData(
     rowToViewCreative(row, requestMetadata)
   );
 
-  if (viewCreatives.length === 1) {
+  const isZipSubmission = result.creatives.some((row) => {
+    const m = row.metadata as Record<string, unknown> | null | undefined;
+    return m?.source === "zip";
+  });
+
+  if (viewCreatives.length === 1 && !isZipSubmission) {
     return {
       type: "single",
       creative: viewCreatives[0],

@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  Check,
   File,
   FileText,
   Image as ImageIcon,
@@ -22,6 +23,16 @@ function formatFileSize(bytes: number): string {
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 }
 
+function appendResumeSendBackMultiToPath(
+  returnPath: string,
+  requestId: string
+) {
+  const path = returnPath.startsWith("/") ? returnPath : `/${returnPath}`;
+  const url = new URL(path, window.location.origin);
+  url.searchParams.set("resumeSendBackMulti", requestId);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 interface AnnotatePageClientProps {
   creativeId: string;
   creativeUrl: string;
@@ -31,6 +42,7 @@ interface AnnotatePageClientProps {
   fileSize?: number;
   requestId?: string;
   action?: "send-back" | "reject";
+  isMultiReview?: boolean;
   readOnly?: boolean;
   userRole?: string;
 }
@@ -44,6 +56,7 @@ export function AnnotatePageClient({
   fileSize = 0,
   requestId,
   action,
+  isMultiReview = false,
   readOnly = false,
   userRole,
 }: AnnotatePageClientProps) {
@@ -89,7 +102,20 @@ export function AnnotatePageClient({
       toast.success(
         action === "send-back" ? "Request returned" : "Request rejected"
       );
-      router.push(normalizedRole === "advertiser" ? "/dashboard" : "/requests");
+
+      if (normalizedRole === "advertiser") {
+        sessionStorage.removeItem("annotateReturnPathAfterSendBack");
+        sessionStorage.removeItem("resumeSendBackMultiModalRequestId");
+        router.push("/dashboard");
+        router.refresh();
+        return;
+      }
+
+      const returnPath =
+        sessionStorage.getItem("annotateReturnPathAfterSendBack") ||
+        "/requests";
+      sessionStorage.removeItem("annotateReturnPathAfterSendBack");
+      router.push(appendResumeSendBackMultiToPath(returnPath, requestId));
       router.refresh();
     } catch {
       toast.error("Failed to process action");
@@ -111,6 +137,30 @@ export function AnnotatePageClient({
     toast.success("View-only link copied to clipboard");
   };
 
+  const handleBack = () => {
+    const normalizedRole = userRole?.toLowerCase();
+    const storedReturnPath = sessionStorage.getItem(
+      "annotateReturnPathAfterSendBack"
+    );
+    const shouldReturnToRequests =
+      requestId &&
+      normalizedRole !== "advertiser" &&
+      (isMultiReview ||
+        action === "send-back" ||
+        action === "reject" ||
+        (storedReturnPath != null && storedReturnPath !== ""));
+
+    if (shouldReturnToRequests) {
+      if (storedReturnPath) {
+        sessionStorage.removeItem("annotateReturnPathAfterSendBack");
+      }
+      const basePath = storedReturnPath || "/requests";
+      router.push(appendResumeSendBackMultiToPath(basePath, requestId));
+      return;
+    }
+    router.back();
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
       <header className="flex-none bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-4 min-h-[56px]">
@@ -118,7 +168,7 @@ export function AnnotatePageClient({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.back()}
+            onClick={handleBack}
             aria-label="Go back"
             className="shrink-0 h-9 w-9"
           >
@@ -151,7 +201,17 @@ export function AnnotatePageClient({
             <Link2 className="h-4 w-4" />
             Share
           </Button>
-          {hasConfirm && (
+          {isMultiReview && requestId && !readOnly && (
+            <Button
+              size="sm"
+              onClick={handleBack}
+              className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Check className="h-4 w-4" />
+              Save & Return
+            </Button>
+          )}
+          {hasConfirm && !isMultiReview && (
             <Button
               variant="destructive"
               size="sm"
@@ -178,13 +238,15 @@ export function AnnotatePageClient({
           fileSize={fileSize}
           hideHeader
           actionLabel={
-            action === "send-back"
-              ? "Confirm Send Back"
-              : action === "reject"
-                ? "Confirm Rejection"
-                : undefined
+            isMultiReview
+              ? undefined
+              : action === "send-back"
+                ? "Confirm Send Back"
+                : action === "reject"
+                  ? "Confirm Rejection"
+                  : undefined
           }
-          onAction={hasConfirm ? handleAction : undefined}
+          onAction={hasConfirm && !isMultiReview ? handleAction : undefined}
           isSubmitting={isSubmitting}
           readOnly={readOnly}
         />

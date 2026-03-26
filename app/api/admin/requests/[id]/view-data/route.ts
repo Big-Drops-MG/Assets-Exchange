@@ -74,7 +74,6 @@ export async function GET(
       rowToViewCreative(row, requestMetadata)
     );
 
-
     const hasHtml = viewCreatives.some((c) => c.html);
     const processed = viewCreatives
       .map((c) => ({
@@ -90,7 +89,12 @@ export async function GET(
 
     const visible = processed.filter((c) => !c.isHidden);
 
-    if (visible.length === 1) {
+    const isZipSubmission = result.creatives.some((row) => {
+      const m = row.metadata as Record<string, unknown> | null | undefined;
+      return m?.source === "zip";
+    });
+
+    if (visible.length === 1 && !isZipSubmission) {
       return NextResponse.json({
         type: "single",
         creative: visible[0],

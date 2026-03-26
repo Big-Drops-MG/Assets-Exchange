@@ -18,6 +18,7 @@ import {
   RotateCcw,
   ShieldCheck,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import React, { useRef } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,8 @@ interface SingleCreativeViewModalProps {
     subjectLines: string;
     additionalNotes: string;
   }) => Promise<void>;
+  annotateForSendBackRequestId?: string;
+  annotateReturnPath?: string;
 }
 
 const getFileType = (fileName: string): "image" | "html" | "other" => {
@@ -122,7 +125,10 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
   siblingCreatives = [],
   viewOnly = false,
   onSaveAndSubmit,
+  annotateForSendBackRequestId,
+  annotateReturnPath,
 }) => {
+  const router = useRouter();
   const viewModel = useSingleCreativeViewModal({
     isOpen,
     creative,
@@ -331,15 +337,36 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
 
                 <div className="shrink-0">
                   {viewOnly ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={onClose}
-                      className="h-9 px-3 sm:px-4 border-gray-300 text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Close
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {annotateForSendBackRequestId && annotateReturnPath && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          type="button"
+                          onClick={() => {
+                            sessionStorage.setItem(
+                              "annotateReturnPathAfterSendBack",
+                              annotateReturnPath
+                            );
+                            router.push(
+                              `/annotate/${creative.id}?requestId=${encodeURIComponent(annotateForSendBackRequestId)}&action=send-back`
+                            );
+                          }}
+                          className="h-9 px-3 sm:px-4 bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm"
+                        >
+                          Annotate & send back
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onClose}
+                        className="h-9 px-3 sm:px-4 border-gray-300 text-gray-700 hover:bg-gray-50 text-xs sm:text-sm"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Close
+                      </Button>
+                    </div>
                   ) : (
                     <Button
                       variant="default"

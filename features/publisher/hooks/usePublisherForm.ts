@@ -205,10 +205,13 @@ export const usePublisherForm = (editingRequestId?: string | null) => {
                 url: f.url,
                 size: f.size,
                 type: f.type,
-                metadata: f.metadata || {
-                  fromLines: f.fromLines,
-                  subjectLines: f.subjectLines,
-                  additionalNotes: f.additionalNotes,
+                metadata: {
+                  ...(f.metadata || {
+                    fromLines: f.fromLines,
+                    subjectLines: f.subjectLines,
+                    additionalNotes: f.additionalNotes,
+                  }),
+                  ...(f.source ? { source: f.source } : {}),
                 },
               })),
             }

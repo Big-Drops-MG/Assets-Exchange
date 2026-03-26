@@ -19,8 +19,8 @@
 
 import * as Accordion from "@radix-ui/react-accordion";
 import { ChevronDown, ChevronUp, Download, Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState, useCallback, useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 
 import { getVariables } from "@/components/_variables/variables";
@@ -35,6 +35,7 @@ import {
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import MultipleCreativesModal from "@/features/publisher/components/form/_modals/MultipleCreativesModal";
 import SingleCreativeViewModal from "@/features/publisher/components/form/_modals/SingleCreativeViewModal";
+import type { CreativeFile } from "@/features/publisher/view-models/multipleCreativesModal.viewModel";
 
 import {
   approveResponse,
@@ -302,6 +303,9 @@ export function RequestItem({
   isAdvertiserView = false,
 }: RequestItemProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const resumeSendBackMulti = searchParams.get("resumeSendBackMulti");
   const variables = getVariables();
   const accordionColors = getAccordionColors(colorVariant, variables.colors);
 
@@ -328,6 +332,50 @@ export function RequestItem({
   const [viewData, setViewData] = useState<RequestViewData | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isViewLoading, setIsViewLoading] = useState(false);
+  const [reviewSendBackMulti, setReviewSendBackMulti] = useState<{
+    creatives: CreativeFile[];
+    creativeType: string;
+  } | null>(null);
+  const [isSendingBackFromModal, setIsSendingBackFromModal] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const fromUrl = resumeSendBackMulti === request.id;
+    const rid = sessionStorage.getItem("resumeSendBackMultiModalRequestId");
+    const fromStorage = rid === request.id;
+    if (!fromUrl && !fromStorage) return;
+    if (fromStorage) {
+      sessionStorage.removeItem("resumeSendBackMultiModalRequestId");
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await fetchRequestViewData(request.id);
+        if (cancelled || !data) return;
+        if (data.type === "multiple" && data.creatives.length > 0) {
+          setReviewSendBackMulti({
+            creatives: data.creatives as CreativeFile[],
+            creativeType: data.creativeType,
+          });
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        if (fromUrl && !cancelled) {
+          const next = new URL(window.location.href);
+          if (next.searchParams.has("resumeSendBackMulti")) {
+            next.searchParams.delete("resumeSendBackMulti");
+            router.replace(next.pathname + next.search + next.hash, {
+              scroll: false,
+            });
+          }
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [request.id, resumeSendBackMulti, router]);
 
   // Character count for comments
   const rejectCommentsLength = useMemo(() => {
@@ -406,6 +454,36 @@ export function RequestItem({
     [hasUnsavedSendBackComments]
   );
 
+  const handleSendBackFromMultiModal = useCallback(async () => {
+    setIsSendingBackFromModal(true);
+    setError(null);
+    try {
+      if (isAdvertiserView) {
+        await returnResponse(request.id, "Please review the annotated files.");
+        onStatusUpdate?.(request.id, "sent-back", "advertiser");
+      } else {
+        await returnRequest(request.id, "Please review the annotated files.");
+        onStatusUpdate?.(request.id, "sent-back", "admin");
+      }
+      toast.success("Request sent back to publisher", {
+        description:
+          "The request has been sent back to the publisher for revision.",
+      });
+      setReviewSendBackMulti(null);
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Failed to send back request. Please try again.";
+      setError(errorMessage);
+      toast.error("Failed to send back request", {
+        description: errorMessage,
+      });
+    } finally {
+      setIsSendingBackFromModal(false);
+    }
+  }, [request.id, isAdvertiserView, onStatusUpdate]);
+
   const handleViewRequest = async () => {
     setIsViewLoading(true);
     try {
@@ -433,6 +511,20 @@ export function RequestItem({
 
       if (!data) {
         toast.error("Failed to load request data");
+        return;
+      }
+
+      if (
+        action === "send-back" &&
+        data.type === "multiple" &&
+        data.creatives.length > 0
+      ) {
+        setReviewSendBackMulti({
+          creatives: data.creatives as CreativeFile[],
+          creativeType: data.creativeType,
+        });
+        setRejectPopoverOpen(false);
+        setSendBackPopoverOpen(false);
         return;
       }
 
@@ -1634,6 +1726,21 @@ export function RequestItem({
           creatives={viewData.creatives}
           onRemoveCreative={() => {}}
           creativeType={viewData.creativeType}
+        />
+      )}
+
+      {reviewSendBackMulti && (
+        <MultipleCreativesModal
+          isOpen={!!reviewSendBackMulti}
+          onClose={() => setReviewSendBackMulti(null)}
+          creatives={reviewSendBackMulti.creatives}
+          onRemoveCreative={() => {}}
+          creativeType={reviewSendBackMulti.creativeType}
+          viewOnly
+          annotateForSendBackRequestId={request.id}
+          annotateReturnPath={pathname}
+          onSendBack={handleSendBackFromMultiModal}
+          isSendingBack={isSendingBackFromModal}
         />
       )}
     </Accordion.Item>

@@ -13,10 +13,15 @@ export default async function AnnotatePage({
   searchParams,
 }: {
   params: Promise<{ creativeID: string }>;
-  searchParams: Promise<{ requestId?: string; action?: string; mode?: string }>;
+  searchParams: Promise<{
+    requestId?: string;
+    action?: string;
+    mode?: string;
+    multi?: string;
+  }>;
 }) {
   const { creativeID } = await params;
-  const { requestId, action, mode } = await searchParams;
+  const { requestId, action, mode, multi } = await searchParams;
   const isShareableView = mode === "view";
 
   const session = await auth.api.getSession({
@@ -76,6 +81,7 @@ export default async function AnnotatePage({
       action={
         action === "send-back" || action === "reject" ? action : undefined
       }
+      isMultiReview={multi === "1"}
       readOnly={isViewOnly}
       userRole={userRole}
     />
