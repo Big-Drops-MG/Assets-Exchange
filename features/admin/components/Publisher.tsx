@@ -57,6 +57,7 @@ import {
 import {
   EntityDataTable,
   EntityDataCard,
+  entityTableGridTemplateColumns,
 } from "@/features/dashboard/components/EntityDataTable";
 
 import type { Publisher as PublisherType } from "../types/publisher.types";
@@ -291,10 +292,11 @@ export function Publisher() {
                 >
                   <button
                     onClick={() => setActiveCategory("status")}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${activeCategory === "status"
-                      ? "bg-gray-100 text-gray-900 font-medium"
-                      : "text-gray-700 hover:bg-gray-50"
-                      }`}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${
+                      activeCategory === "status"
+                        ? "bg-gray-100 text-gray-900 font-medium"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
                   >
                     <span>Status</span>
                     <div className="flex items-center gap-2">
@@ -324,10 +326,11 @@ export function Publisher() {
                   </button>
                   <button
                     onClick={() => setActiveCategory("platform")}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${activeCategory === "platform"
-                      ? "bg-gray-100 text-gray-900 font-medium"
-                      : "text-gray-700 hover:bg-gray-50"
-                      }`}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${
+                      activeCategory === "platform"
+                        ? "bg-gray-100 text-gray-900 font-medium"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
                   >
                     <span>Platform</span>
                     <div className="flex items-center gap-2">
@@ -357,10 +360,11 @@ export function Publisher() {
                   </button>
                   <button
                     onClick={() => setActiveCategory("creationMethod")}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${activeCategory === "creationMethod"
-                      ? "bg-gray-100 text-gray-900 font-medium"
-                      : "text-gray-700 hover:bg-gray-50"
-                      }`}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${
+                      activeCategory === "creationMethod"
+                        ? "bg-gray-100 text-gray-900 font-medium"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
                   >
                     <span>Creation Method</span>
                     <div className="flex items-center gap-2">
@@ -390,10 +394,11 @@ export function Publisher() {
                   </button>
                   <button
                     onClick={() => setActiveCategory("sortBy")}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${activeCategory === "sortBy"
-                      ? "bg-gray-100 text-gray-900 font-medium"
-                      : "text-gray-700 hover:bg-gray-50"
-                      }`}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${
+                      activeCategory === "sortBy"
+                        ? "bg-gray-100 text-gray-900 font-medium"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
                   >
                     <span>Sort By</span>
                     <ChevronRight className="h-4 w-4 text-gray-400" />
@@ -412,10 +417,11 @@ export function Publisher() {
                               setIsFilterOpen(false);
                               setActiveCategory(null);
                             }}
-                            className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${statusFilter === status
-                              ? "bg-gray-100 text-gray-900 font-medium"
-                              : "text-gray-600 hover:bg-gray-50"
-                              }`}
+                            className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
+                              statusFilter === status
+                                ? "bg-gray-100 text-gray-900 font-medium"
+                                : "text-gray-600 hover:bg-gray-50"
+                            }`}
                           >
                             {status}
                           </button>
@@ -439,10 +445,11 @@ export function Publisher() {
                               setIsFilterOpen(false);
                               setActiveCategory(null);
                             }}
-                            className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${platformFilter === platform
-                              ? "bg-gray-100 text-gray-900 font-medium"
-                              : "text-gray-600 hover:bg-gray-50"
-                              }`}
+                            className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
+                              platformFilter === platform
+                                ? "bg-gray-100 text-gray-900 font-medium"
+                                : "text-gray-600 hover:bg-gray-50"
+                            }`}
                           >
                             {platform}
                           </button>
@@ -462,10 +469,11 @@ export function Publisher() {
                               setIsFilterOpen(false);
                               setActiveCategory(null);
                             }}
-                            className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${creationMethodFilter === method
-                              ? "bg-gray-100 text-gray-900 font-medium"
-                              : "text-gray-600 hover:bg-gray-50"
-                              }`}
+                            className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
+                              creationMethodFilter === method
+                                ? "bg-gray-100 text-gray-900 font-medium"
+                                : "text-gray-600 hover:bg-gray-50"
+                            }`}
                           >
                             {method}
                           </button>
@@ -483,10 +491,11 @@ export function Publisher() {
                               setIsFilterOpen(false);
                               setActiveCategory(null);
                             }}
-                            className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${sortByFilter === sort
-                              ? "bg-gray-100 text-gray-900 font-medium"
-                              : "text-gray-600 hover:bg-gray-50"
-                              }`}
+                            className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
+                              sortByFilter === sort
+                                ? "bg-gray-100 text-gray-900 font-medium"
+                                : "text-gray-600 hover:bg-gray-50"
+                            }`}
                           >
                             {sort}
                           </button>
@@ -548,6 +557,7 @@ export function Publisher() {
             createdMethod={publisher.createdMethod}
             status={publisher.status}
             variant={index % 2 === 0 ? "purple" : "blue"}
+            gridTemplateColumns={entityTableGridTemplateColumns(columns)}
             onEditDetails={() => handleEditDetails(publisher.id)}
             onBrandGuidelines={() => handleBrandGuidelines(publisher.id)}
           />

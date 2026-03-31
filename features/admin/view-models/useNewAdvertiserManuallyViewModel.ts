@@ -27,7 +27,7 @@ export function useNewAdvertiserManuallyViewModel() {
         const createdAdvertiser = await createAdvertiser({
           id: formData.advertiserId.trim(),
           name: formData.companyName.trim(),
-          contactEmail: formData.email.trim(),
+          contactEmail: formData.email.trim() || undefined,
         });
 
         return createdAdvertiser;

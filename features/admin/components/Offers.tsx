@@ -85,6 +85,7 @@ import { useGlobalSync } from "@/features/admin/context/GlobalSyncContext";
 import {
   EntityDataTable,
   EntityDataCard,
+  entityTableGridTemplateColumns,
 } from "@/features/dashboard/components/EntityDataTable";
 
 import type { Offer as OfferType } from "../types/offer.types";
@@ -854,11 +855,14 @@ export function Offers({ userRole }: OffersProps) {
 
         {isLoading ? (
           <div className="w-full">
-            <div className="rounded-t-2xl px-5 py-4 border-b">
+            <div
+              className="rounded-t-2xl px-5 py-4 border border-transparent border-b box-border"
+              style={{ borderBottomColor: variables.colors.inputBorderColor }}
+            >
               <div
-                className="grid items-center"
+                className="grid items-center min-w-0"
                 style={{
-                  gridTemplateColumns: "200px 1.8fr 1fr 1fr 1fr 1fr",
+                  gridTemplateColumns: entityTableGridTemplateColumns(columns),
                   gap: "1.5rem",
                 }}
               >
@@ -894,9 +898,7 @@ export function Offers({ userRole }: OffersProps) {
                 status={offer.status}
                 visibility={offer.visibility}
                 variant={index % 2 === 0 ? "purple" : "blue"}
-                gridTemplateColumns={columns
-                  .map((col) => col.width || "1fr")
-                  .join(" ")}
+                gridTemplateColumns={entityTableGridTemplateColumns(columns)}
                 onEditDetails={
                   isAdmin ? () => handleEditDetails(offer.id) : undefined
                 }

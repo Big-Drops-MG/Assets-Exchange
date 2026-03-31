@@ -40,6 +40,7 @@ import { useGlobalSync } from "@/features/admin/context/GlobalSyncContext";
 import {
   EntityDataTable,
   EntityDataCard,
+  entityTableGridTemplateColumns,
 } from "@/features/dashboard/components/EntityDataTable";
 
 import type { Advertiser as AdvertiserType } from "../types/advertiser.types";
@@ -87,7 +88,11 @@ export function Advertiser() {
   const [selectedAdvertiserIdForEdit, setSelectedAdvertiserIdForEdit] =
     useState<string | null>(null);
 
-  const { advertisers: advertisersSync, startSync, cancelSync } = useGlobalSync();
+  const {
+    advertisers: advertisersSync,
+    startSync,
+    cancelSync,
+  } = useGlobalSync();
 
   const isSyncActive = advertisersSync.active;
   const syncStatus = isSyncActive ? advertisersSync.status : "idle";
@@ -109,7 +114,6 @@ export function Advertiser() {
       refresh(debouncedSearchQuery);
     }
   }, [isSyncActive, syncStatus, refresh, debouncedSearchQuery]);
-
 
   const columns = useMemo(
     () => [
@@ -134,7 +138,8 @@ export function Advertiser() {
             (advertiser.advPlatform || "").toLowerCase().includes(query);
 
           const matchesStatus =
-            !statusFilter || advertiser.status === statusFilter;
+            !statusFilter ||
+            advertiser.status.toLowerCase() === statusFilter.toLowerCase();
           const matchesPlatform =
             !platformFilter || advertiser.advPlatform === platformFilter;
           const matchesCreationMethod =
@@ -228,7 +233,7 @@ export function Advertiser() {
 
   /**
    * Edit Advertiser Details Handler
-   * 
+   *
    * GET /api/admin/advertisers/:id is implemented
    * PUT /api/admin/advertisers/:id is implemented
    */
@@ -239,7 +244,7 @@ export function Advertiser() {
 
   /**
    * Brand Guidelines Handler
-   * 
+   *
    * GET /api/admin/advertisers/:id/brand-guidelines is implemented
    * PUT /api/admin/advertisers/:id/brand-guidelines is implemented (URL/text types)
    * File uploads pending Phase 8.1
@@ -389,14 +394,17 @@ export function Advertiser() {
                     )}
                   </span>
                   <span className="text-slate-500 text-[10px] font-mono tabular-nums tracking-tight whitespace-nowrap">
-                    {syncProgress.toLocaleString()} / {syncTotal > 0 ? syncTotal.toLocaleString() : "--"}
+                    {syncProgress.toLocaleString()} /{" "}
+                    {syncTotal > 0 ? syncTotal.toLocaleString() : "--"}
                   </span>
                 </div>
 
                 <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden ring-1 ring-slate-50">
                   <div
                     className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 bg-[length:200%_100%] animate-[shimmer_2s_infinite] rounded-full transition-all duration-500 ease-out shadow-[0_0_8px_rgba(99,102,241,0.4)]"
-                    style={{ width: `${Math.min(100, Math.max(0, (syncProgress / (syncTotal || 1)) * 100))}%` }}
+                    style={{
+                      width: `${Math.min(100, Math.max(0, (syncProgress / (syncTotal || 1)) * 100))}%`,
+                    }}
                   />
                 </div>
               </div>
@@ -471,10 +479,11 @@ export function Advertiser() {
                 >
                   <button
                     onClick={() => setActiveCategory("status")}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${activeCategory === "status"
-                      ? "bg-gray-100 text-gray-900 font-medium"
-                      : "text-gray-700 hover:bg-gray-50"
-                      }`}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${
+                      activeCategory === "status"
+                        ? "bg-gray-100 text-gray-900 font-medium"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
                   >
                     <span>Status</span>
                     <div className="flex items-center gap-2">
@@ -504,10 +513,11 @@ export function Advertiser() {
                   </button>
                   <button
                     onClick={() => setActiveCategory("platform")}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${activeCategory === "platform"
-                      ? "bg-gray-100 text-gray-900 font-medium"
-                      : "text-gray-700 hover:bg-gray-50"
-                      }`}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${
+                      activeCategory === "platform"
+                        ? "bg-gray-100 text-gray-900 font-medium"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
                   >
                     <span>Platform</span>
                     <div className="flex items-center gap-2">
@@ -537,10 +547,11 @@ export function Advertiser() {
                   </button>
                   <button
                     onClick={() => setActiveCategory("creationMethod")}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${activeCategory === "creationMethod"
-                      ? "bg-gray-100 text-gray-900 font-medium"
-                      : "text-gray-700 hover:bg-gray-50"
-                      }`}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${
+                      activeCategory === "creationMethod"
+                        ? "bg-gray-100 text-gray-900 font-medium"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
                   >
                     <span>Creation Method</span>
                     <div className="flex items-center gap-2">
@@ -570,10 +581,11 @@ export function Advertiser() {
                   </button>
                   <button
                     onClick={() => setActiveCategory("sortBy")}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${activeCategory === "sortBy"
-                      ? "bg-gray-100 text-gray-900 font-medium"
-                      : "text-gray-700 hover:bg-gray-50"
-                      }`}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-md text-sm transition-colors ${
+                      activeCategory === "sortBy"
+                        ? "bg-gray-100 text-gray-900 font-medium"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
                   >
                     <span>Sort By</span>
                     <ChevronRight className="h-4 w-4 text-gray-400" />
@@ -592,10 +604,11 @@ export function Advertiser() {
                               setIsFilterOpen(false);
                               setActiveCategory(null);
                             }}
-                            className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${statusFilter === status
-                              ? "bg-gray-100 text-gray-900 font-medium"
-                              : "text-gray-600 hover:bg-gray-50"
-                              }`}
+                            className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
+                              statusFilter === status
+                                ? "bg-gray-100 text-gray-900 font-medium"
+                                : "text-gray-600 hover:bg-gray-50"
+                            }`}
                           >
                             {status}
                           </button>
@@ -611,10 +624,11 @@ export function Advertiser() {
                             setIsFilterOpen(false);
                             setActiveCategory(null);
                           }}
-                          className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${platformFilter === "Everflow"
-                            ? "bg-gray-100 text-gray-900 font-medium"
-                            : "text-gray-600 hover:bg-gray-50"
-                            }`}
+                          className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
+                            platformFilter === "Everflow"
+                              ? "bg-gray-100 text-gray-900 font-medium"
+                              : "text-gray-600 hover:bg-gray-50"
+                          }`}
                         >
                           Everflow
                         </button>
@@ -633,10 +647,11 @@ export function Advertiser() {
                               setIsFilterOpen(false);
                               setActiveCategory(null);
                             }}
-                            className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${creationMethodFilter === method
-                              ? "bg-gray-100 text-gray-900 font-medium"
-                              : "text-gray-600 hover:bg-gray-50"
-                              }`}
+                            className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
+                              creationMethodFilter === method
+                                ? "bg-gray-100 text-gray-900 font-medium"
+                                : "text-gray-600 hover:bg-gray-50"
+                            }`}
                           >
                             {method}
                           </button>
@@ -654,10 +669,11 @@ export function Advertiser() {
                               setIsFilterOpen(false);
                               setActiveCategory(null);
                             }}
-                            className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${sortByFilter === sort
-                              ? "bg-gray-100 text-gray-900 font-medium"
-                              : "text-gray-600 hover:bg-gray-50"
-                              }`}
+                            className={`w-full text-left px-4 py-2.5 rounded-md text-sm transition-colors ${
+                              sortByFilter === sort
+                                ? "bg-gray-100 text-gray-900 font-medium"
+                                : "text-gray-600 hover:bg-gray-50"
+                            }`}
                           >
                             {sort}
                           </button>
@@ -712,9 +728,9 @@ export function Advertiser() {
         <div className="w-full">
           <div className="rounded-t-2xl px-5 py-4 border-b">
             <div
-              className="grid items-center"
+              className="grid items-center min-w-0"
               style={{
-                gridTemplateColumns: "200px 1.8fr 1fr 1.2fr 1fr 1.8fr",
+                gridTemplateColumns: entityTableGridTemplateColumns(columns),
                 gap: "1.5rem",
               }}
             >
@@ -744,16 +760,13 @@ export function Advertiser() {
           renderRow={(advertiser: AdvertiserType, index: number) => (
             <EntityDataCard
               id={advertiser.advertiserId}
-              displayId={advertiser.advertiserId !== advertiser.id ? advertiser.id : undefined}
               name={advertiser.advertiserName}
               platform={advertiser.advPlatform}
               createdMethod={advertiser.createdMethod}
               status={advertiser.status}
               variant={index % 2 === 0 ? "purple" : "blue"}
               nameAlign="center"
-              gridTemplateColumns={columns
-                .map((col) => col.width || "1fr")
-                .join(" ")}
+              gridTemplateColumns={entityTableGridTemplateColumns(columns)}
               actionButtonsLayout="row"
               onEditDetails={() => handleEditDetails(advertiser.id)}
               onBrandGuidelines={() => handleBrandGuidelines(advertiser.id)}
@@ -808,10 +821,11 @@ export function Advertiser() {
                         setCurrentPage((prev) => prev - 1);
                       }
                     }}
-                    className={`transition-all duration-200 ${currentPage === 1
-                      ? "pointer-events-none opacity-40 cursor-not-allowed"
-                      : "cursor-pointer hover:bg-gray-100"
-                      }`}
+                    className={`transition-all duration-200 ${
+                      currentPage === 1
+                        ? "pointer-events-none opacity-40 cursor-not-allowed"
+                        : "cursor-pointer hover:bg-gray-100"
+                    }`}
                     style={{
                       color:
                         currentPage === 1
@@ -831,10 +845,11 @@ export function Advertiser() {
                           setCurrentPage(page);
                         }}
                         isActive={currentPage === page}
-                        className={`transition-all duration-200 min-w-9 h-9 flex items-center justify-center font-inter text-sm ${currentPage === page
-                          ? "cursor-default"
-                          : "cursor-pointer hover:bg-gray-100"
-                          }`}
+                        className={`transition-all duration-200 min-w-9 h-9 flex items-center justify-center font-inter text-sm ${
+                          currentPage === page
+                            ? "cursor-default"
+                            : "cursor-pointer hover:bg-gray-100"
+                        }`}
                         style={{
                           backgroundColor:
                             currentPage === page
@@ -863,10 +878,11 @@ export function Advertiser() {
                         setCurrentPage((prev) => prev + 1);
                       }
                     }}
-                    className={`transition-all duration-200 ${currentPage === totalPages
-                      ? "pointer-events-none opacity-40 cursor-not-allowed"
-                      : "cursor-pointer hover:bg-gray-100"
-                      }`}
+                    className={`transition-all duration-200 ${
+                      currentPage === totalPages
+                        ? "pointer-events-none opacity-40 cursor-not-allowed"
+                        : "cursor-pointer hover:bg-gray-100"
+                    }`}
                     style={{
                       color:
                         currentPage === totalPages
@@ -927,27 +943,7 @@ export function Advertiser() {
         onOpenChange={setIsNewAdvertiserModalOpen}
         onSuccess={() => {
           setIsNewAdvertiserModalOpen(false);
-          /**
-           * TODO: BACKEND - Refresh Advertisers List After Creation
-           *
-           * After successfully creating a new advertiser, refresh the list:
-           * 1. Call getAllAdvertisers() to fetch updated list
-           * 2. Update the advertisers state
-           * 3. Reset filters if needed
-           * 4. Show success notification
-           * 5. Optionally navigate to the newly created advertiser
-           *
-           * Implementation:
-           * ```typescript
-           * try {
-           *   const updatedAdvertisers = await getAllAdvertisers();
-           *   setAdvertisers(updatedAdvertisers);
-           *   // Show success toast
-           * } catch (error) {
-           *   // Handle error
-           * }
-           * ```
-           */
+          refresh();
         }}
       />
 
@@ -959,7 +955,7 @@ export function Advertiser() {
           onSuccess={() => {
             setIsEditDetailsModalOpen(false);
             setSelectedAdvertiserIdForEdit(null);
-
+            refresh();
           }}
         />
       )}

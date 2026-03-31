@@ -73,12 +73,12 @@ export const adminMenuConfig: SidebarMenuConfig = [
       //   icon: "Mail",
       //   href: "/email-test",
       // },
-      {
-        id: "settings",
-        label: "Settings",
-        icon: "Settings2",
-        href: "/settings",
-      },
+      // {
+      //   id: "settings",
+      //   label: "Settings",
+      //   icon: "Settings2",
+      //   href: "/settings",
+      // },
     ],
   },
 ];

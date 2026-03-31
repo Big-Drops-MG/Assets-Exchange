@@ -11,7 +11,23 @@ export const brandGuidelinesSchema = z.object({
   notes: z.string().optional(),
 });
 
+/** Manual creation: user-chosen primary key (e.g. M0001). Omit to auto-generate. */
+export const manualAdvertiserIdSchema = z
+  .string()
+  .min(1, "ID is required")
+  .max(100, "ID is too long")
+  .regex(
+    /^[A-Za-z0-9][A-Za-z0-9._-]*$/,
+    "Use letters, numbers, dots, hyphens, or underscores only"
+  );
+
 export const createAdvertiserSchema = z.object({
+  id: z.preprocess((v) => {
+    if (v === undefined || v === null) return undefined;
+    if (typeof v !== "string") return undefined;
+    const t = v.trim();
+    return t === "" ? undefined : t;
+  }, manualAdvertiserIdSchema.optional()),
   name: z.string().min(1, "Name is required").max(100),
   contactEmail: z.string().email().optional().or(z.literal("")),
   status: z.enum(["active", "inactive"]).optional(),

@@ -148,7 +148,7 @@ export function EditDetailsModal({
             );
 
             const initialData: EditOfferFormData = {
-              offerId: fetchedOffer.id,
+              offerId: fetchedOffer.offerId,
               offerName: fetchedOffer.offerName,
               status:
                 fetchedOffer.status.toLowerCase() === "active"
@@ -514,7 +514,7 @@ export function EditDetailsModal({
                               type="button"
                               onClick={() => {
                                 if (offer) {
-                                  updateFormField("offerId", offer.id);
+                                  updateFormField("offerId", offer.offerId);
                                 }
                                 setIsEditingOfferId(false);
                               }}
@@ -545,7 +545,7 @@ export function EditDetailsModal({
                         ) : (
                           <div className="font-inter text-sm flex items-center gap-2 w-full min-h-10 px-3 py-2 rounded-md bg-muted/30">
                             <span className="flex-1 font-medium">
-                              {offer.id}
+                              {formData.offerId}
                             </span>
                             {!isApiSource(offer.createdMethod) && (
                               <button

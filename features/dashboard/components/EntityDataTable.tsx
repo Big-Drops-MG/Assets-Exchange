@@ -12,16 +12,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-
 interface EntityDataTableColumn {
   header: string;
   width?: string;
   align?: "left" | "center" | "right";
+}
+
+/** Same width math as data rows: fr tracks use minmax(0, …) so columns line up with bordered cards. */
+export function entityTableGridTemplateColumns(
+  columns: EntityDataTableColumn[]
+): string {
+  return columns
+    .map((col) => {
+      const w = col.width || "1fr";
+      if (/^\d*\.?\d+fr$/.test(w.trim())) {
+        return `minmax(0, ${w.trim()})`;
+      }
+      return w;
+    })
+    .join(" ");
 }
 
 interface EntityDataTableProps<T> {
@@ -36,29 +45,28 @@ export function EntityDataTable<T>({
   renderRow,
 }: EntityDataTableProps<T>) {
   const variables = getVariables();
+  const gridTemplateColumns = entityTableGridTemplateColumns(columns);
 
   return (
     <div className="w-full">
       <div
-        className="rounded-t-2xl px-5 py-4 border-b"
+        className="rounded-t-2xl px-5 py-4 box-border border border-transparent border-b"
         style={{
           backgroundColor: variables.colors.cardHeaderBackgroundColor,
-          borderColor: variables.colors.cardHeaderBackgroundColor,
+          borderBottomColor: variables.colors.inputBorderColor,
         }}
       >
         <div
-          className="grid items-center"
+          className="grid items-center min-w-0"
           style={{
-            gridTemplateColumns: columns
-              .map((col) => col.width || "1fr")
-              .join(" "),
+            gridTemplateColumns,
             gap: "1.5rem",
           }}
         >
           {columns.map((column, index) => (
             <div
               key={index}
-              className={`font-inter font-semibold text-xs xl:text-sm tracking-wide ${
+              className={`min-w-0 font-inter font-semibold text-xs xl:text-sm tracking-wide ${
                 column.align === "left"
                   ? "text-left"
                   : column.align === "right"
@@ -165,7 +173,6 @@ interface EntityDataCardProps {
   nameAlign?: "left" | "center" | "right";
   gridTemplateColumns?: string;
   actionButtonsLayout?: "row" | "col";
-  displayId?: string;
   onEditDetails?: () => void;
   onBrandGuidelines?: () => void;
   onVisibilityChange?: (visibility: "Public" | "Internal" | "Hidden") => void;
@@ -184,7 +191,6 @@ export const EntityDataCard = memo(
     nameAlign = "left",
     gridTemplateColumns = "100px 2.5fr 1fr 1fr 140px 340px",
     actionButtonsLayout = "col",
-    displayId,
     onEditDetails,
     onBrandGuidelines,
     onVisibilityChange,
@@ -215,35 +221,21 @@ export const EntityDataCard = memo(
         }}
       >
         <div
-          className="grid items-center"
+          className="grid items-center min-w-0"
           style={{
             gridTemplateColumns,
             gap: "1.5rem",
           }}
         >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div
-                className="text-center text-xs xl:text-sm font-medium leading-relaxed font-mono truncate cursor-help"
-                style={{ color: variables.colors.requestCardTextColor }}
-              >
-                {id}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <div className="font-mono text-xs space-y-1">
-                <p>{id}</p>
-                {displayId && displayId !== id && (
-                  <p className="text-muted-foreground text-[10px]">
-                    Internal ID: {displayId}
-                  </p>
-                )}
-              </div>
-            </TooltipContent>
-          </Tooltip>
+          <div
+            className="min-w-0 text-center text-xs xl:text-sm font-medium leading-relaxed font-mono truncate"
+            style={{ color: variables.colors.requestCardTextColor }}
+          >
+            {id}
+          </div>
 
           <div
-            className={`font-inter text-xs xl:text-sm leading-relaxed ${
+            className={`min-w-0 font-inter text-xs xl:text-sm leading-relaxed ${
               nameAlign === "center"
                 ? "text-center"
                 : nameAlign === "right"
@@ -256,20 +248,20 @@ export const EntityDataCard = memo(
           </div>
 
           <div
-            className="font-inter text-center text-xs xl:text-sm leading-relaxed"
+            className="min-w-0 font-inter text-center text-xs xl:text-sm leading-relaxed"
             style={{ color: variables.colors.requestCardTextColor }}
           >
             {advName || platform}
           </div>
 
           <div
-            className="font-inter text-center text-xs xl:text-sm leading-relaxed"
+            className="min-w-0 font-inter text-center text-xs xl:text-sm leading-relaxed"
             style={{ color: variables.colors.requestCardTextColor }}
           >
             {createdMethod}
           </div>
 
-          <div className="flex flex-col gap-2.5 justify-center items-center">
+          <div className="flex min-w-0 flex-col gap-2.5 justify-center items-center">
             <Badge
               className="h-7 w-28 p-0 text-xs xl:text-sm font-medium rounded-[20px] border flex items-center justify-center transition-all duration-200 hover:scale-105"
               style={{
@@ -297,7 +289,7 @@ export const EntityDataCard = memo(
           </div>
 
           <div
-            className={`flex ${actionButtonsLayout === "row" ? "flex-row" : "flex-col"} gap-2.5 items-center justify-center`}
+            className={`flex min-w-0 ${actionButtonsLayout === "row" ? "flex-row" : "flex-col"} flex-wrap gap-2.5 items-center justify-center`}
           >
             {onEditDetails && (
               <Button

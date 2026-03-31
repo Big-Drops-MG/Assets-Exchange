@@ -1,7 +1,17 @@
 "use client";
 
-import { Eye, EyeOff, Loader2, Pencil, Check, X as XIcon } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  Pencil,
+  Check,
+  X as XIcon,
+  Trash2,
+  RefreshCw,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { getVariables } from "@/components/_variables";
 import { Button } from "@/components/ui/button";
@@ -17,18 +27,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import {
   getAdvertiser,
   updateAdvertiser,
+  deleteAdvertiser,
 } from "../services/advertisers.client";
 import type { Advertiser } from "../types/advertiser.types";
 
@@ -43,9 +47,19 @@ interface EditAdvertiserFormData {
   advertiserId: string;
   advertiserName: string;
   status: "Active" | "Inactive";
-  advPlatform: string;
   email: string;
   password: string;
+}
+
+function generatePassword(): string {
+  const length = 8;
+  const charset =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += charset.charAt(Math.floor(Math.random() * charset.length));
+  }
+  return password;
 }
 
 export function AdvertiserDetailsModal({
@@ -62,9 +76,9 @@ export function AdvertiserDetailsModal({
   };
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [advertiser, setAdvertiser] = useState<Advertiser | null>(null);
-  const [isEditingAdvertiserId, setIsEditingAdvertiserId] = useState(false);
   const [isEditingAdvertiserName, setIsEditingAdvertiserName] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [isEditingPassword, setIsEditingPassword] = useState(false);
@@ -74,7 +88,6 @@ export function AdvertiserDetailsModal({
     advertiserId: "",
     advertiserName: "",
     status: "Active",
-    advPlatform: "Everflow",
     email: "",
     password: "",
   });
@@ -86,6 +99,17 @@ export function AdvertiserDetailsModal({
     Partial<Record<keyof EditAdvertiserFormData, string>>
   >({});
   const [internalOpen, setInternalOpen] = useState(open);
+  const [showApiCredentialInputs, setShowApiCredentialInputs] = useState(false);
+
+  const needsApiCredentialGate = useMemo(
+    () =>
+      Boolean(
+        advertiser &&
+        isApiSource(advertiser.createdMethod) &&
+        !advertiser.contactEmail?.trim()
+      ),
+    [advertiser]
+  );
 
   const hasUnsavedChanges = useMemo(() => {
     if (!initialFormData) return false;
@@ -144,17 +168,19 @@ export function AdvertiserDetailsModal({
               advertiserId: fetchedAdvertiser.id,
               advertiserName: fetchedAdvertiser.advertiserName,
               status,
-              advPlatform: fetchedAdvertiser.advPlatform,
               email: fetchedAdvertiser.contactEmail || "",
               password: "",
             };
             setFormData(initialData);
             setInitialFormData(initialData);
-            setIsEditingAdvertiserId(false);
             setIsEditingAdvertiserName(false);
             setIsEditingEmail(false);
             setIsEditingPassword(false);
             setShowPassword(false);
+            const apiMissingEmail =
+              isApiSource(fetchedAdvertiser.createdMethod) &&
+              !fetchedAdvertiser.contactEmail?.trim();
+            setShowApiCredentialInputs(!apiMissingEmail);
           } else {
             setError("Advertiser not found");
           }
@@ -213,22 +239,31 @@ export function AdvertiserDetailsModal({
       }
     }
 
-    if (
-      formData.email.trim() &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
-    ) {
-      errors.email = "Please enter a valid email address";
-    }
-    if (
-      isEditingPassword &&
-      formData.password.trim() &&
-      formData.password.length < 8
-    ) {
-      errors.password = "Password must be at least 8 characters";
-    }
-
-    if (!formData.advPlatform.trim()) {
-      errors.advPlatform = "Platform is required";
+    if (needsApiCredentialGate && showApiCredentialInputs) {
+      if (!formData.email.trim()) {
+        errors.email = "Email is required";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        errors.email = "Please enter a valid email address";
+      }
+      if (!formData.password.trim()) {
+        errors.password = "Password is required";
+      } else if (formData.password.length < 8) {
+        errors.password = "Password must be at least 8 characters";
+      }
+    } else {
+      if (
+        formData.email.trim() &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
+      ) {
+        errors.email = "Please enter a valid email address";
+      }
+      if (
+        isEditingPassword &&
+        formData.password.trim() &&
+        formData.password.length < 8
+      ) {
+        errors.password = "Password must be at least 8 characters";
+      }
     }
 
     setValidationErrors(errors);
@@ -293,6 +328,10 @@ export function AdvertiserDetailsModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (needsApiCredentialGate && !showApiCredentialInputs) {
+      return;
+    }
+
     if (!validateForm() || !advertiser) {
       return;
     }
@@ -346,9 +385,39 @@ export function AdvertiserDetailsModal({
     }
   };
 
+  const handleDelete = async () => {
+    if (!advertiser) return;
+    await confirmDialog({
+      title: "Delete Advertiser",
+      description: `Are you sure you want to delete "${advertiser.advertiserName}"? This action cannot be undone.`,
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      variant: "destructive",
+      onConfirm: async () => {
+        try {
+          setIsDeleting(true);
+          await deleteAdvertiser(advertiser.id);
+          toast.success("Advertiser deleted", {
+            description: `${advertiser.advertiserName} has been removed.`,
+          });
+          setInternalOpen(false);
+          onOpenChange(false);
+          onSuccess?.();
+        } catch (err) {
+          toast.error("Failed to delete advertiser", {
+            description:
+              err instanceof Error ? err.message : "Please try again.",
+          });
+        } finally {
+          setIsDeleting(false);
+        }
+      },
+    });
+  };
+
   const handleOpenChange = useCallback(
     async (newOpen: boolean) => {
-      if (isSubmitting) {
+      if (isSubmitting || isDeleting) {
         return;
       }
 
@@ -384,14 +453,14 @@ export function AdvertiserDetailsModal({
       setInternalOpen(newOpen);
       onOpenChange(newOpen);
     },
-    [isSubmitting, hasUnsavedChanges, onOpenChange]
+    [isSubmitting, isDeleting, hasUnsavedChanges, onOpenChange]
   );
 
   const handleClose = useCallback(() => {
-    if (!isSubmitting) {
+    if (!isSubmitting && !isDeleting) {
       onOpenChange(false);
     }
-  }, [isSubmitting, onOpenChange]);
+  }, [isSubmitting, isDeleting, onOpenChange]);
 
   const updateFormField = <K extends keyof EditAdvertiserFormData>(
     field: K,
@@ -405,6 +474,10 @@ export function AdvertiserDetailsModal({
         return newErrors;
       });
     }
+  };
+
+  const handleGeneratePassword = () => {
+    updateFormField("password", generatePassword());
   };
 
   return (
@@ -434,11 +507,6 @@ export function AdvertiserDetailsModal({
           .edit-advertiser-modal-input::-moz-selection {
             background-color: ${inputRingColor}40 !important;
             color: ${variables.colors.inputTextColor} !important;
-          }
-          .edit-advertiser-modal-select:focus-visible {
-            outline: none !important;
-            border-color: ${inputRingColor} !important;
-            box-shadow: 0 0 0 3px ${inputRingColor}50 !important;
           }
         `,
         }}
@@ -508,84 +576,12 @@ export function AdvertiserDetailsModal({
                         Advertiser ID
                       </Label>
                       <div className="min-h-10 flex items-center">
-                        {!isApiSource(advertiser.createdMethod) &&
-                        isEditingAdvertiserId ? (
-                          <div className="flex items-center gap-2 w-full">
-                            <Input
-                              value={formData.advertiserId}
-                              onChange={(e) =>
-                                updateFormField("advertiserId", e.target.value)
-                              }
-                              disabled={isSubmitting}
-                              className="h-10 font-inter edit-advertiser-modal-input flex-1 text-sm"
-                              style={{
-                                backgroundColor:
-                                  variables.colors.inputBackgroundColor,
-                                borderColor: variables.colors.inputBorderColor,
-                                color: variables.colors.inputTextColor,
-                              }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (advertiser) {
-                                  updateFormField(
-                                    "advertiserId",
-                                    advertiser.id
-                                  );
-                                }
-                                setIsEditingAdvertiserId(false);
-                              }}
-                              disabled={isSubmitting}
-                              className="p-1.5 rounded-md transition-colors shrink-0 border"
-                              style={{
-                                backgroundColor: "#FEE2E2",
-                                borderColor: "#EF4444",
-                                color: "#EF4444",
-                              }}
-                            >
-                              <XIcon size={16} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setIsEditingAdvertiserId(false)}
-                              disabled={isSubmitting}
-                              className="p-1.5 rounded-md transition-colors shrink-0 border"
-                              style={{
-                                backgroundColor: "#D1FAE5",
-                                borderColor: "#10B981",
-                                color: "#10B981",
-                              }}
-                            >
-                              <Check size={16} />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="font-inter text-sm flex items-center gap-2 w-full min-h-10 px-3 py-2 rounded-md bg-muted/30">
-                            <span className="flex-1 font-medium">
-                              {advertiser.id}
-                            </span>
-                            {!isApiSource(advertiser.createdMethod) && (
-                              <button
-                                type="button"
-                                onClick={() => setIsEditingAdvertiserId(true)}
-                                disabled={isSubmitting}
-                                className="p-1 rounded-md hover:bg-gray-100 transition-colors shrink-0 opacity-60 hover:opacity-100"
-                                style={{
-                                  color: variables.colors.inputTextColor,
-                                }}
-                              >
-                                <Pencil size={14} />
-                              </button>
-                            )}
-                          </div>
-                        )}
+                        <div className="font-inter text-sm flex items-center gap-2 w-full min-h-10 px-3 py-2 rounded-md bg-muted/30">
+                          <span className="flex-1 font-medium">
+                            {advertiser.id}
+                          </span>
+                        </div>
                       </div>
-                      {validationErrors.advertiserId && (
-                        <p className="text-xs text-destructive font-inter mt-1">
-                          {validationErrors.advertiserId}
-                        </p>
-                      )}
                     </div>
 
                     <div className="space-y-1.5">
@@ -593,29 +589,56 @@ export function AdvertiserDetailsModal({
                         Status
                       </Label>
                       {!isApiSource(advertiser.createdMethod) ? (
-                        <Select
-                          value={formData.status}
-                          onValueChange={(value: "Active" | "Inactive") =>
-                            updateFormField("status", value)
-                          }
-                          disabled={isSubmitting}
-                        >
-                          <SelectTrigger
-                            className="w-full h-10 font-inter edit-advertiser-modal-select text-sm"
-                            style={{
-                              backgroundColor:
-                                variables.colors.inputBackgroundColor,
-                              borderColor: variables.colors.inputBorderColor,
-                              color: variables.colors.inputTextColor,
-                            }}
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateFormField("status", "Active")}
+                            disabled={isSubmitting}
+                            className="flex-1 h-10 rounded-lg border font-inter text-sm font-medium transition-all"
+                            style={
+                              formData.status === "Active"
+                                ? {
+                                    backgroundColor: "#D1FAE5",
+                                    borderColor: "#10B981",
+                                    color: "#065F46",
+                                  }
+                                : {
+                                    backgroundColor:
+                                      variables.colors.inputBackgroundColor,
+                                    borderColor:
+                                      variables.colors.inputBorderColor,
+                                    color: variables.colors.descriptionColor,
+                                  }
+                            }
                           >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Active">Active</SelectItem>
-                            <SelectItem value="Inactive">Inactive</SelectItem>
-                          </SelectContent>
-                        </Select>
+                            Active
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateFormField("status", "Inactive")
+                            }
+                            disabled={isSubmitting}
+                            className="flex-1 h-10 rounded-lg border font-inter text-sm font-medium transition-all"
+                            style={
+                              formData.status === "Inactive"
+                                ? {
+                                    backgroundColor: "#FEE2E2",
+                                    borderColor: "#EF4444",
+                                    color: "#991B1B",
+                                  }
+                                : {
+                                    backgroundColor:
+                                      variables.colors.inputBackgroundColor,
+                                    borderColor:
+                                      variables.colors.inputBorderColor,
+                                    color: variables.colors.descriptionColor,
+                                  }
+                            }
+                          >
+                            Inactive
+                          </button>
+                        </div>
                       ) : (
                         <div className="min-h-10 flex items-center">
                           <span
@@ -715,7 +738,7 @@ export function AdvertiserDetailsModal({
                       ) : (
                         <div className="font-inter text-sm flex items-center gap-2 w-full min-h-10 px-3 py-2 rounded-md bg-muted/30">
                           <span className="flex-1 font-medium">
-                            {advertiser.advertiserName}
+                            {formData.advertiserName}
                           </span>
                           {!isApiSource(advertiser.createdMethod) && (
                             <button
@@ -743,51 +766,39 @@ export function AdvertiserDetailsModal({
 
                 <div className="border-t pt-6">
                   <div className="space-y-6">
-                    <div className="space-y-1.5">
-                      <Label
-                        htmlFor="advPlatform"
-                        className="font-inter text-xs font-medium text-muted-foreground uppercase tracking-wide"
-                      >
-                        Platform <span className="text-destructive">*</span>
-                      </Label>
-                      <Select
-                        value={formData.advPlatform}
-                        onValueChange={(value) =>
-                          updateFormField("advPlatform", value)
-                        }
-                        disabled={isSubmitting}
-                      >
-                        <SelectTrigger
-                          id="advPlatform"
-                          className="w-full h-12! font-inter edit-advertiser-modal-select"
+                    {needsApiCredentialGate && !showApiCredentialInputs ? (
+                      <div className="space-y-3">
+                        <p
+                          className="text-sm font-inter"
                           style={{
-                            backgroundColor:
-                              variables.colors.inputBackgroundColor,
-                            borderColor: variables.colors.inputBorderColor,
-                            color: variables.colors.inputTextColor,
+                            color: variables.colors.descriptionColor,
                           }}
                         >
-                          <SelectValue placeholder="Select platform" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Everflow">Everflow</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {validationErrors.advPlatform && (
-                        <p className="text-sm text-destructive font-inter">
-                          {validationErrors.advPlatform}
+                          No login email or password is set yet. Create
+                          credentials to enable advertiser access.
                         </p>
-                      )}
-                    </div>
-                    {/* Email/password fields shown for ALL advertisers */}
-                    <>
-                      <div className="space-y-1.5">
-                        <Label className="font-inter text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Email
-                        </Label>
-                        <div className="min-h-10 flex items-center">
-                          {isEditingEmail ? (
-                            <div className="flex items-center gap-2 w-full">
+                        <Button
+                          type="button"
+                          onClick={() => setShowApiCredentialInputs(true)}
+                          disabled={isSubmitting}
+                          className="h-11 font-inter text-sm"
+                          style={{
+                            backgroundColor:
+                              variables.colors.buttonDefaultBackgroundColor,
+                            color: variables.colors.buttonDefaultTextColor,
+                          }}
+                        >
+                          Create Credentials
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        {needsApiCredentialGate && showApiCredentialInputs ? (
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-4">
+                            <div className="space-y-1.5 flex-1 min-w-0">
+                              <Label className="font-inter text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Email
+                              </Label>
                               <Input
                                 type="email"
                                 value={formData.email}
@@ -795,7 +806,8 @@ export function AdvertiserDetailsModal({
                                   updateFormField("email", e.target.value)
                                 }
                                 disabled={isSubmitting}
-                                className="h-10 font-inter edit-advertiser-modal-input flex-1 text-sm"
+                                placeholder="Enter email address"
+                                className="h-12 font-inter edit-advertiser-modal-input w-full text-sm"
                                 style={{
                                   backgroundColor:
                                     variables.colors.inputBackgroundColor,
@@ -804,181 +816,311 @@ export function AdvertiserDetailsModal({
                                   color: variables.colors.inputTextColor,
                                 }}
                               />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (advertiser) {
-                                    updateFormField(
-                                      "email",
-                                      advertiser.contactEmail || ""
-                                    );
-                                  }
-                                  setIsEditingEmail(false);
-                                }}
-                                disabled={isSubmitting}
-                                className="p-1.5 rounded-md transition-colors shrink-0 border"
-                                style={{
-                                  backgroundColor: "#FEE2E2",
-                                  borderColor: "#EF4444",
-                                  color: "#EF4444",
-                                }}
-                              >
-                                <XIcon size={16} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setIsEditingEmail(false)}
-                                disabled={isSubmitting}
-                                className="p-1.5 rounded-md transition-colors shrink-0 border"
-                                style={{
-                                  backgroundColor: "#D1FAE5",
-                                  borderColor: "#10B981",
-                                  color: "#10B981",
-                                }}
-                              >
-                                <Check size={16} />
-                              </button>
+                              {validationErrors.email && (
+                                <p className="text-xs text-destructive font-inter mt-1">
+                                  {validationErrors.email}
+                                </p>
+                              )}
                             </div>
-                          ) : (
-                            <div className="font-inter text-sm flex items-center gap-2 w-full min-h-10 px-3 py-2 rounded-md bg-muted/30">
-                              <span className="flex-1 font-medium">
-                                {formData.email || "Not set"}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setIsEditingEmail(true)}
-                                disabled={isSubmitting}
-                                className="p-1 rounded-md hover:bg-gray-100 transition-colors shrink-0 opacity-60 hover:opacity-100"
-                                style={{
-                                  color: variables.colors.inputTextColor,
-                                }}
-                              >
-                                <Pencil size={14} />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        {validationErrors.email && (
-                          <p className="text-xs text-destructive font-inter mt-1">
-                            {validationErrors.email}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="font-inter text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Password
-                        </Label>
-                        <div className="min-h-10 flex items-center">
-                          {isEditingPassword ? (
-                            <div className="flex items-center gap-2 w-full">
-                              <div className="relative flex-1">
-                                <Input
-                                  type={showPassword ? "text" : "password"}
-                                  value={formData.password}
-                                  onChange={(e) =>
-                                    updateFormField("password", e.target.value)
-                                  }
-                                  placeholder="Enter new password (min 8 characters)"
+                            <div className="space-y-1.5 flex-1 min-w-0">
+                              <Label className="font-inter text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Password
+                              </Label>
+                              <div className="flex gap-2">
+                                <div className="relative flex-1 min-w-0">
+                                  <Input
+                                    type={showPassword ? "text" : "password"}
+                                    value={formData.password}
+                                    onChange={(e) =>
+                                      updateFormField(
+                                        "password",
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Enter password (min 8 characters)"
+                                    disabled={isSubmitting}
+                                    className="h-12 font-inter edit-advertiser-modal-input pr-10 text-sm w-full"
+                                    style={{
+                                      backgroundColor:
+                                        variables.colors.inputBackgroundColor,
+                                      borderColor:
+                                        variables.colors.inputBorderColor,
+                                      color: variables.colors.inputTextColor,
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setShowPassword(!showPassword)
+                                    }
+                                    disabled={isSubmitting}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-gray-100 transition-colors"
+                                    style={{
+                                      color: variables.colors.descriptionColor,
+                                    }}
+                                    aria-label={
+                                      showPassword
+                                        ? "Hide password"
+                                        : "Show password"
+                                    }
+                                  >
+                                    {showPassword ? (
+                                      <EyeOff className="h-4 w-4" />
+                                    ) : (
+                                      <Eye className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={handleGeneratePassword}
                                   disabled={isSubmitting}
-                                  className="h-10 font-inter edit-advertiser-modal-input pr-10 text-sm"
+                                  className="h-12 px-4 font-inter whitespace-nowrap shrink-0"
                                   style={{
                                     backgroundColor:
-                                      variables.colors.inputBackgroundColor,
+                                      variables.colors
+                                        .buttonOutlineBackgroundColor,
                                     borderColor:
-                                      variables.colors.inputBorderColor,
-                                    color: variables.colors.inputTextColor,
+                                      variables.colors.buttonOutlineBorderColor,
+                                    color:
+                                      variables.colors.buttonOutlineTextColor,
                                   }}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => setShowPassword(!showPassword)}
-                                  disabled={isSubmitting}
-                                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-gray-100 transition-colors"
+                                >
+                                  <RefreshCw className="h-4 w-4 mr-2" />
+                                  Generate
+                                </Button>
+                              </div>
+                              {validationErrors.password && (
+                                <p className="text-xs text-destructive font-inter mt-1">
+                                  {validationErrors.password}
+                                </p>
+                              )}
+                              <p
+                                className="text-xs font-inter"
+                                style={{
+                                  color: variables.colors.descriptionColor,
+                                }}
+                              >
+                                Password must be at least 8 characters long
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="space-y-1.5">
+                              <Label className="font-inter text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Email
+                              </Label>
+                              <div className="min-h-10 flex items-center">
+                                {isEditingEmail ? (
+                                  <div className="flex items-center gap-2 w-full">
+                                    <Input
+                                      type="email"
+                                      value={formData.email}
+                                      onChange={(e) =>
+                                        updateFormField("email", e.target.value)
+                                      }
+                                      disabled={isSubmitting}
+                                      className="h-10 font-inter edit-advertiser-modal-input flex-1 text-sm"
+                                      style={{
+                                        backgroundColor:
+                                          variables.colors.inputBackgroundColor,
+                                        borderColor:
+                                          variables.colors.inputBorderColor,
+                                        color: variables.colors.inputTextColor,
+                                      }}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (advertiser) {
+                                          updateFormField(
+                                            "email",
+                                            advertiser.contactEmail || ""
+                                          );
+                                        }
+                                        setIsEditingEmail(false);
+                                      }}
+                                      disabled={isSubmitting}
+                                      className="p-1.5 rounded-md transition-colors shrink-0 border"
+                                      style={{
+                                        backgroundColor: "#FEE2E2",
+                                        borderColor: "#EF4444",
+                                        color: "#EF4444",
+                                      }}
+                                    >
+                                      <XIcon size={16} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsEditingEmail(false)}
+                                      disabled={isSubmitting}
+                                      className="p-1.5 rounded-md transition-colors shrink-0 border"
+                                      style={{
+                                        backgroundColor: "#D1FAE5",
+                                        borderColor: "#10B981",
+                                        color: "#10B981",
+                                      }}
+                                    >
+                                      <Check size={16} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="font-inter text-sm flex items-center gap-2 w-full min-h-10 px-3 py-2 rounded-md bg-muted/30">
+                                    <span className="flex-1 font-medium">
+                                      {formData.email || "Not set"}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsEditingEmail(true)}
+                                      disabled={isSubmitting}
+                                      className="p-1 rounded-md hover:bg-gray-100 transition-colors shrink-0 opacity-60 hover:opacity-100"
+                                      style={{
+                                        color: variables.colors.inputTextColor,
+                                      }}
+                                    >
+                                      <Pencil size={14} />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              {validationErrors.email && (
+                                <p className="text-xs text-destructive font-inter mt-1">
+                                  {validationErrors.email}
+                                </p>
+                              )}
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="font-inter text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Password
+                              </Label>
+                              <div className="min-h-10 flex items-center">
+                                {isEditingPassword ? (
+                                  <div className="flex items-center gap-2 w-full">
+                                    <div className="relative flex-1">
+                                      <Input
+                                        type={
+                                          showPassword ? "text" : "password"
+                                        }
+                                        value={formData.password}
+                                        onChange={(e) =>
+                                          updateFormField(
+                                            "password",
+                                            e.target.value
+                                          )
+                                        }
+                                        placeholder="Enter new password (min 8 characters)"
+                                        disabled={isSubmitting}
+                                        className="h-10 font-inter edit-advertiser-modal-input pr-10 text-sm"
+                                        style={{
+                                          backgroundColor:
+                                            variables.colors
+                                              .inputBackgroundColor,
+                                          borderColor:
+                                            variables.colors.inputBorderColor,
+                                          color:
+                                            variables.colors.inputTextColor,
+                                        }}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setShowPassword(!showPassword)
+                                        }
+                                        disabled={isSubmitting}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-gray-100 transition-colors"
+                                        style={{
+                                          color:
+                                            variables.colors.descriptionColor,
+                                        }}
+                                        aria-label={
+                                          showPassword
+                                            ? "Hide password"
+                                            : "Show password"
+                                        }
+                                      >
+                                        {showPassword ? (
+                                          <EyeOff className="h-4 w-4" />
+                                        ) : (
+                                          <Eye className="h-4 w-4" />
+                                        )}
+                                      </button>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        updateFormField("password", "");
+                                        setIsEditingPassword(false);
+                                        setShowPassword(false);
+                                      }}
+                                      disabled={isSubmitting}
+                                      className="p-1.5 rounded-md transition-colors shrink-0 border"
+                                      style={{
+                                        backgroundColor: "#FEE2E2",
+                                        borderColor: "#EF4444",
+                                        color: "#EF4444",
+                                      }}
+                                    >
+                                      <XIcon size={16} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setIsEditingPassword(false);
+                                        setShowPassword(false);
+                                      }}
+                                      disabled={isSubmitting}
+                                      className="p-1.5 rounded-md transition-colors shrink-0 border"
+                                      style={{
+                                        backgroundColor: "#D1FAE5",
+                                        borderColor: "#10B981",
+                                        color: "#10B981",
+                                      }}
+                                    >
+                                      <Check size={16} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="font-inter text-sm flex items-center gap-2 w-full min-h-10 px-3 py-2 rounded-md bg-muted/30">
+                                    <span className="flex-1 font-medium">
+                                      ••••••••
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsEditingPassword(true)}
+                                      disabled={isSubmitting}
+                                      className="p-1 rounded-md hover:bg-gray-100 transition-colors shrink-0 opacity-60 hover:opacity-100"
+                                      style={{
+                                        color: variables.colors.inputTextColor,
+                                      }}
+                                    >
+                                      <Pencil size={14} />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              {validationErrors.password && (
+                                <p className="text-xs text-destructive font-inter mt-1">
+                                  {validationErrors.password}
+                                </p>
+                              )}
+                              {isEditingPassword && (
+                                <p
+                                  className="text-xs font-inter"
                                   style={{
                                     color: variables.colors.descriptionColor,
                                   }}
-                                  aria-label={
-                                    showPassword
-                                      ? "Hide password"
-                                      : "Show password"
-                                  }
                                 >
-                                  {showPassword ? (
-                                    <EyeOff className="h-4 w-4" />
-                                  ) : (
-                                    <Eye className="h-4 w-4" />
-                                  )}
-                                </button>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  updateFormField("password", "");
-                                  setIsEditingPassword(false);
-                                  setShowPassword(false);
-                                }}
-                                disabled={isSubmitting}
-                                className="p-1.5 rounded-md transition-colors shrink-0 border"
-                                style={{
-                                  backgroundColor: "#FEE2E2",
-                                  borderColor: "#EF4444",
-                                  color: "#EF4444",
-                                }}
-                              >
-                                <XIcon size={16} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setIsEditingPassword(false);
-                                  setShowPassword(false);
-                                }}
-                                disabled={isSubmitting}
-                                className="p-1.5 rounded-md transition-colors shrink-0 border"
-                                style={{
-                                  backgroundColor: "#D1FAE5",
-                                  borderColor: "#10B981",
-                                  color: "#10B981",
-                                }}
-                              >
-                                <Check size={16} />
-                              </button>
+                                  Leave blank to keep current password. Password
+                                  must be at least 8 characters.
+                                </p>
+                              )}
                             </div>
-                          ) : (
-                            <div className="font-inter text-sm flex items-center gap-2 w-full min-h-10 px-3 py-2 rounded-md bg-muted/30">
-                              <span className="flex-1 font-medium">
-                                ••••••••
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setIsEditingPassword(true)}
-                                disabled={isSubmitting}
-                                className="p-1 rounded-md hover:bg-gray-100 transition-colors shrink-0 opacity-60 hover:opacity-100"
-                                style={{
-                                  color: variables.colors.inputTextColor,
-                                }}
-                              >
-                                <Pencil size={14} />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        {validationErrors.password && (
-                          <p className="text-xs text-destructive font-inter mt-1">
-                            {validationErrors.password}
-                          </p>
+                          </>
                         )}
-                        {isEditingPassword && (
-                          <p
-                            className="text-xs font-inter"
-                            style={{ color: variables.colors.descriptionColor }}
-                          >
-                            Leave blank to keep current password. Password must
-                            be at least 8 characters.
-                          </p>
-                        )}
-                      </div>
-                    </>
+                      </>
+                    )}
                     {error && (
                       <div className="rounded-md bg-destructive/10 p-3">
                         <p className="text-sm text-destructive">{error}</p>
@@ -990,47 +1132,87 @@ export function AdvertiserDetailsModal({
             ) : null}
           </DialogBody>
 
-          <DialogFooter className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-4 px-8 py-6 pt-4 border-t">
-            <DialogClose asChild>
+          <DialogFooter
+            className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 px-8 py-6 pt-4 border-t ${
+              advertiser && !isApiSource(advertiser.createdMethod)
+                ? "sm:justify-between"
+                : "sm:justify-end"
+            }`}
+          >
+            {advertiser && !isApiSource(advertiser.createdMethod) && (
               <Button
                 type="button"
                 variant="outline"
-                disabled={isSubmitting}
-                onClick={handleClose}
-                className="w-full flex-1 h-12 font-inter text-sm"
+                onClick={handleDelete}
+                disabled={isSubmitting || isDeleting}
+                className="w-full sm:w-auto h-12 font-inter text-sm border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 hover:text-red-700"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Advertiser
+                  </>
+                )}
+              </Button>
+            )}
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 w-full sm:w-auto">
+              <DialogClose asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isSubmitting || isDeleting}
+                  onClick={handleClose}
+                  className="w-full sm:w-auto h-12 font-inter text-sm"
+                  style={{
+                    backgroundColor:
+                      variables.colors.buttonOutlineBackgroundColor,
+                    borderColor: variables.colors.buttonOutlineBorderColor,
+                    color: variables.colors.buttonOutlineTextColor,
+                  }}
+                >
+                  Cancel
+                </Button>
+              </DialogClose>
+
+              <Button
+                type="submit"
+                disabled={
+                  isSubmitting ||
+                  isDeleting ||
+                  (needsApiCredentialGate && !showApiCredentialInputs)
+                }
+                className="w-full sm:w-auto h-12 font-inter text-sm"
                 style={{
                   backgroundColor:
-                    variables.colors.buttonOutlineBackgroundColor,
-                  borderColor: variables.colors.buttonOutlineBorderColor,
-                  color: variables.colors.buttonOutlineTextColor,
+                    isSubmitting ||
+                    isDeleting ||
+                    (needsApiCredentialGate && !showApiCredentialInputs)
+                      ? variables.colors.buttonDisabledBackgroundColor
+                      : variables.colors.buttonDefaultBackgroundColor,
+                  color:
+                    isSubmitting ||
+                    isDeleting ||
+                    (needsApiCredentialGate && !showApiCredentialInputs)
+                      ? variables.colors.buttonDisabledTextColor
+                      : variables.colors.buttonDefaultTextColor,
                 }}
               >
-                Cancel
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
               </Button>
-            </DialogClose>
-
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full flex-1 h-12 font-inter text-sm"
-              style={{
-                backgroundColor: isSubmitting
-                  ? variables.colors.buttonDisabledBackgroundColor
-                  : variables.colors.buttonDefaultBackgroundColor,
-                color: isSubmitting
-                  ? variables.colors.buttonDisabledTextColor
-                  : variables.colors.buttonDefaultTextColor,
-              }}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Saving...
-                </>
-              ) : (
-                "Save Changes"
-              )}
-            </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

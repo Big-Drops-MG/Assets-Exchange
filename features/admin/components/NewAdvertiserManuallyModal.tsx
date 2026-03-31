@@ -4,7 +4,6 @@ import { Eye, EyeOff, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-
 import { getVariables } from "@/components/_variables";
 import { Button } from "@/components/ui/button";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
@@ -25,51 +24,27 @@ import {
   type NewAdvertiserFormData,
 } from "../view-models/useNewAdvertiserManuallyViewModel";
 
+async function generateNextManualAdvertiserId(): Promise<string> {
+  try {
+    const res = await fetch("/api/admin/advertisers/next-manual-id");
+    if (!res.ok) throw new Error("Failed to fetch next manual ID");
+    const json = await res.json();
+    return json.nextId ?? "MA0001";
+  } catch (e) {
+    console.error("Failed to generate advertiser ID:", e);
+    return "MA0001";
+  }
+}
+
+function isValidMaIncrementalId(id: string): boolean {
+  const t = id.trim();
+  return /^MA\d+$/.test(t) && t.length <= 100;
+}
+
 interface NewAdvertiserManuallyModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (advertiserId: string) => void;
-}
-
-/**
- * Generates incremental advertiser IDs in format M#### (e.g., MA0001, MA0002, MA0003)
- *
- * Implementation:
- * 1. Fetches all existing advertisers
- * 2. Extracts numeric parts from IDs matching MA#### pattern
- * 3. Finds the highest number and increments by 1
- * 4. Formats as MA#### with leading zeros (4 digits)
- *
- * TODO: BACKEND - Move this logic to backend
- * - Backend should handle ID generation atomically to prevent race conditions
- * - Consider using database sequences or transactions for ID generation
- * - Handle ID exhaustion (what if all MA#### are used? - up to MA9999)
- */
-async function generateAdvertiserId(): Promise<string> {
-  try {
-    const { fetchAdvertisers } =
-      await import("../services/advertisers.client");
-    const advertisers = await fetchAdvertisers();
-
-    // Extract numeric parts from existing advertiser IDs (format: M####)
-    const existingNumbers = advertisers
-      .map((adv) => {
-        const match = adv.id.match(/^MA(\d+)$/);
-        return match ? parseInt(match[1], 10) : 0;
-      })
-      .filter((num) => num > 0);
-
-    // Find the highest number and increment by 1
-    const nextNumber =
-      existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
-
-    // Format as MA0001, MA0002, etc. (4 digits with leading zeros)
-    return `MA${nextNumber.toString().padStart(4, "0")}`;
-  } catch (error) {
-    // Fallback to MA0001 if fetching fails
-    console.error("Failed to generate advertiser ID:", error);
-    return "MA0001";
-  }
 }
 
 /**
@@ -129,6 +104,7 @@ export function NewAdvertiserManuallyModal({
   >({});
   const [showPassword, setShowPassword] = useState(false);
   const [internalOpen, setInternalOpen] = useState(open);
+  const [advertiserIdLoading, setAdvertiserIdLoading] = useState(false);
 
   const hasUnsavedChanges = useMemo(() => {
     if (!initialFormData) return false;
@@ -143,12 +119,17 @@ export function NewAdvertiserManuallyModal({
   }, [open, internalOpen]);
 
   useEffect(() => {
-    if (open) {
-      reset();
-      generateAdvertiserId().then((newAdvertiserId) => {
-        const initialData = {
+    if (!open) return;
+    let cancelled = false;
+    reset();
+    setValidationErrors({});
+    setAdvertiserIdLoading(true);
+    generateNextManualAdvertiserId()
+      .then((nextId) => {
+        if (cancelled) return;
+        const initialData: NewAdvertiserFormData = {
           companyName: "",
-          advertiserId: newAdvertiserId,
+          advertiserId: nextId,
           firstName: "",
           lastName: "",
           email: "",
@@ -156,9 +137,13 @@ export function NewAdvertiserManuallyModal({
         };
         setFormData(initialData);
         setInitialFormData(initialData);
+      })
+      .finally(() => {
+        if (!cancelled) setAdvertiserIdLoading(false);
       });
-      setValidationErrors({});
-    }
+    return () => {
+      cancelled = true;
+    };
   }, [open, reset]);
 
   /**
@@ -205,10 +190,12 @@ export function NewAdvertiserManuallyModal({
       errors.companyName = "Company name is required";
     }
 
-    if (!formData.advertiserId.trim()) {
+    const id = formData.advertiserId.trim();
+    if (!id) {
       errors.advertiserId = "Advertiser ID is required";
-    } else if (!/^MA\d{4}$/.test(formData.advertiserId)) {
-      errors.advertiserId = "Advertiser ID must be in format MA0001";
+    } else if (!isValidMaIncrementalId(id)) {
+      errors.advertiserId =
+        "Advertiser ID must follow the MA0001 format (assigned automatically)";
     }
 
     if (!formData.firstName.trim()) {
@@ -253,6 +240,7 @@ export function NewAdvertiserManuallyModal({
           description: `Advertiser ${createdAdvertiser.id} has been created.`,
         });
         setInitialFormData(null);
+        setInternalOpen(false);
         onSuccess?.(createdAdvertiser.id);
         onOpenChange(false);
       }
@@ -277,7 +265,8 @@ export function NewAdvertiserManuallyModal({
       if (!newOpen && hasUnsavedChanges) {
         const confirmed = await confirmDialog({
           title: "Unsaved Changes",
-          description: "You have unsaved changes. Are you sure you want to close?",
+          description:
+            "You have unsaved changes. Are you sure you want to close?",
           confirmText: "Close",
           cancelText: "No, keep editing",
           variant: "default",
@@ -299,7 +288,7 @@ export function NewAdvertiserManuallyModal({
         onOpenChange(false);
         return;
       }
-      
+
       // If no unsaved changes, allow normal close
       setInternalOpen(newOpen);
       onOpenChange(newOpen);
@@ -325,11 +314,6 @@ export function NewAdvertiserManuallyModal({
         return newErrors;
       });
     }
-  };
-
-  const _handleGenerateAdvertiserId = async () => {
-    const newId = await generateAdvertiserId();
-    updateFormField("advertiserId", newId);
   };
 
   const handleGeneratePassword = () => {
@@ -417,26 +401,28 @@ export function NewAdvertiserManuallyModal({
                 <Label htmlFor="advertiserId" className="font-inter text-sm">
                   Advertiser ID <span className="text-destructive">*</span>
                 </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="advertiserId"
-                    value={formData.advertiserId}
-                    onChange={(e) => {
-                      const value = e.target.value.toUpperCase();
-                      if (value === "" || /^M\d{0,4}$/.test(value)) {
-                        updateFormField("advertiserId", value);
-                      }
-                    }}
-                    placeholder="M0001"
-                    disabled={isSubmitting}
-                    aria-invalid={!!validationErrors.advertiserId}
-                    className="h-12 font-inter advertiser-modal-input flex-1"
-                    style={{
-                      backgroundColor: variables.colors.inputBackgroundColor,
-                      borderColor: variables.colors.inputBorderColor,
-                      color: variables.colors.inputTextColor,
-                    }}
-                  />
+                <div
+                  id="advertiserId"
+                  role="status"
+                  aria-busy={advertiserIdLoading}
+                  aria-live="polite"
+                  className="flex h-12 min-w-0 items-center rounded-lg border px-4 font-inter text-sm font-semibold tracking-wide"
+                  style={{
+                    borderColor: variables.colors.inputBorderColor,
+                    backgroundColor: variables.colors.inputBackgroundColor,
+                    color: variables.colors.inputTextColor,
+                  }}
+                >
+                  {advertiserIdLoading ? (
+                    <span
+                      className="text-sm font-inter font-normal"
+                      style={{ color: variables.colors.descriptionColor }}
+                    >
+                      Generating next ID…
+                    </span>
+                  ) : (
+                    formData.advertiserId
+                  )}
                 </div>
                 {validationErrors.advertiserId && (
                   <p className="text-sm text-destructive font-inter">
@@ -444,10 +430,11 @@ export function NewAdvertiserManuallyModal({
                   </p>
                 )}
                 <p
+                  id="advertiser-id-hint"
                   className="text-xs font-inter"
                   style={{ color: variables.colors.descriptionColor }}
                 >
-                  Auto-generated ID format: M + 4 digits (e.g., M0001, M0002)
+                  Assigned automatically: MA0001, MA0002, and so on in order.
                 </p>
               </div>
 
@@ -563,7 +550,9 @@ export function NewAdvertiserManuallyModal({
                       style={{
                         color: variables.colors.descriptionColor,
                       }}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4" />
@@ -631,15 +620,25 @@ export function NewAdvertiserManuallyModal({
             </DialogClose>
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={
+                isSubmitting ||
+                advertiserIdLoading ||
+                !formData.advertiserId.trim()
+              }
               className="w-full flex-1 h-12! font-inter font-medium shrink-0"
               style={{
-                backgroundColor: isSubmitting
-                  ? variables.colors.buttonDisabledBackgroundColor
-                  : variables.colors.buttonDefaultBackgroundColor,
-                color: isSubmitting
-                  ? variables.colors.buttonDisabledTextColor
-                  : variables.colors.buttonDefaultTextColor,
+                backgroundColor:
+                  isSubmitting ||
+                  advertiserIdLoading ||
+                  !formData.advertiserId.trim()
+                    ? variables.colors.buttonDisabledBackgroundColor
+                    : variables.colors.buttonDefaultBackgroundColor,
+                color:
+                  isSubmitting ||
+                  advertiserIdLoading ||
+                  !formData.advertiserId.trim()
+                    ? variables.colors.buttonDisabledTextColor
+                    : variables.colors.buttonDefaultTextColor,
                 height: "3rem",
               }}
               aria-label="Create new advertiser"

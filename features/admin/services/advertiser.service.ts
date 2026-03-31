@@ -111,6 +111,16 @@ export async function createAdvertiser(data: {
   name: string;
   contactEmail?: string;
 }) {
+  if (data.id) {
+    const existing = await getAdvertiser(data.id);
+    if (existing) {
+      throw Object.assign(
+        new Error(`An advertiser with ID "${data.id}" already exists`),
+        { status: 409 as const }
+      );
+    }
+  }
+
   const insertValues: {
     name: string;
     contactEmail?: string;
@@ -181,12 +191,18 @@ export async function updateAdvertiser(
   return mapAdvertiser(row);
 }
 
-export async function softDeleteAdvertiser(id: string) {
-  await db
-    .update(advertisers)
-    .set({
-      status: "inactive",
-      updatedAt: new Date(),
-    })
-    .where(eq(advertisers.id, id));
+export async function getNextManualAdvertiserId(): Promise<string> {
+  const result = await db.execute<{ max_num: number | null }>(
+    sql`SELECT MAX(CAST(SUBSTRING(id FROM 3) AS INTEGER)) AS max_num
+        FROM advertisers
+        WHERE id ~ '^MA[0-9]+$'`
+  );
+  const maxNum = result.rows[0]?.max_num ?? 0;
+  const next = maxNum + 1;
+  const suffix = next <= 9999 ? String(next).padStart(4, "0") : String(next);
+  return `MA${suffix}`;
+}
+
+export async function deleteAdvertiser(id: string) {
+  await db.delete(advertisers).where(eq(advertisers.id, id));
 }
