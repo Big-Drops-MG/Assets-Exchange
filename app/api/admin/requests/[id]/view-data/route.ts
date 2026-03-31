@@ -9,6 +9,25 @@ import { auth } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
+function getUploadedZipFileName(
+  rows: RequestCreativeRow[]
+): string | undefined {
+  for (const row of rows) {
+    const metadata = row.metadata as Record<string, unknown> | null | undefined;
+    const candidates = [
+      metadata?.uploadedZipFileName,
+      metadata?.zipFileName,
+      metadata?.archiveName,
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate.trim().length > 0) {
+        return candidate.trim();
+      }
+    }
+  }
+  return undefined;
+}
+
 function rowToViewCreative(
   row: RequestCreativeRow,
   requestMetadata: {
@@ -106,6 +125,7 @@ export async function GET(
       type: "multiple",
       creatives: processed,
       creativeType,
+      uploadedZipFileName: getUploadedZipFileName(result.creatives),
     });
   } catch (error) {
     console.error("view-data error:", error);

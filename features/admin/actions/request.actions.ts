@@ -27,6 +27,25 @@ interface RequestMetadata {
   additionalNotes?: string;
 }
 
+function getUploadedZipFileName(
+  rows: RequestCreativeRow[]
+): string | undefined {
+  for (const row of rows) {
+    const metadata = row.metadata as Record<string, unknown> | null | undefined;
+    const candidates = [
+      metadata?.uploadedZipFileName,
+      metadata?.zipFileName,
+      metadata?.archiveName,
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate.trim().length > 0) {
+        return candidate.trim();
+      }
+    }
+  }
+  return undefined;
+}
+
 function rowToViewCreative(
   row: RequestCreativeRow,
   requestMetadata: RequestMetadata
@@ -63,7 +82,12 @@ function rowToViewCreative(
 
 export type RequestViewData =
   | { type: "single"; creative: ViewCreative; creativeType: string }
-  | { type: "multiple"; creatives: ViewCreative[]; creativeType: string }
+  | {
+      type: "multiple";
+      creatives: ViewCreative[];
+      creativeType: string;
+      uploadedZipFileName?: string;
+    }
   | null;
 
 export async function getRequestViewData(
@@ -101,5 +125,6 @@ export async function getRequestViewData(
     type: "multiple",
     creatives: viewCreatives,
     creativeType,
+    uploadedZipFileName: getUploadedZipFileName(result.creatives),
   };
 }

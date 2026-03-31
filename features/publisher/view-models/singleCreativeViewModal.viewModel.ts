@@ -103,6 +103,7 @@ export const useSingleCreativeViewModal = ({
     useState<ProofreadCreativeResponse | null>(null);
   const [htmlContent, setHtmlContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingHtml, setIsSavingHtml] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
   const [additionalNotes, setAdditionalNotes] = useState(
     creative.metadata?.additionalNotes || ""
@@ -1579,7 +1580,7 @@ export const useSingleCreativeViewModal = ({
 
   const handleSaveHtml = async () => {
     try {
-      setIsSaving(true);
+      setIsSavingHtml(true);
 
       const updateResult = await updateCreativeContent({
         creativeId: creative.id,
@@ -1611,7 +1612,7 @@ export const useSingleCreativeViewModal = ({
           error instanceof Error ? error.message : "Please try again.",
       });
     } finally {
-      setIsSaving(false);
+      setIsSavingHtml(false);
     }
   };
 
@@ -1835,6 +1836,7 @@ export const useSingleCreativeViewModal = ({
     handleAnalyzeBrandGuidelines,
     htmlContent,
     isSaving,
+    isSavingHtml,
     previewKey,
     additionalNotes,
     isGeneratingContent,

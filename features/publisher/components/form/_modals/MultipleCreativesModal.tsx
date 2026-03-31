@@ -13,7 +13,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +32,12 @@ import {
 } from "@/features/publisher/view-models/multipleCreativesModal.viewModel";
 
 import SingleCreativeViewModal from "./SingleCreativeViewModal";
+
+function getActualFileName(name: string): string {
+  const parts = name.split(/[\\/]/);
+  const last = parts[parts.length - 1]?.trim();
+  return last && last.length > 0 ? last : name;
+}
 
 interface MultipleCreativesModalProps {
   isOpen: boolean;
@@ -84,6 +90,9 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
   isSendingBack = false,
 }) => {
   const router = useRouter();
+  const [loadingCreativeId, setLoadingCreativeId] = useState<string | null>(
+    null
+  );
   const navigateMode = Boolean(onViewCreativeNavigate);
   const creativeCardActionLabel = annotateForSendBackRequestId
     ? "Review"
@@ -96,6 +105,10 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
     onZipFileNameChange,
     creativeType,
   });
+
+  useEffect(() => {
+    if (isOpen) setLoadingCreativeId(null);
+  }, [isOpen]);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -294,12 +307,12 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
-                {annotateForSendBackRequestId && onSendBack && (
+                {annotateForSendBackRequestId && onSendBack ? (
                   <Button
                     variant="destructive"
                     size="sm"
                     onClick={onSendBack}
-                    disabled={isSendingBack}
+                    disabled={isSendingBack || loadingCreativeId !== null}
                     className="h-9 px-3 sm:px-4 text-xs sm:text-sm shrink-0"
                   >
                     {isSendingBack ? (
@@ -314,15 +327,16 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                       </>
                     )}
                   </Button>
+                ) : (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={onClose}
+                    className="h-9 px-3 sm:px-4 bg-blue-500 hover:bg-blue-600 text-white text-xs sm:text-sm shrink-0"
+                  >
+                    <span>{navigateMode ? "Close" : "Save and Continue"}</span>
+                  </Button>
                 )}
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={onClose}
-                  className="h-9 px-3 sm:px-4 bg-blue-500 hover:bg-blue-600 text-white text-xs sm:text-sm shrink-0"
-                >
-                  <span>{navigateMode ? "Close" : "Save and Continue"}</span>
-                </Button>
               </div>
             </div>
           </DialogHeader>
@@ -355,7 +369,8 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
               {creatives
                 .filter((c) => !c.isHidden)
                 .map((creative) => {
-                  const fileType = viewModel.getFileType(creative.name);
+                  const actualFileName = getActualFileName(creative.name);
+                  const fileType = viewModel.getFileType(actualFileName);
                   const isImage = fileType === "image";
                   const isHtml = fileType === "html";
                   const analysisStatus =
@@ -377,7 +392,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={creative.previewUrl || creative.url}
-                            alt={creative.name}
+                            alt={actualFileName}
                             className="w-full h-full object-cover"
                           />
                         ) : isHtml ? (
@@ -445,9 +460,9 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                         <div className="mb-3">
                           <h3
                             className="font-medium text-gray-900 text-xs sm:text-sm truncate mb-1"
-                            title={creative.name}
+                            title={actualFileName}
                           >
-                            {creative.name}
+                            {actualFileName}
                           </h3>
                           <div className="flex items-center justify-between text-xs text-gray-500">
                             <span
@@ -487,6 +502,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                         <Button
                           onClick={() => {
                             if (onViewCreativeNavigate) {
+                              setLoadingCreativeId(creative.id);
                               onViewCreativeNavigate(creative);
                               return;
                             }
@@ -494,10 +510,23 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                               annotateForSendBackRequestId &&
                               annotateReturnPath
                             ) {
+                              setLoadingCreativeId(creative.id);
                               sessionStorage.setItem(
                                 "annotateReturnPathAfterSendBack",
                                 annotateReturnPath
                               );
+                              try {
+                                sessionStorage.setItem(
+                                  `sendBackMultiCache_${annotateForSendBackRequestId}`,
+                                  JSON.stringify({
+                                    creatives,
+                                    creativeType,
+                                    uploadedZipFileName,
+                                  })
+                                );
+                              } catch {
+                                /* storage full – will fall back to API */
+                              }
                               router.push(
                                 `/annotate/${creative.id}?requestId=${encodeURIComponent(annotateForSendBackRequestId)}&multi=1`
                               );
@@ -505,9 +534,14 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
                             }
                             viewModel.openSingleCreativeView(creative);
                           }}
+                          disabled={loadingCreativeId !== null || isSendingBack}
                           className="w-full h-9 bg-blue-400 hover:bg-blue-600 text-white font-medium px-3 sm:px-4 rounded-md text-xs sm:text-sm transition-colors duration-200"
                         >
-                          <span>{creativeCardActionLabel}</span>
+                          {loadingCreativeId === creative.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <span>{creativeCardActionLabel}</span>
+                          )}
                         </Button>
                       </div>
                     </div>

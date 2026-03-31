@@ -723,10 +723,10 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                               variant="outline"
                               size="sm"
                               onClick={viewModel.handleSaveHtml}
-                              disabled={viewModel.isSaving}
+                              disabled={viewModel.isSavingHtml}
                               className="flex items-center gap-2 h-9 disabled:opacity-50 bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100 hover:text-orange-800 hover:border-orange-400 font-medium shadow-sm transition-colors"
                             >
-                              {viewModel.isSaving ? (
+                              {viewModel.isSavingHtml ? (
                                 <>
                                   <div className="w-4 h-4 border-2 border-orange-700 border-t-transparent rounded-full animate-spin" />
                                   <span>Saving...</span>
@@ -1679,10 +1679,10 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                       variant="outline"
                       size="sm"
                       onClick={viewModel.handleSaveHtml}
-                      disabled={viewModel.isSaving}
+                      disabled={viewModel.isSavingHtml}
                       className="flex items-center gap-2 h-9 disabled:opacity-50 bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100 hover:text-orange-800 hover:border-orange-400 font-medium shadow-sm transition-colors"
                     >
-                      {viewModel.isSaving ? (
+                      {viewModel.isSavingHtml ? (
                         <>
                           <div className="w-4 h-4 border-2 border-orange-700 border-t-transparent rounded-full animate-spin" />
                           <span>Saving...</span>

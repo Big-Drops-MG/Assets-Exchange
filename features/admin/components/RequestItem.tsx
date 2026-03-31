@@ -331,10 +331,13 @@ export function RequestItem({
 
   const [viewData, setViewData] = useState<RequestViewData | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [isViewLoading, setIsViewLoading] = useState(false);
+  const [viewLoadingAction, setViewLoadingAction] = useState<string | null>(
+    null
+  );
   const [reviewSendBackMulti, setReviewSendBackMulti] = useState<{
     creatives: CreativeFile[];
     creativeType: string;
+    uploadedZipFileName?: string;
   } | null>(null);
   const [isSendingBackFromModal, setIsSendingBackFromModal] = useState(false);
 
@@ -347,6 +350,35 @@ export function RequestItem({
     if (fromStorage) {
       sessionStorage.removeItem("resumeSendBackMultiModalRequestId");
     }
+
+    const cacheKey = `sendBackMultiCache_${request.id}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      sessionStorage.removeItem(cacheKey);
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed.creatives) && parsed.creatives.length > 0) {
+          setReviewSendBackMulti({
+            creatives: parsed.creatives as CreativeFile[],
+            creativeType: parsed.creativeType || "email",
+            uploadedZipFileName: parsed.uploadedZipFileName,
+          });
+          if (fromUrl) {
+            const next = new URL(window.location.href);
+            if (next.searchParams.has("resumeSendBackMulti")) {
+              next.searchParams.delete("resumeSendBackMulti");
+              router.replace(next.pathname + next.search + next.hash, {
+                scroll: false,
+              });
+            }
+          }
+          return;
+        }
+      } catch {
+        /* corrupted cache – fall through to API */
+      }
+    }
+
     let cancelled = false;
     (async () => {
       try {
@@ -356,6 +388,7 @@ export function RequestItem({
           setReviewSendBackMulti({
             creatives: data.creatives as CreativeFile[],
             creativeType: data.creativeType,
+            uploadedZipFileName: data.uploadedZipFileName,
           });
         }
       } catch {
@@ -485,7 +518,7 @@ export function RequestItem({
   }, [request.id, isAdvertiserView, onStatusUpdate]);
 
   const handleViewRequest = async () => {
-    setIsViewLoading(true);
+    setViewLoadingAction("view-request");
     try {
       const data = await fetchRequestViewData(request.id);
       if (data) {
@@ -497,12 +530,12 @@ export function RequestItem({
     } catch {
       toast.error("Failed to load request details");
     } finally {
-      setIsViewLoading(false);
+      setViewLoadingAction(null);
     }
   };
 
   const handleOpenReview = async (action: "reject" | "send-back" | "view") => {
-    setIsViewLoading(true);
+    setViewLoadingAction(action);
     try {
       let data = viewData;
       if (!data) {
@@ -522,6 +555,7 @@ export function RequestItem({
         setReviewSendBackMulti({
           creatives: data.creatives as CreativeFile[],
           creativeType: data.creativeType,
+          uploadedZipFileName: data.uploadedZipFileName,
         });
         setRejectPopoverOpen(false);
         setSendBackPopoverOpen(false);
@@ -555,7 +589,7 @@ export function RequestItem({
     } catch {
       toast.error("Failed to load creative for review");
     } finally {
-      setIsViewLoading(false);
+      setViewLoadingAction(null);
     }
   };
 
@@ -692,10 +726,10 @@ export function RequestItem({
               variables.colors.requestCardViewButtonBackgroundColor,
             border: `1px solid ${variables.colors.requestCardViewButtonBorderColor}`,
           }}
-          disabled={isViewLoading}
+          disabled={viewLoadingAction !== null}
           onClick={handleViewRequest}
         >
-          {isViewLoading ? (
+          {viewLoadingAction === "view-request" ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
               Loading...
@@ -1075,10 +1109,10 @@ export function RequestItem({
                         <Button
                           variant="outline"
                           className="w-full font-inter text-xs xl:text-sm font-medium border-destructive/30 text-destructive hover:bg-destructive/5"
-                          disabled={isViewLoading}
+                          disabled={viewLoadingAction !== null}
                           onClick={() => handleOpenReview("send-back")}
                         >
-                          {isViewLoading ? (
+                          {viewLoadingAction === "send-back" ? (
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
                           ) : (
                             "Review & Send Back"
@@ -1569,10 +1603,10 @@ export function RequestItem({
                       variables.colors.requestCardViewButtonBackgroundColor,
                     border: `1px solid ${variables.colors.requestCardViewButtonBorderColor}`,
                   }}
-                  disabled={isViewLoading}
+                  disabled={viewLoadingAction !== null}
                   onClick={() => handleOpenReview("view")}
                 >
-                  {isViewLoading ? (
+                  {viewLoadingAction === "view" ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
                     "Check Annotations"
@@ -1726,6 +1760,7 @@ export function RequestItem({
           creatives={viewData.creatives}
           onRemoveCreative={() => {}}
           creativeType={viewData.creativeType}
+          uploadedZipFileName={viewData.uploadedZipFileName}
         />
       )}
 
@@ -1736,6 +1771,7 @@ export function RequestItem({
           creatives={reviewSendBackMulti.creatives}
           onRemoveCreative={() => {}}
           creativeType={reviewSendBackMulti.creativeType}
+          uploadedZipFileName={reviewSendBackMulti.uploadedZipFileName}
           viewOnly
           annotateForSendBackRequestId={request.id}
           annotateReturnPath={pathname}

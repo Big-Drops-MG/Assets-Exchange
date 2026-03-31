@@ -192,15 +192,17 @@ export function AnnotatePageClient({
           </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleShare}
-            className="gap-1.5 text-gray-700"
-          >
-            <Link2 className="h-4 w-4" />
-            Share
-          </Button>
+          {!isMultiReview && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShare}
+              className="gap-1.5 text-gray-700"
+            >
+              <Link2 className="h-4 w-4" />
+              Share
+            </Button>
+          )}
           {isMultiReview && requestId && !readOnly && (
             <Button
               size="sm"
@@ -208,7 +210,7 @@ export function AnnotatePageClient({
               className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
             >
               <Check className="h-4 w-4" />
-              Save & Return
+              Save
             </Button>
           )}
           {hasConfirm && !isMultiReview && (

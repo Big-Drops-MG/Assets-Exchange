@@ -212,6 +212,9 @@ export const usePublisherForm = (editingRequestId?: string | null) => {
                     additionalNotes: f.additionalNotes,
                   }),
                   ...(f.source ? { source: f.source } : {}),
+                  ...(f.source === "zip" && uploadedZipFileName
+                    ? { uploadedZipFileName }
+                    : {}),
                 },
               })),
             }
