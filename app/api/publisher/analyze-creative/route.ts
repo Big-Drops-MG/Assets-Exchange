@@ -6,11 +6,13 @@ import OpenAI from "openai";
 import { db } from "@/lib/db";
 import { offers } from "@/lib/schema";
 
+export const maxDuration = 120;
+
 export async function POST(req: NextRequest) {
-  const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
   try {
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
     const formData = await req.formData();
     const creativeFile = formData.get("creative") as File | null;
     const offerId = formData.get("offerId") as string | null;
@@ -90,7 +92,7 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
                 type: "image_url",
                 image_url: {
                   url: `data:${mimeType};base64,${base64Image}`,
-                  detail: "high",
+                  detail: "low",
                 },
               },
               {
