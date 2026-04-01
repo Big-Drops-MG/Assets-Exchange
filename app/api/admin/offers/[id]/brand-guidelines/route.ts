@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 import {
   attachBrandGuidelines,
@@ -8,6 +8,7 @@ import {
   getOfferBrandGuidelines,
 } from "@/features/admin/services/brandGuidelines.service";
 import { auth } from "@/lib/auth";
+import { saveBuffer } from "@/lib/fileStorage";
 import { getRateLimitKey } from "@/lib/getRateLimitKey";
 import { ratelimit } from "@/lib/ratelimit";
 
@@ -31,7 +32,7 @@ async function requirePermission() {
 }
 
 export async function GET(
-  _: Request,
+  _: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -53,7 +54,7 @@ export async function GET(
 }
 
 export async function POST(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -78,7 +79,7 @@ export async function POST(
 }
 
 export async function PUT(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -88,7 +89,46 @@ export async function PUT(
     const { id } = await params;
     const session = await requirePermission();
 
-    const body = await req.json();
+    const contentType = req.headers.get("content-type") ?? "";
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      const file = formData.get("file") as File | null;
+      const notes = formData.get("notes") as string | null;
+
+      if (!file) {
+        return NextResponse.json(
+          { error: "No file provided" },
+          { status: 400 }
+        );
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const uploaded = await saveBuffer(buffer, file.name, "brand-guidelines");
+
+      await attachOfferBrandGuidelines(
+        id,
+        {
+          type: "file",
+          fileUrl: uploaded.url,
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+          notes: notes ?? undefined,
+        },
+        session.user.id
+      );
+
+      return new NextResponse(null, { status: 204 });
+    }
+
+    const body = (await req.json()) as {
+      type?: string;
+      url?: string;
+      text?: string;
+      notes?: string;
+    };
 
     if (!body.type) {
       return NextResponse.json({ error: "Missing type" }, { status: 400 });
@@ -108,16 +148,6 @@ export async function PUT(
       );
     }
 
-    if (body.type === "file") {
-      return NextResponse.json(
-        {
-          error:
-            "File uploads are not yet supported. Please use URL or text type.",
-        },
-        { status: 400 }
-      );
-    }
-
     const brandGuidelines: {
       type: "url" | "file" | "text";
       url?: string;
@@ -127,20 +157,14 @@ export async function PUT(
       mimeType?: string;
       text?: string;
       notes?: string;
-    } = {
-      type: body.type,
-    };
+    } = { type: body.type as "url" | "file" | "text" };
 
     if (body.type === "url") {
       brandGuidelines.url = body.url;
-      if (body.notes) {
-        brandGuidelines.notes = body.notes;
-      }
+      if (body.notes) brandGuidelines.notes = body.notes;
     } else if (body.type === "text") {
       brandGuidelines.text = body.text;
-      if (body.notes) {
-        brandGuidelines.notes = body.notes;
-      }
+      if (body.notes) brandGuidelines.notes = body.notes;
     }
 
     await attachOfferBrandGuidelines(id, brandGuidelines, session.user.id);
@@ -154,7 +178,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _: Request,
+  _: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {

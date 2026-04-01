@@ -7,6 +7,7 @@ import {
   getAdvertiserBrandGuidelines,
 } from "@/features/admin/services/brandGuidelines.service";
 import { auth } from "@/lib/auth";
+import { saveBuffer } from "@/lib/fileStorage";
 import { getRateLimitKey } from "@/lib/getRateLimitKey";
 import { validateRequest } from "@/lib/middleware/validateRequest";
 import { ratelimit } from "@/lib/ratelimit";
@@ -62,7 +63,40 @@ export async function PUT(
     const { id } = await params;
     const session = await requireAdmin();
 
-    // Validate body using generic helper
+    const contentType = req.headers.get("content-type") ?? "";
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      const file = formData.get("file") as File | null;
+      const notes = formData.get("notes") as string | null;
+
+      if (!file) {
+        return NextResponse.json(
+          { error: "No file provided" },
+          { status: 400 }
+        );
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const uploaded = await saveBuffer(buffer, file.name, "brand-guidelines");
+
+      await attachAdvertiserBrandGuidelines(
+        id,
+        {
+          type: "file",
+          fileUrl: uploaded.url,
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+          notes: notes ?? undefined,
+        },
+        session.user.id
+      );
+
+      return new NextResponse(null, { status: 204 });
+    }
+
     const validation = await validateRequest(req, brandGuidelinesSchema);
     if ("response" in validation) return validation.response;
 

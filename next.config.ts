@@ -20,7 +20,7 @@ const cspDirectives = [
   "frame-ancestors 'self'",
   "base-uri 'self'",
   "form-action 'self'",
-  "frame-src 'self'",
+  "frame-src 'self' https://*.public.blob.vercel-storage.com https://*.blob.vercel-storage.com",
   "object-src 'none'",
   "upgrade-insecure-requests",
 ];
