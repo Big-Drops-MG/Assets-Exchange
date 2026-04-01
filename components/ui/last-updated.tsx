@@ -6,6 +6,7 @@ import { useState, useTransition, useEffect } from "react";
 
 import { getVariables } from "@/components/_variables/variables";
 import { Button } from "@/components/ui/button";
+import { useBackgroundRefreshTrigger } from "@/features/admin/context/BackgroundRefreshContext";
 
 export function dispatchDashboardRefresh() {
   window.dispatchEvent(new CustomEvent("dashboard-refresh"));
@@ -26,6 +27,7 @@ export function LastUpdated() {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const variables = getVariables();
+  const triggerRefresh = useBackgroundRefreshTrigger();
 
   useEffect(() => {
     const handler = () => setTime(getCurrentTime());
@@ -36,6 +38,7 @@ export function LastUpdated() {
 
   const handleRefresh = () => {
     dispatchDashboardRefresh();
+    if (triggerRefresh) void triggerRefresh();
     startTransition(() => {
       router.refresh();
     });

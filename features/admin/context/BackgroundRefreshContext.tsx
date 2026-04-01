@@ -12,6 +12,7 @@ const REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 
 interface BackgroundRefreshContextValue {
   register: (key: string, callback: () => Promise<void> | void) => () => void;
+  triggerRefresh: () => Promise<void>;
 }
 
 const BackgroundRefreshContext =
@@ -34,6 +35,23 @@ export function BackgroundRefreshProvider({
     []
   );
 
+  const runAllCallbacks = useCallback(async () => {
+    await Promise.allSettled(
+      Array.from(registryRef.current.values()).map((cb) => {
+        try {
+          return Promise.resolve(cb());
+        } catch {
+          return Promise.resolve();
+        }
+      })
+    );
+    window.dispatchEvent(new CustomEvent("background-refresh-complete"));
+  }, []);
+
+  const triggerRefresh = useCallback(async () => {
+    await runAllCallbacks();
+  }, [runAllCallbacks]);
+
   useEffect(() => {
     const interval = setInterval(async () => {
       const el = document.activeElement;
@@ -47,24 +65,14 @@ export function BackgroundRefreshProvider({
 
       if (isInputFocused || hasOpenModal) return;
 
-      await Promise.allSettled(
-        Array.from(registryRef.current.values()).map((cb) => {
-          try {
-            return Promise.resolve(cb());
-          } catch {
-            return Promise.resolve();
-          }
-        })
-      );
-
-      window.dispatchEvent(new CustomEvent("background-refresh-complete"));
+      await runAllCallbacks();
     }, REFRESH_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [runAllCallbacks]);
 
   return (
-    <BackgroundRefreshContext.Provider value={{ register }}>
+    <BackgroundRefreshContext.Provider value={{ register, triggerRefresh }}>
       {children}
     </BackgroundRefreshContext.Provider>
   );
@@ -82,4 +90,9 @@ export function useBackgroundRefresh(
     if (!ctx) return;
     return ctx.register(key, () => callbackRef.current());
   }, [ctx, key]);
+}
+
+export function useBackgroundRefreshTrigger() {
+  const ctx = useContext(BackgroundRefreshContext);
+  return ctx?.triggerRefresh ?? null;
 }
