@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { useBackgroundRefresh } from "@/features/admin/context/BackgroundRefreshContext";
+
 import { getAdminDashboardData } from "../services/dashboard.client";
 import type { AdminDashboardData } from "../types/admin.types";
 
@@ -24,6 +26,17 @@ export function useAdminDashboardViewModel() {
       setIsLoading(false);
     }
   }, []);
+
+  const backgroundRefresh = useCallback(async () => {
+    try {
+      const dashboardData = await getAdminDashboardData();
+      setData(dashboardData);
+    } catch {
+      // silent fail
+    }
+  }, []);
+
+  useBackgroundRefresh("admin-dashboard-stats", backgroundRefresh);
 
   useEffect(() => {
     fetchData(true);
