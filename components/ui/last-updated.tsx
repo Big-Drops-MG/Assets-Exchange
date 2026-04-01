@@ -2,7 +2,7 @@
 
 import { RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 
 import { getVariables } from "@/components/_variables/variables";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,13 @@ export function LastUpdated() {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const variables = getVariables();
+
+  useEffect(() => {
+    const handler = () => setTime(getCurrentTime());
+    window.addEventListener("background-refresh-complete", handler);
+    return () =>
+      window.removeEventListener("background-refresh-complete", handler);
+  }, []);
 
   const handleRefresh = () => {
     dispatchDashboardRefresh();

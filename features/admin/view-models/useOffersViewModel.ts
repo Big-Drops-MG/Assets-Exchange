@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { fetchOffers, deleteOffer, updateOffer } from "@/features/admin/services/offers.client";
+import { useBackgroundRefresh } from "@/features/admin/context/BackgroundRefreshContext";
+import {
+  fetchOffers,
+  deleteOffer,
+  updateOffer,
+} from "@/features/admin/services/offers.client";
 import type { Offer } from "@/features/admin/types/offer.types";
 
 export function useOffersViewModel() {
@@ -10,21 +15,35 @@ export function useOffersViewModel() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (search?: string, status?: "Active" | "Inactive") => {
+  const load = useCallback(
+    async (search?: string, status?: "Active" | "Inactive") => {
+      try {
+        setIsLoading(true);
+        const data = await fetchOffers({ search, status });
+        setOffers(data);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to fetch offers");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
+  const backgroundRefresh = useCallback(async () => {
     try {
-      setIsLoading(true);
-      const data = await fetchOffers({ search, status });
+      const data = await fetchOffers({});
       setOffers(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch offers");
-    } finally {
-      setIsLoading(false);
+    } catch {
+      // silent fail
     }
   }, []);
 
+  useBackgroundRefresh("offers", backgroundRefresh);
+
   useEffect(() => {
-    load(); 
+    load();
   }, [load]);
 
   return {

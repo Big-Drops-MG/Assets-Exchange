@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 
+import { useBackgroundRefresh } from "@/features/admin/context/BackgroundRefreshContext";
 import { fetchRequests } from "@/features/admin/services/requests.client";
 import { fetchAdvertiserRequests } from "@/features/advertiser/services/requests.client";
 
@@ -63,6 +64,26 @@ export function useManageResponsesViewModel(isAdvertiserView: boolean = false) {
     },
     []
   );
+
+  const backgroundRefresh = useCallback(async () => {
+    try {
+      const fetcher = isAdvertiserView
+        ? fetchAdvertiserRequests
+        : fetchRequests;
+      const res = await fetcher({ page: 1, limit: 1000 });
+      const filtered = (res.data || []).filter(
+        (req) =>
+          req.approvalStage === "advertiser" ||
+          req.approvalStage === "completed" ||
+          req.advertiserStatus != null
+      );
+      setResponses(filtered);
+    } catch {
+      // silent fail
+    }
+  }, [isAdvertiserView]);
+
+  useBackgroundRefresh("responses", backgroundRefresh);
 
   useEffect(() => {
     setIsLoading(true);

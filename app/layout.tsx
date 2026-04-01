@@ -6,6 +6,7 @@ import { getVariables } from "@/components/_variables/variables";
 import { ConfirmDialogProvider } from "@/components/ui/confirm-dialog";
 import { Toaster } from "@/components/ui/sonner";
 import { GlobalSyncIndicator } from "@/features/admin/components/GlobalSyncIndicator";
+import { BackgroundRefreshProvider } from "@/features/admin/context/BackgroundRefreshContext";
 import { GlobalSyncProvider } from "@/features/admin/context/GlobalSyncContext";
 
 const variables = getVariables();
@@ -37,7 +38,7 @@ export default function RootLayout({
         {/* Temporarily disabled for testing - TODO: Fix client component import in server layout */}
         {/* <OfflineDetectorWrapper /> */}
         <GlobalSyncProvider>
-          {children}
+          <BackgroundRefreshProvider>{children}</BackgroundRefreshProvider>
           <GlobalSyncIndicator />
         </GlobalSyncProvider>
         <Toaster position="top-right" richColors />

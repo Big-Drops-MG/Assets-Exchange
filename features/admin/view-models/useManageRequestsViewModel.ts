@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 
+import { useBackgroundRefresh } from "@/features/admin/context/BackgroundRefreshContext";
+
 import { fetchRequests } from "../services/requests.client";
 import type { CreativeRequest, RequestStatus } from "../types/request.types";
 
@@ -22,6 +24,17 @@ export function useManageRequestsViewModel() {
       setIsLoading(false);
     }
   }, []);
+
+  const backgroundRefresh = useCallback(async () => {
+    try {
+      const res = await fetchRequests({ page: 1, limit: 1000 });
+      setRequests([...(res.data || [])]);
+    } catch {
+      // silent fail
+    }
+  }, []);
+
+  useBackgroundRefresh("requests", backgroundRefresh);
 
   const refresh = useCallback(async () => {
     refreshCounter.current += 1;
