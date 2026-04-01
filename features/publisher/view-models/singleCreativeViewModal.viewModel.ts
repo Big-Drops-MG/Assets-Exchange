@@ -16,6 +16,15 @@ import {
   type ProofreadCreativeResponse,
 } from "@/lib/proofreadCreativeClient";
 
+const BRAND_GUIDELINES_STATUS_MESSAGES = [
+  "Loading brand guidelines...",
+  "Parsing creative content...",
+  "Comparing against guidelines...",
+  "Checking claims and language...",
+  "Reviewing compliance rules...",
+  "Finalizing report...",
+];
+
 const PROOFREAD_STATUS_MESSAGES = [
   "Preparing your creative...",
   "Sending to proofreading service...",
@@ -130,12 +139,17 @@ export const useSingleCreativeViewModal = ({
           evidence_text: string;
           source?: string;
           confidence?: number;
+          recommended_changes?: string | null;
+          old_violating_line?: string | null;
+          new_recommended_line?: string | null;
         }>;
       }
     | null
   >(null);
   const [isCheckingBrandGuidelines, setIsCheckingBrandGuidelines] =
     useState(false);
+  const [brandGuidelinesStatusMessage, setBrandGuidelinesStatusMessage] =
+    useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [proofreadStatusMessage, setProofreadStatusMessage] = useState("");
   const [showOriginal, setShowOriginal] = useState(false);
@@ -145,6 +159,28 @@ export const useSingleCreativeViewModal = ({
 
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const proofreadStatusIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const brandGuidelinesStatusIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startBrandGuidelinesStatusRotation = useCallback(() => {
+    setBrandGuidelinesStatusMessage(
+      BRAND_GUIDELINES_STATUS_MESSAGES[0] ?? "Analyzing..."
+    );
+    let index = 0;
+    brandGuidelinesStatusIntervalRef.current = setInterval(() => {
+      index = (index + 1) % BRAND_GUIDELINES_STATUS_MESSAGES.length;
+      setBrandGuidelinesStatusMessage(
+        BRAND_GUIDELINES_STATUS_MESSAGES[index] ?? "Analyzing..."
+      );
+    }, 3000);
+  }, []);
+
+  const stopBrandGuidelinesStatusRotation = useCallback(() => {
+    if (brandGuidelinesStatusIntervalRef.current) {
+      clearInterval(brandGuidelinesStatusIntervalRef.current);
+      brandGuidelinesStatusIntervalRef.current = null;
+    }
+    setBrandGuidelinesStatusMessage("");
+  }, []);
 
   const startProofreadStatusRotation = useCallback(() => {
     setProofreadStatusMessage(PROOFREAD_STATUS_MESSAGES[0] ?? "Analyzing...");
@@ -1098,6 +1134,7 @@ export const useSingleCreativeViewModal = ({
 
   const handleAnalyzeBrandGuidelines = useCallback(async () => {
     setIsCheckingBrandGuidelines(true);
+    startBrandGuidelinesStatusRotation();
     try {
       const isHtml =
         creative.html ||
@@ -1196,9 +1233,16 @@ export const useSingleCreativeViewModal = ({
         error instanceof Error ? error.message : "Failed to analyze guidelines";
       toast.error(`Analysis failed: ${errorMessage}`);
     } finally {
+      stopBrandGuidelinesStatusRotation();
       setIsCheckingBrandGuidelines(false);
     }
-  }, [creative, htmlContent, offerId]);
+  }, [
+    creative,
+    htmlContent,
+    offerId,
+    startBrandGuidelinesStatusRotation,
+    stopBrandGuidelinesStatusRotation,
+  ]);
 
   const handleRegenerateAnalysis = async () => {
     try {
@@ -1842,6 +1886,7 @@ export const useSingleCreativeViewModal = ({
     brandGuidelinesResponse,
     setBrandGuidelinesResponse,
     isCheckingBrandGuidelines,
+    brandGuidelinesStatusMessage,
     handleAnalyzeBrandGuidelines,
     htmlContent,
     isSaving,

@@ -98,7 +98,29 @@ export async function getAdvertiserResponses({
       .where(and(...where)),
   ]);
 
-  return { data: rows, meta: { page, limit, total: Number(total[0].count) } };
+  const formattedRows = rows.map((row) => ({
+    ...row,
+    date: row.submittedAt
+      ? new Date(row.submittedAt).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          timeZone: "America/Los_Angeles",
+        }) +
+        ", " +
+        new Date(row.submittedAt).toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+          timeZone: "America/Los_Angeles",
+        })
+      : "",
+  }));
+
+  return {
+    data: formattedRows,
+    meta: { page, limit, total: Number(total[0].count) },
+  };
 }
 
 export async function approveResponse(id: string, advertiserId: string) {

@@ -431,10 +431,12 @@ export async function getDashboardStats(
   };
 }
 
-// Helper to calculate getWeekNumber to be used in performance check
-function getWeekNumber(d: Date): number {
-  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+function getWeekNumber(date: Date): number {
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+  );
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
@@ -446,35 +448,29 @@ export async function getDashboardPerformance(
   const now = new Date();
   const { comparisonType, metric = "Total Assets" } = params;
 
-  // Build where clause based on metric
-  const getMetricWhereClause = () => {
-    const baseCondition = eq(creativeRequests.advertiserId, advertiserId);
+  const baseCondition = eq(creativeRequests.advertiserId, advertiserId);
 
+  const getMetricWhereClause = () => {
     switch (metric) {
       case "New Requests":
         return and(
-          baseCondition,
           eq(creativeRequests.status, "new"),
           eq(creativeRequests.approvalStage, "admin")
         );
       case "Approved Assets":
-        return and(baseCondition, eq(creativeRequests.status, "approved"));
+        return eq(creativeRequests.status, "approved");
       case "Rejected Assets":
-        return and(baseCondition, eq(creativeRequests.status, "rejected"));
+        return eq(creativeRequests.status, "rejected");
       case "Pending Approval":
-        return and(
-          baseCondition,
-          inArray(creativeRequests.status, ["new", "pending"])
-        );
+        return inArray(creativeRequests.status, ["new", "pending"]);
       case "Total Assets":
       default:
-        return baseCondition;
+        return undefined;
     }
   };
 
   const metricWhereClause = getMetricWhereClause();
 
-  // Determine which date field to use based on metric
   const getDateField = () => {
     switch (metric) {
       case "Approved Assets":
@@ -486,18 +482,21 @@ export async function getDashboardPerformance(
 
   const dateField = getDateField();
 
+  const whereParts: Array<
+    ReturnType<typeof and> | ReturnType<typeof eq> | ReturnType<typeof inArray>
+  > = [baseCondition];
+  if (metricWhereClause) whereParts.push(metricWhereClause);
+  const fullWhere = and(...whereParts);
+
   let data: Array<{ label: string; current: number; previous: number }> = [];
   let xAxisLabel = "Time";
 
-  // Use PST timezone (America/Los_Angeles handles PST/PDT automatically)
   const TZ = "America/Los_Angeles";
 
-  // Helper to format date in PST timezone (YYYY-MM-DD)
   const formatDateInPST = (date: Date): string => {
     return date.toLocaleDateString("en-CA", { timeZone: TZ });
   };
 
-  // Get current time in PST for date calculations
   const getNowInPST = (): Date => {
     const pstString = now.toLocaleString("en-US", { timeZone: TZ });
     return new Date(pstString);
@@ -509,19 +508,6 @@ export async function getDashboardPerformance(
     comparisonType === "Today vs Yesterday" ||
     comparisonType === "Today vs Last Week"
   ) {
-    // Calculate today start in PST
-    const todayStartPST = new Date(nowPST);
-    todayStartPST.setHours(0, 0, 0, 0);
-
-    // Calculate comparison date start in PST
-    const comparisonStartPST = new Date(todayStartPST);
-    if (comparisonType === "Today vs Yesterday") {
-      comparisonStartPST.setDate(comparisonStartPST.getDate() - 1);
-    } else {
-      comparisonStartPST.setDate(comparisonStartPST.getDate() - 7);
-    }
-
-    // Get date keys in PST format
     const todayKey = formatDateInPST(now);
     const comparisonKey = formatDateInPST(
       new Date(
@@ -532,9 +518,6 @@ export async function getDashboardPerformance(
       )
     );
 
-    // Query with PST timezone conversion using 15-minute intervals
-    // Use double AT TIME ZONE because submittedAt is timestamp without timezone (stored as UTC)
-    // Round minutes to 15-minute intervals: FLOOR(EXTRACT(MINUTE ...) / 15) * 15
     const query = await db
       .select({
         hour: sql<number>`EXTRACT(HOUR FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles'))::int`,
@@ -543,7 +526,7 @@ export async function getDashboardPerformance(
         count: sql<number>`COUNT(*)::int`,
       })
       .from(creativeRequests)
-      .where(metricWhereClause ? and(metricWhereClause) : sql`1=1`)
+      .where(fullWhere)
       .groupBy(
         sql`DATE(${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles')`,
         sql`EXTRACT(HOUR FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles'))`,
@@ -555,7 +538,6 @@ export async function getDashboardPerformance(
         sql`FLOOR(EXTRACT(MINUTE FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles')) / 15) * 15`
       );
 
-    // Store data by date -> "HH:MM" key
     const intervalData: Record<string, Record<string, number>> = {};
 
     query.forEach((row) => {
@@ -566,7 +548,6 @@ export async function getDashboardPerformance(
       intervalData[row.date][timeKey] = row.count;
     });
 
-    // Generate all 96 intervals (24 hours * 4 intervals per hour)
     for (let hour = 0; hour < 24; hour++) {
       for (let minute = 0; minute < 60; minute += 15) {
         const timeKey = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
@@ -580,7 +561,6 @@ export async function getDashboardPerformance(
 
     xAxisLabel = "Time";
   } else if (comparisonType === "Current Week vs Last Week") {
-    // Use PST-adjusted dates for week calculations
     const currentWeekStartPST = new Date(nowPST);
     currentWeekStartPST.setDate(
       currentWeekStartPST.getDate() - currentWeekStartPST.getDay()
@@ -591,7 +571,6 @@ export async function getDashboardPerformance(
     const lastWeek = currentWeek - 1;
     const currentYear = nowPST.getFullYear();
 
-    // Query with PST timezone (double AT TIME ZONE for timestamp without timezone)
     const query = await db
       .select({
         dayOfWeek: sql<number>`EXTRACT(DOW FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles'))::int`,
@@ -600,7 +579,7 @@ export async function getDashboardPerformance(
         count: sql<number>`COUNT(*)::int`,
       })
       .from(creativeRequests)
-      .where(metricWhereClause ? and(metricWhereClause) : sql`1=1`)
+      .where(fullWhere)
       .groupBy(
         sql`EXTRACT(YEAR FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles'))`,
         sql`EXTRACT(WEEK FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles'))`,
@@ -629,9 +608,19 @@ export async function getDashboardPerformance(
       previous: weeklyData[lastWeek]?.[index] || 0,
     }));
 
-    xAxisLabel = "Day of Week";
+    xAxisLabel = "Day";
   } else if (comparisonType === "Current Month vs Last Month") {
-    // Query with PST timezone (double AT TIME ZONE for timestamp without timezone)
+    const currentMonthKey = `${nowPST.getFullYear()}-${nowPST.getMonth() + 1}`;
+    const lastMonthPST = new Date(nowPST);
+    lastMonthPST.setMonth(lastMonthPST.getMonth() - 1);
+    const lastMonthKey = `${lastMonthPST.getFullYear()}-${lastMonthPST.getMonth() + 1}`;
+
+    const daysInCurrentMonth = new Date(
+      nowPST.getFullYear(),
+      nowPST.getMonth() + 1,
+      0
+    ).getDate();
+
     const query = await db
       .select({
         dayOfMonth: sql<number>`EXTRACT(DAY FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles'))::int`,
@@ -640,7 +629,7 @@ export async function getDashboardPerformance(
         count: sql<number>`COUNT(*)::int`,
       })
       .from(creativeRequests)
-      .where(metricWhereClause ? and(metricWhereClause) : sql`1=1`)
+      .where(fullWhere)
       .groupBy(
         sql`EXTRACT(YEAR FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles'))`,
         sql`EXTRACT(MONTH FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles'))`,
@@ -652,36 +641,25 @@ export async function getDashboardPerformance(
         sql`EXTRACT(DAY FROM (${dateField} AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles'))`
       );
 
-    const currentYear = nowPST.getFullYear();
-    const currentMonth = nowPST.getMonth() + 1; // 1-12
-    const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-    const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-
-    const monthlyData: Record<
-      number,
-      Record<number, Record<number, number>>
-    > = {};
+    const monthlyData: Record<string, Record<number, number>> = {};
 
     query.forEach((row) => {
-      if (!monthlyData[row.year]) monthlyData[row.year] = {};
-      if (!monthlyData[row.year][row.month])
-        monthlyData[row.year][row.month] = {};
-      monthlyData[row.year][row.month][row.dayOfMonth] = row.count;
+      const monthKey = `${row.year}-${row.month}`;
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = {};
+      }
+      monthlyData[monthKey][row.dayOfMonth] = row.count;
     });
 
-    const daysInCurrentMonth = new Date(currentYear, currentMonth, 0).getDate();
-    const daysInLastMonth = new Date(lastMonthYear, lastMonth, 0).getDate();
-    const maxDays = Math.max(daysInCurrentMonth, daysInLastMonth);
-
-    for (let day = 1; day <= maxDays; day++) {
+    for (let day = 1; day <= daysInCurrentMonth; day++) {
       data.push({
-        label: `Day ${day}`,
-        current: monthlyData[currentYear]?.[currentMonth]?.[day] || 0,
-        previous: monthlyData[lastMonthYear]?.[lastMonth]?.[day] || 0,
+        label: day.toString().padStart(2, "0"),
+        current: monthlyData[currentMonthKey]?.[day] || 0,
+        previous: monthlyData[lastMonthKey]?.[day] || 0,
       });
     }
 
-    xAxisLabel = "Day of Month";
+    xAxisLabel = "Date";
   }
 
   return {

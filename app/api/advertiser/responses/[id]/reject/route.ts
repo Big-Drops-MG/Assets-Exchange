@@ -1,11 +1,9 @@
-import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
+import { resolveAdvertiserId } from "@/features/advertiser/services/resolveAdvertiser";
 import { rejectResponse } from "@/features/advertiser/services/response.service";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { advertisers } from "@/lib/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +19,9 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const advertiser = await db.query.advertisers.findFirst({
-    where: eq(advertisers.contactEmail, session.user.email),
-  });
+  const advertiserId = await resolveAdvertiserId(session.user.email);
 
-  if (!advertiser) {
+  if (!advertiserId) {
     return NextResponse.json(
       { error: "Advertiser profile not found" },
       { status: 404 }
@@ -43,7 +39,7 @@ export async function POST(
       );
     }
 
-    await rejectResponse(id, advertiser.id, reason);
+    await rejectResponse(id, advertiserId, reason);
     return new NextResponse(null, { status: 204 });
   } catch (error: unknown) {
     const message =

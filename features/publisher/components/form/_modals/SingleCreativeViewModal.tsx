@@ -17,6 +17,7 @@ import {
   ZoomOut,
   RotateCcw,
   ShieldCheck,
+  Info,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useRef } from "react";
@@ -106,14 +107,6 @@ const getFileType = (fileName: string): "image" | "html" | "other" => {
     return "html";
   }
   return "other";
-};
-
-const formatRuleType = (ruleType: string): string => {
-  if (!ruleType.trim()) return "—";
-  return ruleType
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
 };
 
 const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
@@ -937,6 +930,21 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                       </div>
                     )}
 
+                    {showAnalysisSections && (
+                      <div
+                        className="flex gap-2.5 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 sm:px-4 text-xs text-slate-600 leading-relaxed"
+                        role="note"
+                      >
+                        <Info
+                          className="h-4 w-4 shrink-0 text-slate-500 mt-0.5"
+                          aria-hidden
+                        />
+                        <p>
+                          Always double-check AI suggestions errors may occur.
+                        </p>
+                      </div>
+                    )}
+
                     {/* Brand Guidelines Compatibility */}
                     {showAnalysisSections && (
                       <div className="p-4 sm:p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
@@ -977,85 +985,144 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                         </div>
 
                         <div className="space-y-4">
-                          {viewModel.brandGuidelinesResponse == null ? (
-                            <p className="text-sm text-gray-500">
-                              {showAnalysisButtons
-                                ? "Run a check to verify this creative against brand guidelines. Results will appear here."
-                                : "No brand guidelines analysis available yet."}
-                            </p>
-                          ) : typeof viewModel.brandGuidelinesResponse
-                              ?.message === "string" ? (
-                            <div className="flex flex-col gap-2 p-4 bg-green-50 border border-green-200 rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <ShieldCheck className="h-5 w-5 text-green-600 shrink-0" />
-                                <span className="text-sm font-semibold text-green-800">
-                                  All good
-                                </span>
-                              </div>
-                              <p className="text-sm text-green-700 pl-8">
-                                {viewModel.brandGuidelinesResponse?.message ??
-                                  ""}
+                          {/* Loading state */}
+                          {viewModel.isCheckingBrandGuidelines && (
+                            <div className="flex flex-col items-center gap-3 py-4">
+                              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                              <p className="text-sm font-medium text-gray-700 text-center">
+                                {viewModel.brandGuidelinesStatusMessage ||
+                                  "Analyzing..."}
+                              </p>
+                              <p className="text-xs text-gray-500 text-center">
+                                This may take a moment. Please do not close this
+                                window.
                               </p>
                             </div>
-                          ) : (
-                            <div className="space-y-3">
-                              <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                <span className="w-2 h-2 bg-amber-500 rounded-full" />
-                                Guidelines issues
-                                {Array.isArray(
-                                  viewModel.brandGuidelinesResponse?.message
-                                ) &&
-                                  ` (${viewModel.brandGuidelinesResponse?.message.length ?? 0})`}
-                              </h4>
-                              <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-                                {Array.isArray(
-                                  viewModel.brandGuidelinesResponse?.message
-                                ) &&
-                                  viewModel.brandGuidelinesResponse?.message.map(
-                                    (item, i) => (
-                                      <div
-                                        key={i}
-                                        className="flex flex-col gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs"
-                                      >
-                                        <div className="flex flex-wrap items-center gap-2">
-                                          <span className="px-1.5 py-0.5 bg-amber-200 text-amber-800 rounded font-semibold text-[10px] uppercase whitespace-nowrap">
-                                            Rule type
-                                          </span>
-                                          <span className="font-medium text-gray-800">
-                                            {formatRuleType(
-                                              item.rule_type ?? ""
+                          )}
+
+                          {/* Results */}
+                          {!viewModel.isCheckingBrandGuidelines && (
+                            <>
+                              {viewModel.brandGuidelinesResponse == null ? (
+                                <p className="text-sm text-gray-500">
+                                  {showAnalysisButtons
+                                    ? "Run a check to verify this creative against brand guidelines. Results will appear here."
+                                    : "No brand guidelines analysis available yet."}
+                                </p>
+                              ) : typeof viewModel.brandGuidelinesResponse
+                                  ?.message === "string" ? (
+                                <div className="flex flex-col gap-2 p-4 bg-green-50 border border-green-200 rounded-lg">
+                                  <div className="flex items-center gap-3">
+                                    <ShieldCheck className="h-5 w-5 text-green-600 shrink-0" />
+                                    <span className="text-sm font-semibold text-green-800">
+                                      All guidelines followed
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-green-700 pl-8">
+                                    {viewModel.brandGuidelinesResponse
+                                      ?.message ?? ""}
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 bg-red-500 rounded-full" />
+                                    <h4 className="text-sm font-semibold text-gray-700">
+                                      Guideline violations
+                                    </h4>
+                                    {Array.isArray(
+                                      viewModel.brandGuidelinesResponse?.message
+                                    ) && (
+                                      <span className="ml-1 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
+                                        {viewModel.brandGuidelinesResponse
+                                          ?.message.length ?? 0}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                                    {Array.isArray(
+                                      viewModel.brandGuidelinesResponse?.message
+                                    ) &&
+                                      viewModel.brandGuidelinesResponse?.message.map(
+                                        (item, i) => (
+                                          <div
+                                            key={i}
+                                            className="flex flex-col gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-xs"
+                                          >
+                                            <div>
+                                              <span className="block text-[10px] font-semibold uppercase tracking-wide text-red-400 mb-1">
+                                                Guideline
+                                              </span>
+                                              <p className="text-gray-800 font-medium leading-snug">
+                                                {item.rule_type ?? "—"}
+                                              </p>
+                                            </div>
+
+                                            {item.evidence_text && (
+                                              <div>
+                                                <span className="block text-[10px] font-semibold uppercase tracking-wide text-red-400 mb-1">
+                                                  Issue
+                                                </span>
+                                                <p className="text-gray-700 leading-snug">
+                                                  {item.evidence_text}
+                                                </p>
+                                              </div>
                                             )}
-                                          </span>
-                                        </div>
-                                        <div>
-                                          <span className="text-gray-500 block mb-0.5">
-                                            Evidence text
-                                          </span>
-                                          <p className="text-gray-800 leading-snug">
-                                            {item.evidence_text ?? "—"}
-                                          </p>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-gray-500">
-                                            Confidence
-                                          </span>
-                                          <span className="font-medium text-amber-800">
-                                            {item.confidence != null
-                                              ? `${(item.confidence * 100).toFixed(2)}%`
-                                              : "—"}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    )
-                                  )}
-                              </div>
-                            </div>
+
+                                            {(item.old_violating_line ||
+                                              item.new_recommended_line) && (
+                                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                {item.old_violating_line && (
+                                                  <div className="p-2.5 bg-red-100 border border-red-200 rounded-md">
+                                                    <span className="block text-[10px] font-semibold uppercase tracking-wide text-red-500 mb-1">
+                                                      Violating text
+                                                    </span>
+                                                    <p className="text-red-800 leading-snug italic">
+                                                      &ldquo;
+                                                      {item.old_violating_line}
+                                                      &rdquo;
+                                                    </p>
+                                                  </div>
+                                                )}
+                                                {item.new_recommended_line && (
+                                                  <div className="p-2.5 bg-green-50 border border-green-200 rounded-md">
+                                                    <span className="block text-[10px] font-semibold uppercase tracking-wide text-green-600 mb-1">
+                                                      Suggested replacement
+                                                    </span>
+                                                    <p className="text-green-800 leading-snug italic">
+                                                      &ldquo;
+                                                      {
+                                                        item.new_recommended_line
+                                                      }
+                                                      &rdquo;
+                                                    </p>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+
+                                            {item.recommended_changes && (
+                                              <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-md">
+                                                <span className="block text-[10px] font-semibold uppercase tracking-wide text-amber-600 mb-1">
+                                                  Recommended action
+                                                </span>
+                                                <p className="text-amber-900 leading-snug">
+                                                  {item.recommended_changes}
+                                                </p>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )
+                                      )}
+                                  </div>
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
                     )}
 
-                    {/* Proofreading */}
                     {showAnalysisSections && (
                       <div className="p-4 sm:p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-gray-200 mb-4 gap-3">

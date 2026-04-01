@@ -3,7 +3,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { getDashboardPerformance } from "@/features/advertiser/services/dashboard.service";
+import { resolveAdvertiserId } from "@/features/advertiser/services/resolveAdvertiser";
 import { auth } from "@/lib/auth";
+
 export const dynamic = "force-dynamic";
 
 const querySchema = z.object({
@@ -34,6 +36,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const advertiserId = await resolveAdvertiserId(session.user.email);
+
+    if (!advertiserId) {
+      console.error(
+        `[Performance] No advertiser found for email: ${session.user.email}`
+      );
+      return NextResponse.json(
+        { error: "Advertiser record not found" },
+        { status: 404 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const comparisonType =
       searchParams.get("comparisonType") || "Today vs Yesterday";
@@ -41,7 +55,7 @@ export async function GET(request: Request) {
 
     const parsedParams = querySchema.parse({ comparisonType, metric });
 
-    const data = await getDashboardPerformance(parsedParams, session.user.id);
+    const data = await getDashboardPerformance(parsedParams, advertiserId);
 
     return NextResponse.json({
       success: true,

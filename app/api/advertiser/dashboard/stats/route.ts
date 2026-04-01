@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { getDashboardStats } from "@/features/advertiser/services/dashboard.service";
+import { resolveAdvertiserId } from "@/features/advertiser/services/resolveAdvertiser";
 import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,19 @@ export async function GET() {
   }
 
   try {
-    const stats = await getDashboardStats(session.user.id);
+    const advertiserId = await resolveAdvertiserId(session.user.email);
+
+    if (!advertiserId) {
+      console.error(
+        `[Stats] No advertiser found for email: ${session.user.email}`
+      );
+      return NextResponse.json(
+        { error: "Advertiser record not found" },
+        { status: 404 }
+      );
+    }
+
+    const stats = await getDashboardStats(advertiserId);
     return NextResponse.json(stats);
   } catch (error: unknown) {
     const message =
