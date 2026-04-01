@@ -1608,6 +1608,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
             }}
             showAdditionalNotes={true}
             creativeType={formData.creativeType}
+            offerId={formData.offerId}
           />
         )}
 
@@ -1648,6 +1649,7 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
               })
             }
             creativeType={formData.creativeType}
+            offerId={formData.offerId}
           />
         )}
       </div>

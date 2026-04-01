@@ -59,6 +59,7 @@ interface UseSingleCreativeViewModalProps {
   creativeType?: string;
   siblingCreatives?: Creative[];
   viewOnly?: boolean;
+  offerId?: string;
 }
 
 export const useSingleCreativeViewModal = ({
@@ -71,6 +72,7 @@ export const useSingleCreativeViewModal = ({
   creativeType: _creativeType = "email",
   siblingCreatives = [],
   viewOnly = false,
+  offerId,
 }: UseSingleCreativeViewModalProps) => {
   const [editableFileName, setEditableFileName] = useState(creative.name);
   const [editableNameOnly, setEditableNameOnly] = useState(() => {
@@ -957,6 +959,7 @@ export const useSingleCreativeViewModal = ({
 
       const formData = new FormData();
       formData.append("creative", fileToSend);
+      if (offerId) formData.append("offerId", offerId);
 
       const res = await fetch("/api/publisher/analyze-creative", {
         method: "POST",
@@ -1103,13 +1106,12 @@ export const useSingleCreativeViewModal = ({
 
       let fileToSend: File | null = null;
 
-      if (isHtml && htmlContent) {
-        fileToSend = new File([htmlContent], creative.name || "creative.html", {
-          type: "text/html",
-        });
-      } else {
+      const hostedUrl = creative.url?.startsWith("https://")
+        ? creative.url
+        : null;
+      if (hostedUrl) {
         try {
-          const fileResponse = await fetch(creative.url);
+          const fileResponse = await fetch(hostedUrl);
           if (fileResponse.ok) {
             const blob = await fileResponse.blob();
             fileToSend = new File([blob], creative.name, {
@@ -1117,8 +1119,16 @@ export const useSingleCreativeViewModal = ({
             });
           }
         } catch {
-          console.error("Could not fetch creative file for analysis");
+          console.error(
+            "Could not fetch creative file for brand guidelines analysis"
+          );
         }
+      }
+
+      if (!fileToSend && isHtml && htmlContent) {
+        fileToSend = new File([htmlContent], creative.name || "creative.html", {
+          type: "text/html",
+        });
       }
 
       if (!fileToSend) {
@@ -1128,8 +1138,7 @@ export const useSingleCreativeViewModal = ({
 
       const formData = new FormData();
       formData.append("creative", fileToSend);
-      if (fromLines) formData.append("fromLines", fromLines);
-      if (subjectLines) formData.append("subjectLines", subjectLines);
+      if (offerId) formData.append("offerId", offerId);
 
       const res = await fetch("/api/publisher/analyze-brand-guidelines", {
         method: "POST",
@@ -1189,7 +1198,7 @@ export const useSingleCreativeViewModal = ({
     } finally {
       setIsCheckingBrandGuidelines(false);
     }
-  }, [creative, htmlContent, fromLines, subjectLines]);
+  }, [creative, htmlContent, offerId]);
 
   const handleRegenerateAnalysis = async () => {
     try {

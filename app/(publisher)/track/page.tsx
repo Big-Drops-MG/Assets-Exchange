@@ -1298,6 +1298,7 @@ function TrackPageContent() {
           creativeType={data?.creativeType ?? "email"}
           siblingCreatives={[]}
           viewOnly={!isRevisionMode}
+          offerId={data?.offerId}
           onSaveAndSubmit={isRevisionMode ? handleRevisionSubmit : undefined}
         />
       )}
@@ -1320,6 +1321,7 @@ function TrackPageContent() {
           onMetadataChange={handleMetadataChange}
           creativeType={data?.creativeType ?? "email"}
           viewOnly={!isRevisionMode}
+          offerId={data?.offerId}
           onSaveAndSubmit={isRevisionMode ? handleRevisionSubmit : undefined}
         />
       )}

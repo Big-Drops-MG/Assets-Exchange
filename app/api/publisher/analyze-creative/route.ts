@@ -1,6 +1,10 @@
+import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+
+import { db } from "@/lib/db";
+import { offers } from "@/lib/schema";
 
 export async function POST(req: NextRequest) {
   const openai = new OpenAI({
@@ -9,6 +13,7 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const creativeFile = formData.get("creative") as File | null;
+    const offerId = formData.get("offerId") as string | null;
 
     if (!creativeFile) {
       return NextResponse.json(
@@ -17,39 +22,88 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let creativeText = `Creative file: ${creativeFile.name}`;
-    if (
+    let offerName: string | null = null;
+    if (offerId) {
+      try {
+        const [offer] = await db
+          .select({ offerName: offers.offerName })
+          .from(offers)
+          .where(eq(offers.id, offerId))
+          .limit(1);
+        offerName = offer?.offerName ?? null;
+      } catch {
+        console.warn("Could not look up offer name for offerId:", offerId);
+      }
+    }
+
+    const isHtml =
       creativeFile.type === "text/html" ||
-      creativeFile.name.toLowerCase().endsWith(".html")
-    ) {
+      creativeFile.name.toLowerCase().endsWith(".html");
+
+    const offerContext = offerName ? `The offer name is: "${offerName}".` : "";
+
+    const baseInstruction = `You are an expert email marketing copywriter.
+Generate 20 distinct "From" sender names and 20 compelling "Subject" lines that match the creative and offer.
+${offerContext}
+
+Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
+{
+  "fromLines": ["sender name 1", "sender name 2", ... up to 20],
+  "subjectLines": ["subject 1", "subject 2", ... up to 20]
+}`;
+
+    let aiResponse;
+
+    if (isHtml) {
       const rawHtml = await creativeFile.text();
-      creativeText = rawHtml
+      const creativeText = rawHtml
         .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
         .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
         .replace(/<[^>]+>/g, " ")
         .replace(/\s+/g, " ")
         .trim()
         .substring(0, 5000);
+
+      aiResponse = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "user",
+            content: `${baseInstruction}\n\nCreative text content:\n${creativeText}`,
+          },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+      });
+    } else {
+      const arrayBuffer = await creativeFile.arrayBuffer();
+      const base64Image = Buffer.from(arrayBuffer).toString("base64");
+      const mimeType = creativeFile.type || "image/jpeg";
+
+      aiResponse = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:${mimeType};base64,${base64Image}`,
+                  detail: "high",
+                },
+              },
+              {
+                type: "text",
+                text: baseInstruction,
+              },
+            ],
+          },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+      });
     }
-
-    const aiPrompt = `You are an expert email marketing copywriter. 
-Read the following text extracted from an email creative and generate 20 distinct "From" sender names and 20 compelling "Subject" lines that perfectly match the offer and tone.
-
-Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
-{
-  "fromLines": ["sender name 1", "sender name 2", ... up to 20],
-  "subjectLines": ["subject 1", "subject 2", ... up to 20]
-}
-
-Creative content:
-${creativeText}`;
-
-    const aiResponse = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: aiPrompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.7,
-    });
 
     const aiResultRaw = aiResponse.choices[0].message.content ?? "{}";
 
@@ -97,6 +151,7 @@ ${creativeText}`;
         console.error("Python analysis error (non-fatal):", pythonError);
       }
     }
+
     return NextResponse.json({
       success: true,
       data: {

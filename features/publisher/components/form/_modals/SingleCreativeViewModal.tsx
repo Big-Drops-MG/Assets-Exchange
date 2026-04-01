@@ -33,6 +33,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  useSingleCreativeViewModal,
+  type Creative,
+} from "@/features/publisher/view-models/singleCreativeViewModal.viewModel";
+import { useSession } from "@/lib/better-auth-client";
 const formatFileSizeLocal = (bytes: number): string => {
   if (bytes === 0) return "0 B";
   const k = 1024;
@@ -40,10 +45,6 @@ const formatFileSizeLocal = (bytes: number): string => {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 };
-import {
-  useSingleCreativeViewModal,
-  type Creative,
-} from "@/features/publisher/view-models/singleCreativeViewModal.viewModel";
 
 interface SingleCreativeViewModalProps {
   isOpen: boolean;
@@ -85,6 +86,7 @@ interface SingleCreativeViewModalProps {
   creativeType?: string;
   siblingCreatives?: Creative[];
   viewOnly?: boolean;
+  offerId?: string;
   onSaveAndSubmit?: (metadata: {
     fromLines: string;
     subjectLines: string;
@@ -124,11 +126,17 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
   creativeType = "email",
   siblingCreatives = [],
   viewOnly = false,
+  offerId,
   onSaveAndSubmit,
   annotateForSendBackRequestId,
   annotateReturnPath,
 }) => {
   const router = useRouter();
+  const { data: session } = useSession();
+  const userRole = (session?.user as { role?: string } | undefined)?.role;
+  const isAdmin = userRole === "admin";
+  const isAdvertiser = userRole === "advertiser";
+
   const viewModel = useSingleCreativeViewModal({
     isOpen,
     creative,
@@ -139,6 +147,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
     creativeType,
     siblingCreatives,
     viewOnly,
+    offerId,
   });
 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -924,393 +933,403 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                       </div>
                     )}
 
-                    {/* Brand Guidelines Compatibility */}
-                    <div className="p-4 sm:p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-gray-200 mb-4 gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-indigo-100 rounded-lg">
-                            <ShieldCheck className="h-5 w-5 text-indigo-600" />
+                    {/* Brand Guidelines Compatibility — admin (full) / advertiser (view-only) */}
+                    {(isAdmin || isAdvertiser) && (
+                      <div className="p-4 sm:p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-gray-200 mb-4 gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-indigo-100 rounded-lg">
+                              <ShieldCheck className="h-5 w-5 text-indigo-600" />
+                            </div>
+                            <h3 className="text-sm sm:text-lg font-semibold text-gray-800">
+                              Brand Guidelines Compatibility
+                            </h3>
                           </div>
-                          <h3 className="text-sm sm:text-lg font-semibold text-gray-800">
-                            Brand Guidelines Compatibility
-                          </h3>
+
+                          {isAdmin && !viewOnly && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={viewModel.handleAnalyzeBrandGuidelines}
+                              disabled={viewModel.isCheckingBrandGuidelines}
+                              className="flex items-center gap-2 w-full sm:w-auto h-9 disabled:opacity-50 bg-indigo-50 border-indigo-300 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 hover:border-indigo-400 font-medium shadow-sm"
+                            >
+                              {viewModel.isCheckingBrandGuidelines ? (
+                                <>
+                                  <div className="w-4 h-4 border-2 border-indigo-700 border-t-transparent rounded-full animate-spin" />
+                                  <span>Analyzing...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="h-4 w-4" />
+                                  <span className="hidden sm:inline">
+                                    Analyze Brand Guidelines
+                                  </span>
+                                  <span className="sm:hidden">Analyze</span>
+                                </>
+                              )}
+                            </Button>
+                          )}
                         </div>
 
-                        {!viewOnly && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={viewModel.handleAnalyzeBrandGuidelines}
-                            disabled={viewModel.isCheckingBrandGuidelines}
-                            className="flex items-center gap-2 w-full sm:w-auto h-9 disabled:opacity-50 bg-indigo-50 border-indigo-300 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 hover:border-indigo-400 font-medium shadow-sm"
-                          >
-                            {viewModel.isCheckingBrandGuidelines ? (
-                              <>
-                                <div className="w-4 h-4 border-2 border-indigo-700 border-t-transparent rounded-full animate-spin" />
-                                <span>Analyzing...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles className="h-4 w-4" />
-                                <span className="hidden sm:inline">
-                                  Analyze Brand Guidelines
-                                </span>
-                                <span className="sm:hidden">Analyze</span>
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </div>
-
-                      <div className="space-y-4">
-                        {viewModel.brandGuidelinesResponse == null ? (
-                          <p className="text-sm text-gray-500">
-                            Run a check to verify this creative against brand
-                            guidelines. Results will appear here.
-                          </p>
-                        ) : typeof viewModel.brandGuidelinesResponse
-                            ?.message === "string" ? (
-                          <div className="flex flex-col gap-2 p-4 bg-green-50 border border-green-200 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <ShieldCheck className="h-5 w-5 text-green-600 shrink-0" />
-                              <span className="text-sm font-semibold text-green-800">
-                                All good
-                              </span>
-                            </div>
-                            <p className="text-sm text-green-700 pl-8">
-                              {viewModel.brandGuidelinesResponse?.message ?? ""}
+                        <div className="space-y-4">
+                          {viewModel.brandGuidelinesResponse == null ? (
+                            <p className="text-sm text-gray-500">
+                              {isAdmin
+                                ? "Run a check to verify this creative against brand guidelines. Results will appear here."
+                                : "No brand guidelines analysis available yet."}
                             </p>
+                          ) : typeof viewModel.brandGuidelinesResponse
+                              ?.message === "string" ? (
+                            <div className="flex flex-col gap-2 p-4 bg-green-50 border border-green-200 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <ShieldCheck className="h-5 w-5 text-green-600 shrink-0" />
+                                <span className="text-sm font-semibold text-green-800">
+                                  All good
+                                </span>
+                              </div>
+                              <p className="text-sm text-green-700 pl-8">
+                                {viewModel.brandGuidelinesResponse?.message ??
+                                  ""}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                <span className="w-2 h-2 bg-amber-500 rounded-full" />
+                                Guidelines issues
+                                {Array.isArray(
+                                  viewModel.brandGuidelinesResponse?.message
+                                ) &&
+                                  ` (${viewModel.brandGuidelinesResponse?.message.length ?? 0})`}
+                              </h4>
+                              <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                                {Array.isArray(
+                                  viewModel.brandGuidelinesResponse?.message
+                                ) &&
+                                  viewModel.brandGuidelinesResponse?.message.map(
+                                    (item, i) => (
+                                      <div
+                                        key={i}
+                                        className="flex flex-col gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs"
+                                      >
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <span className="px-1.5 py-0.5 bg-amber-200 text-amber-800 rounded font-semibold text-[10px] uppercase whitespace-nowrap">
+                                            Rule type
+                                          </span>
+                                          <span className="font-medium text-gray-800">
+                                            {formatRuleType(
+                                              item.rule_type ?? ""
+                                            )}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-500 block mb-0.5">
+                                            Evidence text
+                                          </span>
+                                          <p className="text-gray-800 leading-snug">
+                                            {item.evidence_text ?? "—"}
+                                          </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-gray-500">
+                                            Confidence
+                                          </span>
+                                          <span className="font-medium text-amber-800">
+                                            {item.confidence != null
+                                              ? `${(item.confidence * 100).toFixed(2)}%`
+                                              : "—"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )
+                                  )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Proofreading — admin (full) / advertiser (view-only) */}
+                    {(isAdmin || isAdvertiser) && (
+                      <div className="p-4 sm:p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-gray-200 mb-4 gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-amber-100 rounded-lg">
+                              <FileText className="h-5 w-5 text-amber-600" />
+                            </div>
+                            <h3 className="text-sm sm:text-lg font-semibold text-gray-800">
+                              Proofreading & Optimization
+                            </h3>
                           </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                              <span className="w-2 h-2 bg-amber-500 rounded-full" />
-                              Guidelines issues
-                              {Array.isArray(
-                                viewModel.brandGuidelinesResponse?.message
-                              ) &&
-                                ` (${viewModel.brandGuidelinesResponse?.message.length ?? 0})`}
-                            </h4>
-                            <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-                              {Array.isArray(
-                                viewModel.brandGuidelinesResponse?.message
-                              ) &&
-                                viewModel.brandGuidelinesResponse?.message.map(
-                                  (item, i) => (
-                                    <div
-                                      key={i}
-                                      className="flex flex-col gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs"
-                                    >
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <span className="px-1.5 py-0.5 bg-amber-200 text-amber-800 rounded font-semibold text-[10px] uppercase whitespace-nowrap">
-                                          Rule type
-                                        </span>
-                                        <span className="font-medium text-gray-800">
-                                          {formatRuleType(item.rule_type ?? "")}
-                                        </span>
-                                      </div>
-                                      <div>
-                                        <span className="text-gray-500 block mb-0.5">
-                                          Evidence text
-                                        </span>
-                                        <p className="text-gray-800 leading-snug">
-                                          {item.evidence_text ?? "—"}
-                                        </p>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-gray-500">
-                                          Confidence
-                                        </span>
-                                        <span className="font-medium text-amber-800">
-                                          {item.confidence != null
-                                            ? `${(item.confidence * 100).toFixed(2)}%`
-                                            : "—"}
-                                        </span>
-                                      </div>
+
+                          {isAdmin && !viewOnly && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={viewModel.handleRegenerateAnalysis}
+                              disabled={viewModel.isAnalyzing}
+                              className="flex items-center gap-2 w-full sm:w-auto h-9 disabled:opacity-50 bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100 hover:text-amber-800 hover:border-amber-400 font-medium shadow-sm"
+                            >
+                              {viewModel.isAnalyzing ? (
+                                <>
+                                  <div className="w-4 h-4 border-2 border-amber-700 border-t-transparent rounded-full animate-spin" />
+                                  <span>Analyzing...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="h-4 w-4" />
+                                  <span className="hidden sm:inline">
+                                    Analyze Creative
+                                  </span>
+                                  <span className="sm:hidden">Analyze</span>
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+
+                        <div className="space-y-4">
+                          {viewModel.isAnalyzing && (
+                            <div className="flex flex-col items-center gap-3 py-4">
+                              <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                              <p className="text-sm font-medium text-gray-700 text-center">
+                                {viewModel.proofreadStatusMessage ||
+                                  "Analyzing..."}
+                              </p>
+                              <p className="text-xs text-gray-500 text-center">
+                                This may take a minute. Please do not close this
+                                window.
+                              </p>
+                            </div>
+                          )}
+
+                          {!viewModel.isAnalyzing && (
+                            <div className="space-y-6">
+                              {viewModel.proofreadingData ? (
+                                <section className="space-y-3">
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className="flex h-6 w-1 rounded-full bg-red-500"
+                                      aria-hidden
+                                    />
+                                    <h4 className="text-sm font-semibold text-gray-800 tracking-tight">
+                                      Issues to fix
+                                    </h4>
+                                    {(viewModel.proofreadingData.issues
+                                      ?.length ?? 0) > 0 && (
+                                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                                        {
+                                          viewModel.proofreadingData.issues
+                                            ?.length
+                                        }
+                                      </span>
+                                    )}
+                                  </div>
+                                  {viewModel.proofreadingData.issues &&
+                                  viewModel.proofreadingData.issues.length >
+                                    0 ? (
+                                    <ul className="space-y-2" role="list">
+                                      {viewModel.proofreadingData.issues.map(
+                                        (issue: unknown, index: number) => {
+                                          const issueData = issue as {
+                                            type?: string;
+                                            note?: string;
+                                            original?: string;
+                                            correction?: string;
+                                          };
+                                          return (
+                                            <li
+                                              key={index}
+                                              className="flex rounded-lg border border-gray-200 bg-gray-50/80 pl-3 pr-4 py-3 border-l-4 border-l-red-500"
+                                            >
+                                              <div className="flex-1 min-w-0">
+                                                <span className="inline-block text-[10px] font-semibold uppercase tracking-wider text-red-600 mb-1">
+                                                  {issueData.type || "Issue"}
+                                                </span>
+                                                <p className="text-sm text-gray-800 leading-snug">
+                                                  {issueData.note ??
+                                                    issueData.type ??
+                                                    "Issue"}
+                                                </p>
+                                                {(issueData.original ??
+                                                  issueData.correction) && (
+                                                  <p className="mt-2 text-sm">
+                                                    {issueData.original && (
+                                                      <span className="text-gray-500 line-through mr-2">
+                                                        {issueData.original}
+                                                      </span>
+                                                    )}
+                                                    {issueData.correction && (
+                                                      <span className="text-emerald-600 font-medium">
+                                                        {issueData.correction}
+                                                      </span>
+                                                    )}
+                                                  </p>
+                                                )}
+                                              </div>
+                                            </li>
+                                          );
+                                        }
+                                      )}
+                                    </ul>
+                                  ) : (
+                                    <div className="rounded-lg border border-gray-200 bg-emerald-50/80 pl-3 pr-4 py-3 border-l-4 border-l-emerald-500">
+                                      <p className="text-sm font-medium text-emerald-800">
+                                        No issues found. Your creative looks
+                                        good.
+                                      </p>
                                     </div>
-                                  )
-                                )}
+                                  )}
+                                </section>
+                              ) : (
+                                <p className="text-sm text-gray-500">
+                                  {isAdmin && !viewOnly
+                                    ? 'Click the "Analyze Creative" button to start proofreading.'
+                                    : "No proofreading analysis available yet."}
+                                </p>
+                              )}
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                          )}
 
-                    {/* Proofreading */}
-                    <div className="p-4 sm:p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-gray-200 mb-4 gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-amber-100 rounded-lg">
-                            <FileText className="h-5 w-5 text-amber-600" />
-                          </div>
-                          <h3 className="text-sm sm:text-lg font-semibold text-gray-800">
-                            Proofreading & Optimization
-                          </h3>
-                        </div>
-
-                        {!viewOnly && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={viewModel.handleRegenerateAnalysis}
-                            disabled={viewModel.isAnalyzing}
-                            className="flex items-center gap-2 w-full sm:w-auto h-9 disabled:opacity-50 bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100 hover:text-amber-800 hover:border-amber-400 font-medium shadow-sm"
-                          >
-                            {viewModel.isAnalyzing ? (
-                              <>
-                                <div className="w-4 h-4 border-2 border-amber-700 border-t-transparent rounded-full animate-spin" />
-                                <span>Analyzing...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles className="h-4 w-4" />
-                                <span className="hidden sm:inline">
-                                  Analyze Creative
-                                </span>
-                                <span className="sm:hidden">Analyze</span>
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </div>
-
-                      <div className="space-y-4">
-                        {viewModel.isAnalyzing && (
-                          <div className="flex flex-col items-center gap-3 py-4">
-                            <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                            <p className="text-sm font-medium text-gray-700 text-center">
-                              {viewModel.proofreadStatusMessage ||
-                                "Analyzing..."}
-                            </p>
-                            <p className="text-xs text-gray-500 text-center">
-                              This may take a minute. Please do not close this
-                              window.
-                            </p>
-                          </div>
-                        )}
-
-                        {!viewModel.isAnalyzing && (
-                          <div className="space-y-6">
-                            {viewModel.proofreadingData ? (
+                          {/* Suggestions */}
+                          {viewModel.proofreadingData &&
+                            !viewModel.isAnalyzing && (
                               <section className="space-y-3">
                                 <div className="flex items-center gap-2">
                                   <span
-                                    className="flex h-6 w-1 rounded-full bg-red-500"
+                                    className="flex h-6 w-1 rounded-full bg-blue-500"
                                     aria-hidden
                                   />
                                   <h4 className="text-sm font-semibold text-gray-800 tracking-tight">
-                                    Issues to fix
+                                    Suggestions
                                   </h4>
-                                  {(viewModel.proofreadingData.issues?.length ??
-                                    0) > 0 && (
-                                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                                      {
-                                        viewModel.proofreadingData.issues
-                                          ?.length
-                                      }
-                                    </span>
-                                  )}
+                                  {viewModel.proofreadingData.suggestions &&
+                                    viewModel.proofreadingData.suggestions
+                                      .length > 0 && (
+                                      <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                                        {
+                                          viewModel.proofreadingData.suggestions
+                                            .length
+                                        }
+                                      </span>
+                                    )}
                                 </div>
-                                {viewModel.proofreadingData.issues &&
-                                viewModel.proofreadingData.issues.length > 0 ? (
+                                {viewModel.proofreadingData.suggestions &&
+                                viewModel.proofreadingData.suggestions.length >
+                                  0 ? (
                                   <ul className="space-y-2" role="list">
-                                    {viewModel.proofreadingData.issues.map(
-                                      (issue: unknown, index: number) => {
-                                        const issueData = issue as {
+                                    {viewModel.proofreadingData.suggestions.map(
+                                      (suggestion: unknown, index: number) => {
+                                        const suggestionData = suggestion as {
                                           type?: string;
-                                          note?: string;
-                                          original?: string;
-                                          correction?: string;
+                                          description?: string;
                                         };
                                         return (
                                           <li
                                             key={index}
-                                            className="flex rounded-lg border border-gray-200 bg-gray-50/80 pl-3 pr-4 py-3 border-l-4 border-l-red-500"
+                                            className="rounded-lg border border-gray-200 bg-gray-50/80 pl-3 pr-4 py-3 border-l-4 border-l-blue-500"
                                           >
-                                            <div className="flex-1 min-w-0">
-                                              <span className="inline-block text-[10px] font-semibold uppercase tracking-wider text-red-600 mb-1">
-                                                {issueData.type || "Issue"}
-                                              </span>
-                                              <p className="text-sm text-gray-800 leading-snug">
-                                                {issueData.note ??
-                                                  issueData.type ??
-                                                  "Issue"}
-                                              </p>
-                                              {(issueData.original ??
-                                                issueData.correction) && (
-                                                <p className="mt-2 text-sm">
-                                                  {issueData.original && (
-                                                    <span className="text-gray-500 line-through mr-2">
-                                                      {issueData.original}
-                                                    </span>
-                                                  )}
-                                                  {issueData.correction && (
-                                                    <span className="text-emerald-600 font-medium">
-                                                      {issueData.correction}
-                                                    </span>
-                                                  )}
-                                                </p>
-                                              )}
-                                            </div>
+                                            <span className="inline-block text-[10px] font-semibold uppercase tracking-wider text-blue-600 mb-1.5">
+                                              {suggestionData.type ??
+                                                "Suggestion"}
+                                            </span>
+                                            <p className="text-sm text-gray-800 leading-snug">
+                                              {suggestionData.description ?? ""}
+                                            </p>
                                           </li>
                                         );
                                       }
                                     )}
                                   </ul>
                                 ) : (
-                                  <div className="rounded-lg border border-gray-200 bg-emerald-50/80 pl-3 pr-4 py-3 border-l-4 border-l-emerald-500">
-                                    <p className="text-sm font-medium text-emerald-800">
-                                      No issues found. Your creative looks good.
+                                  <div className="rounded-lg border border-gray-200 bg-gray-50/80 pl-3 pr-4 py-3 border-l-4 border-l-blue-500">
+                                    <p className="text-sm font-medium text-gray-700">
+                                      No suggestions. Your creative is in good
+                                      shape.
                                     </p>
                                   </div>
                                 )}
                               </section>
-                            ) : (
-                              <p className="text-sm text-gray-500">
-                                {viewOnly
-                                  ? "No proofreading analysis available."
-                                  : 'Click the "Analyze Creative" button to start proofreading.'}
-                              </p>
                             )}
-                          </div>
-                        )}
 
-                        {/* Suggestions */}
-                        {viewModel.proofreadingData &&
-                          !viewModel.isAnalyzing && (
-                            <section className="space-y-3">
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className="flex h-6 w-1 rounded-full bg-blue-500"
-                                  aria-hidden
-                                />
-                                <h4 className="text-sm font-semibold text-gray-800 tracking-tight">
-                                  Suggestions
-                                </h4>
-                                {viewModel.proofreadingData.suggestions &&
-                                  viewModel.proofreadingData.suggestions
-                                    .length > 0 && (
-                                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                          {/* Quality Score */}
+                          {viewModel.proofreadingData &&
+                            !viewModel.isAnalyzing && (
+                              <section className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className="flex h-6 w-1 rounded-full bg-violet-500"
+                                    aria-hidden
+                                  />
+                                  <h4 className="text-sm font-semibold text-gray-800 tracking-tight">
+                                    Quality score
+                                  </h4>
+                                </div>
+                                <div className="rounded-lg border border-gray-200 bg-gray-50/80 p-4">
+                                  <div className="grid grid-cols-2 gap-4 sm:gap-6">
+                                    {[
                                       {
-                                        viewModel.proofreadingData.suggestions
-                                          .length
-                                      }
-                                    </span>
-                                  )}
-                              </div>
-                              {viewModel.proofreadingData.suggestions &&
-                              viewModel.proofreadingData.suggestions.length >
-                                0 ? (
-                                <ul className="space-y-2" role="list">
-                                  {viewModel.proofreadingData.suggestions.map(
-                                    (suggestion: unknown, index: number) => {
-                                      const suggestionData = suggestion as {
-                                        type?: string;
-                                        description?: string;
-                                      };
-                                      return (
-                                        <li
-                                          key={index}
-                                          className="rounded-lg border border-gray-200 bg-gray-50/80 pl-3 pr-4 py-3 border-l-4 border-l-blue-500"
-                                        >
-                                          <span className="inline-block text-[10px] font-semibold uppercase tracking-wider text-blue-600 mb-1.5">
-                                            {suggestionData.type ??
-                                              "Suggestion"}
-                                          </span>
-                                          <p className="text-sm text-gray-800 leading-snug">
-                                            {suggestionData.description ?? ""}
-                                          </p>
-                                        </li>
-                                      );
-                                    }
-                                  )}
-                                </ul>
-                              ) : (
-                                <div className="rounded-lg border border-gray-200 bg-gray-50/80 pl-3 pr-4 py-3 border-l-4 border-l-blue-500">
-                                  <p className="text-sm font-medium text-gray-700">
-                                    No suggestions. Your creative is in good
-                                    shape.
-                                  </p>
-                                </div>
-                              )}
-                            </section>
-                          )}
-
-                        {/* Quality Score */}
-                        {viewModel.proofreadingData &&
-                          !viewModel.isAnalyzing && (
-                            <section className="space-y-3">
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className="flex h-6 w-1 rounded-full bg-violet-500"
-                                  aria-hidden
-                                />
-                                <h4 className="text-sm font-semibold text-gray-800 tracking-tight">
-                                  Quality score
-                                </h4>
-                              </div>
-                              <div className="rounded-lg border border-gray-200 bg-gray-50/80 p-4">
-                                <div className="grid grid-cols-2 gap-4 sm:gap-6">
-                                  {[
-                                    {
-                                      label: "Grammar",
-                                      value:
-                                        viewModel.proofreadingData.qualityScore
-                                          ?.grammar ?? 0,
-                                    },
-                                    {
-                                      label: "Readability",
-                                      value:
-                                        viewModel.proofreadingData.qualityScore
-                                          ?.readability ?? 0,
-                                    },
-                                    {
-                                      label: "Conversion",
-                                      value:
-                                        viewModel.proofreadingData.qualityScore
-                                          ?.conversion ?? 0,
-                                    },
-                                    {
-                                      label: "Brand alignment",
-                                      value:
-                                        viewModel.proofreadingData.qualityScore
-                                          ?.brandAlignment ?? 0,
-                                    },
-                                  ].map((item) => (
-                                    <div
-                                      key={item.label}
-                                      className="flex flex-col gap-1"
-                                    >
-                                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        {item.label}
-                                      </p>
-                                      <div className="flex items-baseline gap-1.5">
-                                        <span className="text-xl font-semibold tabular-nums text-gray-900">
-                                          {item.value}
-                                        </span>
-                                        <span className="text-sm text-gray-400">
-                                          / 100
-                                        </span>
-                                      </div>
+                                        label: "Grammar",
+                                        value:
+                                          viewModel.proofreadingData
+                                            .qualityScore?.grammar ?? 0,
+                                      },
+                                      {
+                                        label: "Readability",
+                                        value:
+                                          viewModel.proofreadingData
+                                            .qualityScore?.readability ?? 0,
+                                      },
+                                      {
+                                        label: "Conversion",
+                                        value:
+                                          viewModel.proofreadingData
+                                            .qualityScore?.conversion ?? 0,
+                                      },
+                                      {
+                                        label: "Brand alignment",
+                                        value:
+                                          viewModel.proofreadingData
+                                            .qualityScore?.brandAlignment ?? 0,
+                                      },
+                                    ].map((item) => (
                                       <div
-                                        className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200"
-                                        role="presentation"
+                                        key={item.label}
+                                        className="flex flex-col gap-1"
                                       >
+                                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                          {item.label}
+                                        </p>
+                                        <div className="flex items-baseline gap-1.5">
+                                          <span className="text-xl font-semibold tabular-nums text-gray-900">
+                                            {item.value}
+                                          </span>
+                                          <span className="text-sm text-gray-400">
+                                            / 100
+                                          </span>
+                                        </div>
                                         <div
-                                          className="h-full rounded-full bg-violet-500 transition-all"
-                                          style={{
-                                            width: `${Math.min(100, item.value)}%`,
-                                          }}
-                                        />
+                                          className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200"
+                                          role="presentation"
+                                        >
+                                          <div
+                                            className="h-full rounded-full bg-violet-500 transition-all"
+                                            style={{
+                                              width: `${Math.min(100, item.value)}%`,
+                                            }}
+                                          />
+                                        </div>
                                       </div>
-                                    </div>
-                                  ))}
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            </section>
-                          )}
+                              </section>
+                            )}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Additional Notes */}
                     {showAdditionalNotes && (
@@ -1331,7 +1350,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             <Label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 block">
                               Notes & Comments
                             </Label>
-                            {viewOnly ? (
+                            {viewOnly || isAdvertiser ? (
                               <div className="w-full p-3 text-xs sm:text-sm bg-gray-50 rounded-md border border-gray-200 text-gray-700 whitespace-pre-wrap min-h-[100px]">
                                 {viewModel.additionalNotes ||
                                   "No additional notes provided"}

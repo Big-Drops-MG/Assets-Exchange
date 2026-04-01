@@ -70,6 +70,7 @@ interface MultipleCreativesModalProps {
   /** Called when admin clicks "Send Back" in the multi-creative send-back flow. */
   onSendBack?: () => void;
   isSendingBack?: boolean;
+  offerId?: string;
 }
 
 const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
@@ -88,6 +89,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
   annotateReturnPath,
   onSendBack,
   isSendingBack = false,
+  offerId,
 }) => {
   const router = useRouter();
   const [loadingCreativeId, setLoadingCreativeId] = useState<string | null>(
@@ -599,6 +601,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
               metadata: c.metadata,
             }))}
             viewOnly={viewOnly}
+            offerId={offerId}
             onSaveAndSubmit={onSaveAndSubmit}
             annotateForSendBackRequestId={annotateForSendBackRequestId}
             annotateReturnPath={annotateReturnPath}
