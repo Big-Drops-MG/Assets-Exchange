@@ -71,6 +71,7 @@ interface MultipleCreativesModalProps {
   onSendBack?: () => void;
   isSendingBack?: boolean;
   offerId?: string;
+  enableAnalysis?: boolean;
 }
 
 const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
@@ -90,6 +91,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
   onSendBack,
   isSendingBack = false,
   offerId,
+  enableAnalysis = false,
 }) => {
   const router = useRouter();
   const [loadingCreativeId, setLoadingCreativeId] = useState<string | null>(
@@ -602,6 +604,7 @@ const MultipleCreativesModal: React.FC<MultipleCreativesModalProps> = ({
             }))}
             viewOnly={viewOnly}
             offerId={offerId}
+            enableAnalysis={enableAnalysis}
             onSaveAndSubmit={onSaveAndSubmit}
             annotateForSendBackRequestId={annotateForSendBackRequestId}
             annotateReturnPath={annotateReturnPath}

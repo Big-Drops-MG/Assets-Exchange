@@ -94,6 +94,7 @@ interface SingleCreativeViewModalProps {
   }) => Promise<void>;
   annotateForSendBackRequestId?: string;
   annotateReturnPath?: string;
+  enableAnalysis?: boolean;
 }
 
 const getFileType = (fileName: string): "image" | "html" | "other" => {
@@ -130,12 +131,15 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
   onSaveAndSubmit,
   annotateForSendBackRequestId,
   annotateReturnPath,
+  enableAnalysis = false,
 }) => {
   const router = useRouter();
   const { data: session } = useSession();
   const userRole = (session?.user as { role?: string } | undefined)?.role;
   const isAdmin = userRole === "admin";
   const isAdvertiser = userRole === "advertiser";
+  const showAnalysisSections = isAdmin || isAdvertiser || enableAnalysis;
+  const showAnalysisButtons = (isAdmin || enableAnalysis) && !viewOnly;
 
   const viewModel = useSingleCreativeViewModal({
     isOpen,
@@ -933,8 +937,8 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                       </div>
                     )}
 
-                    {/* Brand Guidelines Compatibility — admin (full) / advertiser (view-only) */}
-                    {(isAdmin || isAdvertiser) && (
+                    {/* Brand Guidelines Compatibility */}
+                    {showAnalysisSections && (
                       <div className="p-4 sm:p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-gray-200 mb-4 gap-3">
                           <div className="flex items-center gap-3">
@@ -946,7 +950,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             </h3>
                           </div>
 
-                          {isAdmin && !viewOnly && (
+                          {showAnalysisButtons && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -975,7 +979,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                         <div className="space-y-4">
                           {viewModel.brandGuidelinesResponse == null ? (
                             <p className="text-sm text-gray-500">
-                              {isAdmin
+                              {showAnalysisButtons
                                 ? "Run a check to verify this creative against brand guidelines. Results will appear here."
                                 : "No brand guidelines analysis available yet."}
                             </p>
@@ -1051,8 +1055,8 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                       </div>
                     )}
 
-                    {/* Proofreading — admin (full) / advertiser (view-only) */}
-                    {(isAdmin || isAdvertiser) && (
+                    {/* Proofreading */}
+                    {showAnalysisSections && (
                       <div className="p-4 sm:p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-gray-200 mb-4 gap-3">
                           <div className="flex items-center gap-3">
@@ -1064,7 +1068,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                             </h3>
                           </div>
 
-                          {isAdmin && !viewOnly && (
+                          {showAnalysisButtons && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -1185,7 +1189,7 @@ const SingleCreativeViewModal: React.FC<SingleCreativeViewModalProps> = ({
                                 </section>
                               ) : (
                                 <p className="text-sm text-gray-500">
-                                  {isAdmin && !viewOnly
+                                  {showAnalysisButtons
                                     ? 'Click the "Analyze Creative" button to start proofreading.'
                                     : "No proofreading analysis available yet."}
                                 </p>
