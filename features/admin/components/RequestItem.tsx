@@ -1351,10 +1351,7 @@ export function RequestItem({
 
                           try {
                             if (isAdvertiserView) {
-                              await rejectResponse(
-                                request.id,
-                                sendBackComments
-                              );
+                              await rejectResponse(request.id, "");
                               onStatusUpdate?.(
                                 request.id,
                                 "rejected",

@@ -30,14 +30,8 @@ export async function POST(
 
   try {
     const { id } = await params;
-    const { reason } = await req.json().catch(() => ({ reason: "" }));
-
-    if (!reason || typeof reason !== "string") {
-      return NextResponse.json(
-        { error: "Reason is required for rejection" },
-        { status: 400 }
-      );
-    }
+    const body = await req.json().catch(() => ({}));
+    const reason = typeof body?.reason === "string" ? body.reason : "";
 
     await rejectResponse(id, advertiserId, reason);
     return new NextResponse(null, { status: 204 });
