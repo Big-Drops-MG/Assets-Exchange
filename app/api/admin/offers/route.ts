@@ -1,4 +1,3 @@
-import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -6,12 +5,11 @@ import {
   listOffers,
   createOffer,
 } from "@/features/admin/services/offer.service";
+import { resolveAdvertiserId } from "@/features/advertiser/services/resolveAdvertiser";
 import { handleApiError } from "@/lib/api-utils";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
 import { getRateLimitKey } from "@/lib/getRateLimitKey";
 import { ratelimit } from "@/lib/ratelimit";
-import { advertisers } from "@/lib/schema";
 import { createOfferSchema } from "@/lib/validations/admin";
 
 async function enforceRateLimit() {
@@ -40,11 +38,11 @@ export async function GET(req: Request) {
   let advertiserId: string | undefined = undefined;
 
   if (session.user.role === "advertiser") {
-    const [advertiser] = await db
-      .select()
-      .from(advertisers)
-      .where(eq(advertisers.contactEmail, session.user.email));
-    advertiserId = advertiser?.id ?? session.user.id;
+    const resolvedId = await resolveAdvertiserId(session.user.email);
+    if (!resolvedId) {
+      return NextResponse.json({ data: [] });
+    }
+    advertiserId = resolvedId;
   }
 
   try {
