@@ -42,7 +42,7 @@ export function AdvertiserDashboard() {
         <Request
           title="Incoming Admin Requests"
           fetcher={fetchAdvertiserRequests}
-          viewAllLink="/advertiser/requests"
+          viewAllLink="/requests"
           isAdvertiserView={true}
         />
       )}
