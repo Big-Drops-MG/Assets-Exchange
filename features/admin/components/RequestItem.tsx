@@ -700,7 +700,7 @@ export function RequestItem({
             className="font-inter text-xs xl:text-sm font-semibold"
             style={{ color: variables.colors.requestCardTextColor }}
           >
-            Client:
+            Publisher ID:
           </span>
           <span
             className="font-inter text-xs xl:text-sm"
