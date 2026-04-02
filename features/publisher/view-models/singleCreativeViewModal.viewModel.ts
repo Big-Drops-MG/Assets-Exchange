@@ -112,7 +112,20 @@ export const useSingleCreativeViewModal = ({
   });
   const [proofreadingData, setProofreadingData] =
     useState<ProofreadCreativeResponse | null>(null);
-  const [htmlContent, setHtmlContent] = useState("");
+  const [htmlContent, setHtmlContentState] = useState("");
+  const creativeRef = useRef(creative);
+  creativeRef.current = creative;
+  const htmlEditedByUserRef = useRef(false);
+  const htmlInitialLoadDoneRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    htmlEditedByUserRef.current = false;
+  }, [creative.id]);
+
+  const setHtmlContent = useCallback((value: React.SetStateAction<string>) => {
+    htmlEditedByUserRef.current = true;
+    setHtmlContentState(value);
+  }, []);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingHtml, setIsSavingHtml] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
@@ -599,7 +612,7 @@ export const useSingleCreativeViewModal = ({
           }
         }
         if (data.metadata.htmlContent) {
-          setHtmlContent(processHtmlContent(data.metadata.htmlContent));
+          setHtmlContentState(processHtmlContent(data.metadata.htmlContent));
         }
         if (data.metadata.additionalNotes) {
           setAdditionalNotes(data.metadata.additionalNotes);
@@ -642,135 +655,6 @@ export const useSingleCreativeViewModal = ({
     }
   }, [isOpen, creative.name]);
 
-  const fetchHtmlContent = useCallback(async () => {
-    try {
-      let htmlText = "";
-
-      if (
-        (creative as { embeddedHtml?: string }).embeddedHtml &&
-        (creative as { embeddedHtml?: string }).embeddedHtml!.length > 0
-      ) {
-        htmlText = (creative as { embeddedHtml?: string }).embeddedHtml!;
-      } else {
-        const isVercelBlobUrl = creative.url.includes(
-          "blob.vercel-storage.com"
-        );
-
-        if (isVercelBlobUrl) {
-          try {
-            const directResponse = await fetch(creative.url, {
-              method: "GET",
-              headers: {
-                Accept:
-                  "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-              },
-              mode: "cors",
-            });
-
-            if (directResponse.ok) {
-              htmlText = await directResponse.text();
-            }
-          } catch (error) {
-            console.error("Error fetching HTML from Vercel Blob:", error);
-          }
-        } else {
-          const encodedFileUrl = encodeURIComponent(creative.url);
-          let apiUrl = `${API_ENDPOINTS.GET_FILE_CONTENT}?fileId=${creative.id}&fileUrl=${encodedFileUrl}&processAssets=true`;
-          if (creative.uploadId) {
-            apiUrl += `&uploadId=${encodeURIComponent(creative.uploadId)}`;
-          }
-
-          try {
-            const apiResponse = await fetch(apiUrl, {
-              method: "GET",
-              headers: {
-                Accept:
-                  "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-              },
-            });
-
-            if (apiResponse.ok) {
-              const responseData = await apiResponse.json();
-              if (responseData.requiresClientFetch && responseData.url) {
-                const directResponse = await fetch(responseData.url, {
-                  method: "GET",
-                  headers: {
-                    Accept:
-                      "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                  },
-                  mode: "cors",
-                });
-                if (directResponse.ok) {
-                  htmlText = await directResponse.text();
-                }
-              } else {
-                htmlText = await apiResponse.text();
-              }
-            } else {
-              const directResponse = await fetch(creative.url, {
-                method: "GET",
-                headers: {
-                  Accept:
-                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                },
-                mode: "cors",
-              });
-
-              if (directResponse.ok) {
-                htmlText = await directResponse.text();
-              }
-            }
-          } catch (error) {
-            console.error("Error fetching HTML via API:", error);
-            try {
-              const directResponse = await fetch(creative.url, {
-                method: "GET",
-                headers: {
-                  Accept:
-                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                },
-                mode: "cors",
-              });
-              if (directResponse.ok) {
-                htmlText = await directResponse.text();
-              }
-            } catch (fallbackError) {
-              console.error("Error fetching HTML directly:", fallbackError);
-            }
-          }
-        }
-      }
-
-      if (htmlText) {
-        const hasProofreading = proofreadingData?.result;
-        if (hasProofreading) {
-          const result = proofreadingData.result as Record<string, unknown>;
-          const correctedHtml =
-            (result.output_content && typeof result.output_content === "string"
-              ? result.output_content
-              : null) ||
-            (result.marked_html && typeof result.marked_html === "string"
-              ? result.marked_html
-              : null) ||
-            (result.corrected_html && typeof result.corrected_html === "string"
-              ? result.corrected_html
-              : null);
-
-          if (correctedHtml && correctedHtml.trim().length > 0) {
-            setHtmlContent(processHtmlContent(correctedHtml));
-          } else {
-            setHtmlContent(processHtmlContent(htmlText));
-          }
-        } else {
-          setHtmlContent(processHtmlContent(htmlText));
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching HTML:", error);
-      await tryAlternativeHtmlLoading();
-    }
-  }, [creative, proofreadingData, processHtmlContent]);
-
   const tryAlternativeHtmlLoading = async () => {
     const fallbackContent = `<!-- HTML Content Loading Failed -->
 <!DOCTYPE html>
@@ -802,19 +686,131 @@ export const useSingleCreativeViewModal = ({
     </div>
 </body>
 </html>`;
-    setHtmlContent(fallbackContent);
+    setHtmlContentState(fallbackContent);
   };
 
-  useEffect(() => {
-    if (
-      isOpen &&
-      creative.type &&
-      (creative.type.includes("html") ||
-        creative.name.toLowerCase().includes(".html"))
-    ) {
-      fetchHtmlContent();
+  const fetchHtmlContent = useCallback(async () => {
+    const c = creativeRef.current;
+    try {
+      let htmlText = "";
+
+      if (
+        (c as { embeddedHtml?: string }).embeddedHtml &&
+        (c as { embeddedHtml?: string }).embeddedHtml!.length > 0
+      ) {
+        htmlText = (c as { embeddedHtml?: string }).embeddedHtml!;
+      } else {
+        const isVercelBlobUrl = c.url.includes("blob.vercel-storage.com");
+
+        if (isVercelBlobUrl) {
+          try {
+            const directResponse = await fetch(c.url, {
+              method: "GET",
+              headers: {
+                Accept:
+                  "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+              },
+              mode: "cors",
+            });
+
+            if (directResponse.ok) {
+              htmlText = await directResponse.text();
+            }
+          } catch (error) {
+            console.error("Error fetching HTML from Vercel Blob:", error);
+          }
+        } else {
+          const encodedFileUrl = encodeURIComponent(c.url);
+          let apiUrl = `${API_ENDPOINTS.GET_FILE_CONTENT}?fileId=${c.id}&fileUrl=${encodedFileUrl}&processAssets=true`;
+          if (c.uploadId) {
+            apiUrl += `&uploadId=${encodeURIComponent(c.uploadId)}`;
+          }
+
+          try {
+            const apiResponse = await fetch(apiUrl, {
+              method: "GET",
+              headers: {
+                Accept:
+                  "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+              },
+            });
+
+            if (apiResponse.ok) {
+              const responseData = await apiResponse.json();
+              if (responseData.requiresClientFetch && responseData.url) {
+                const directResponse = await fetch(responseData.url, {
+                  method: "GET",
+                  headers: {
+                    Accept:
+                      "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                  },
+                  mode: "cors",
+                });
+                if (directResponse.ok) {
+                  htmlText = await directResponse.text();
+                }
+              } else {
+                htmlText = await apiResponse.text();
+              }
+            } else {
+              const directResponse = await fetch(c.url, {
+                method: "GET",
+                headers: {
+                  Accept:
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                },
+                mode: "cors",
+              });
+
+              if (directResponse.ok) {
+                htmlText = await directResponse.text();
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching HTML via API:", error);
+            try {
+              const directResponse = await fetch(c.url, {
+                method: "GET",
+                headers: {
+                  Accept:
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                },
+                mode: "cors",
+              });
+              if (directResponse.ok) {
+                htmlText = await directResponse.text();
+              }
+            } catch (fallbackError) {
+              console.error("Error fetching HTML directly:", fallbackError);
+            }
+          }
+        }
+      }
+
+      if (htmlText) {
+        setHtmlContentState(processHtmlContent(htmlText));
+      }
+    } catch (error) {
+      console.error("Error fetching HTML:", error);
+      await tryAlternativeHtmlLoading();
     }
-  }, [isOpen, creative.type, creative.name, fetchHtmlContent]);
+  }, [processHtmlContent]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      htmlInitialLoadDoneRef.current = null;
+      return;
+    }
+    const isHtmlCreative =
+      creative.type?.includes("html") ||
+      creative.name.toLowerCase().includes(".html");
+    if (!isHtmlCreative) return;
+
+    if (htmlInitialLoadDoneRef.current === creative.id) return;
+    htmlInitialLoadDoneRef.current = creative.id;
+
+    void fetchHtmlContent();
+  }, [isOpen, creative.id, creative.type, creative.name, fetchHtmlContent]);
 
   useEffect(() => {
     const isHtmlFile =
@@ -823,6 +819,8 @@ export const useSingleCreativeViewModal = ({
       /\.html?$/i.test(creative.name);
 
     if (isHtmlFile && proofreadingData?.result) {
+      if (htmlEditedByUserRef.current) return;
+
       const result = proofreadingData.result as Record<string, unknown>;
 
       let correctedHtml: string | null = null;
@@ -838,7 +836,7 @@ export const useSingleCreativeViewModal = ({
       }
 
       if (correctedHtml && correctedHtml.trim().length > 0) {
-        setHtmlContent(correctedHtml);
+        setHtmlContentState(correctedHtml);
         setPreviewKey((prev) => prev + 1);
       }
     }
@@ -1427,7 +1425,8 @@ export const useSingleCreativeViewModal = ({
           }
 
           if (correctedHtml && correctedHtml.trim().length > 0) {
-            setHtmlContent(correctedHtml);
+            htmlEditedByUserRef.current = false;
+            setHtmlContentState(correctedHtml);
             setPreviewKey((prev) => prev + 1);
           }
         }
@@ -1532,7 +1531,8 @@ export const useSingleCreativeViewModal = ({
                 }
 
                 if (correctedHtml && correctedHtml.trim().length > 0) {
-                  setHtmlContent(correctedHtml);
+                  htmlEditedByUserRef.current = false;
+                  setHtmlContentState(correctedHtml);
                   setPreviewKey((prev) => prev + 1);
                 }
               }
