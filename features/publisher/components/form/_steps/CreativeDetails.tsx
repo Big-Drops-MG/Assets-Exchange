@@ -1508,20 +1508,22 @@ const CreativeDetails: React.FC<CreativeDetailsProps> = ({
           </div>
         </div>
 
-        <div className="space-y-2 mb-0">
-          <Label htmlFor="additionalNotes" className="font-inter text-sm">
-            Additional Notes
-          </Label>
-          <Textarea
-            id="additionalNotes"
-            name="additionalNotes"
-            value={formData.additionalNotes}
-            onChange={handleTextareaChange}
-            placeholder="Enter any additional notes..."
-            rows={4}
-            className="w-full font-inter publisher-form-input"
-          />
-        </div>
+        {uploadedFiles.length > 1 && (
+          <div className="space-y-2 mb-0">
+            <Label htmlFor="additionalNotes" className="font-inter text-sm">
+              Additional Notes
+            </Label>
+            <Textarea
+              id="additionalNotes"
+              name="additionalNotes"
+              value={formData.additionalNotes}
+              onChange={handleTextareaChange}
+              placeholder="Enter any additional notes..."
+              rows={4}
+              className="w-full font-inter publisher-form-input"
+            />
+          </div>
+        )}
 
         <FileUploadModal
           isOpen={isUploadDialogOpen}

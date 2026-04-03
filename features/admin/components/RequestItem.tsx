@@ -313,6 +313,13 @@ export function RequestItem({
   const [approvePopoverOpen, setApprovePopoverOpen] = useState(false);
   const [rejectPopoverOpen, setRejectPopoverOpen] = useState(false);
   const [sendBackPopoverOpen, setSendBackPopoverOpen] = useState(false);
+  const [campaignFromPopoverOpen, setCampaignFromPopoverOpen] = useState(false);
+  const [campaignSubjectPopoverOpen, setCampaignSubjectPopoverOpen] =
+    useState(false);
+  const [
+    campaignAdditionalNotesPopoverOpen,
+    setCampaignAdditionalNotesPopoverOpen,
+  ] = useState(false);
 
   // Comment states
   const [rejectComments, setRejectComments] = useState("");
@@ -600,6 +607,18 @@ export function RequestItem({
     `Subject Lines Count: ${request.subjectLinesCount}`,
   ];
 
+  const campaignFromLineCount = useMemo(() => {
+    const t = request.fromLines?.trim();
+    if (!t) return 0;
+    return t.split("\n").filter((line) => line.trim() !== "").length;
+  }, [request.fromLines]);
+
+  const campaignSubjectLineCount = useMemo(() => {
+    const t = request.subjectLines?.trim();
+    if (!t) return 0;
+    return t.split("\n").filter((line) => line.trim() !== "").length;
+  }, [request.subjectLines]);
+
   return (
     <Accordion.Item
       value={request.id}
@@ -752,12 +771,109 @@ export function RequestItem({
               {meta.map((m, index) => (
                 <span
                   key={index}
-                  className="rounded-[4px] border bg-white px-2 h-7 text-xs xl:text-sm font-normal flex items-center justify-center leading-4 font-inter shadow-[0_0_2px_0_rgba(30,64,175,0.1)] transition-all duration-200 hover:shadow-md hover:scale-105"
+                  className="rounded-[4px] border bg-white px-2 h-7 text-xs xl:text-sm font-normal flex items-center justify-center leading-4 font-inter shadow-[0_0_2px_0_rgba(30,64,175,0.1)] transition-all duration-200 ease-out hover:shadow-[0_1px_5px_rgba(30,64,175,0.14)] hover:border-neutral-300/80"
                   style={{ color: variables.colors.requestCardTextColor }}
                 >
                   {m}
                 </span>
               ))}
+              {request.creativeCount > 1 && (
+                <>
+                  <Popover
+                    open={campaignFromPopoverOpen}
+                    onOpenChange={setCampaignFromPopoverOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="rounded-[4px] border bg-white px-2 h-7 text-xs xl:text-sm font-normal flex items-center justify-center leading-4 font-inter shadow-[0_0_2px_0_rgba(30,64,175,0.1)] transition-all duration-200 ease-out hover:shadow-[0_1px_5px_rgba(30,64,175,0.14)] hover:border-neutral-300/80 cursor-pointer"
+                        style={{ color: variables.colors.requestCardTextColor }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Campaign From Lines
+                        {campaignFromLineCount > 0
+                          ? `: ${campaignFromLineCount}`
+                          : ": 0"}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-80 max-h-[min(320px,70vh)] overflow-y-auto p-4"
+                      align="start"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <p className="font-inter font-medium text-sm mb-2">
+                        Campaign From Lines
+                      </p>
+                      <pre className="whitespace-pre-wrap font-inter text-xs text-muted-foreground">
+                        {request.fromLines?.trim()
+                          ? request.fromLines
+                          : "No campaign-level from lines were submitted."}
+                      </pre>
+                    </PopoverContent>
+                  </Popover>
+                  <Popover
+                    open={campaignSubjectPopoverOpen}
+                    onOpenChange={setCampaignSubjectPopoverOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="rounded-[4px] border bg-white px-2 h-7 text-xs xl:text-sm font-normal flex items-center justify-center leading-4 font-inter shadow-[0_0_2px_0_rgba(30,64,175,0.1)] transition-all duration-200 ease-out hover:shadow-[0_1px_5px_rgba(30,64,175,0.14)] hover:border-neutral-300/80 cursor-pointer"
+                        style={{ color: variables.colors.requestCardTextColor }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Campaign Subject Lines
+                        {campaignSubjectLineCount > 0
+                          ? `: ${campaignSubjectLineCount}`
+                          : ": 0"}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-80 max-h-[min(320px,70vh)] overflow-y-auto p-4"
+                      align="start"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <p className="font-inter font-medium text-sm mb-2">
+                        Campaign Subject Lines
+                      </p>
+                      <pre className="whitespace-pre-wrap font-inter text-xs text-muted-foreground">
+                        {request.subjectLines?.trim()
+                          ? request.subjectLines
+                          : "No campaign-level subject lines were submitted."}
+                      </pre>
+                    </PopoverContent>
+                  </Popover>
+                  <Popover
+                    open={campaignAdditionalNotesPopoverOpen}
+                    onOpenChange={setCampaignAdditionalNotesPopoverOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="rounded-[4px] border bg-white px-2 h-7 text-xs xl:text-sm font-normal flex items-center justify-center leading-4 font-inter shadow-[0_0_2px_0_rgba(30,64,175,0.1)] transition-all duration-200 ease-out hover:shadow-[0_1px_5px_rgba(30,64,175,0.14)] hover:border-neutral-300/80 cursor-pointer"
+                        style={{ color: variables.colors.requestCardTextColor }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Campaign Additional Notes
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-80 max-h-[min(320px,70vh)] overflow-y-auto p-4"
+                      align="start"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <p className="font-inter font-medium text-sm mb-2">
+                        Campaign Additional Notes
+                      </p>
+                      <pre className="whitespace-pre-wrap font-inter text-xs text-muted-foreground">
+                        {request.additionalNotes?.trim()
+                          ? request.additionalNotes
+                          : "No campaign-level additional notes were submitted."}
+                      </pre>
+                    </PopoverContent>
+                  </Popover>
+                </>
+              )}
             </div>
           </div>
 

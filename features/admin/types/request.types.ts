@@ -18,6 +18,12 @@ export interface CreativeRequest {
   creativeCount: number;
   fromLinesCount: number;
   subjectLinesCount: number;
+  /** Campaign-level from lines (publisher form) — use for multi-creative requests */
+  fromLines?: string | null;
+  /** Campaign-level subject lines (publisher form) — use for multi-creative requests */
+  subjectLines?: string | null;
+  /** Campaign-level additional notes (publisher form) — use for multi-creative requests */
+  additionalNotes?: string | null;
   advertiserName: string;
   affiliateId: string;
   clientId: string;
